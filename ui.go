@@ -24,6 +24,12 @@ var (
 	statStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("86"))
 
+	baseStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("42"))
+
+	premiumStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214"))
+
 	helpStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241"))
 
@@ -85,34 +91,47 @@ func (m Model) renderStats() string {
 	// Current session stats
 	b.WriteString(headerStyle.Render("Session Statistics") + "\n\n")
 
-	statsLine1 := fmt.Sprintf(
-		"%s %s  %s %s  %s %s",
+	// Base (Haiku) usage
+	baseLine := fmt.Sprintf(
+		"%s  %s %d  %s %s  %s %s",
+		baseStyle.Bold(true).Render("Base (Haiku):"),
+		baseStyle.Render("Requests:"),
+		m.baseRequests,
+		baseStyle.Render("Tokens:"),
+		formatTokenCount(m.baseTokens),
+		baseStyle.Render("Cost:"),
+		fmt.Sprintf("$%.6f", m.baseCost),
+	)
+	b.WriteString(baseLine + "\n")
+
+	// Premium (Sonnet/Opus) usage
+	premiumLine := fmt.Sprintf(
+		"%s  %s %d  %s %s  %s %s",
+		premiumStyle.Bold(true).Render("Premium (S/O):"),
+		premiumStyle.Render("Requests:"),
+		m.premiumRequests,
+		premiumStyle.Render("Tokens:"),
+		formatTokenCount(m.premiumTokens),
+		premiumStyle.Render("Cost:"),
+		fmt.Sprintf("$%.6f", m.premiumCost),
+	)
+	b.WriteString(premiumLine + "\n")
+
+	// Separator
+	b.WriteString(statStyle.Render("─────────────────────────────────────────────────────────────────────") + "\n")
+
+	// Total usage
+	totalLine := fmt.Sprintf(
+		"%s  %s %d  %s %s  %s %s",
+		statStyle.Render("Total:"),
 		statStyle.Render("Requests:"),
-		fmt.Sprintf("%d", m.totalRequests),
-		statStyle.Render("Total Tokens:"),
+		m.totalRequests,
+		statStyle.Render("Tokens:"),
 		formatTokenCount(m.totalTokens),
-		statStyle.Render("Total Cost:"),
+		statStyle.Render("Cost:"),
 		fmt.Sprintf("$%.6f", m.totalCost),
 	)
-	b.WriteString(statsLine1)
-
-	// Latest request info
-	if len(m.requests) > 0 {
-		latest := m.requests[0]
-		b.WriteString("\n\n")
-		b.WriteString(headerStyle.Render("Latest Request") + "\n\n")
-
-		latestInfo := fmt.Sprintf(
-			"%s %s  %s %s  %s %dms",
-			statStyle.Render("Model:"),
-			latest.Model,
-			statStyle.Render("Tokens:"),
-			formatTokenCount(latest.TotalTokens),
-			statStyle.Render("Duration:"),
-			latest.DurationMS,
-		)
-		b.WriteString(latestInfo)
-	}
+	b.WriteString(totalLine)
 
 	return b.String()
 }

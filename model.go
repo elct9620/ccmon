@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -24,16 +25,22 @@ type APIRequest struct {
 
 // Model represents the state of our TUI application
 type Model struct {
-	requests      []APIRequest
-	table         table.Model
-	width         int
-	height        int
-	ready         bool
-	requestChan   chan APIRequest
-	totalRequests int
-	totalTokens   int64
-	totalCost     float64
-	serverStatus  string
+	requests        []APIRequest
+	table           table.Model
+	width           int
+	height          int
+	ready           bool
+	requestChan     chan APIRequest
+	totalRequests   int
+	totalTokens     int64
+	totalCost       float64
+	baseRequests    int
+	baseTokens      int64
+	baseCost        float64
+	premiumRequests int
+	premiumTokens   int64
+	premiumCost     float64
+	serverStatus    string
 }
 
 // NewModel creates a new Model with initial state
@@ -105,7 +112,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.ready = true
 		// Adjust table height based on window size
-		tableHeight := m.height - 15 // Leave room for header and footer
+		tableHeight := m.height - 15 // Leave room for header, stats, and footer
 		if tableHeight > 0 {
 			m.table.SetHeight(tableHeight)
 		}
@@ -122,6 +129,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.totalRequests++
 		m.totalTokens += msg.TotalTokens
 		m.totalCost += msg.CostUSD
+
+		// Update base or premium statistics
+		if isBaseModel(msg.Model) {
+			m.baseRequests++
+			m.baseTokens += msg.TotalTokens
+			m.baseCost += msg.CostUSD
+		} else {
+			m.premiumRequests++
+			m.premiumTokens += msg.TotalTokens
+			m.premiumCost += msg.CostUSD
+		}
 
 		// Update table rows
 		m.updateTableRows()
@@ -182,6 +200,11 @@ func formatDuration(ms int64) string {
 		return fmt.Sprintf("%dms", ms)
 	}
 	return fmt.Sprintf("%.1fs", float64(ms)/1000)
+}
+
+// isBaseModel checks if the model is a base (Haiku) model
+func isBaseModel(model string) bool {
+	return strings.Contains(strings.ToLower(model), "haiku")
 }
 
 // Message types
