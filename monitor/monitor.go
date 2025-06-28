@@ -1,15 +1,22 @@
-package main
+package monitor
 
 import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/elct9620/ccmon/db"
 )
 
-// runMonitor runs the TUI monitor mode
-func runMonitor() error {
+// Database interface to avoid circular dependency
+type Database interface {
+	GetAPIRequests(filter db.Filter) ([]db.APIRequest, error)
+	Close() error
+}
+
+// RunMonitor runs the TUI monitor mode
+func RunMonitor(newDBReadOnly func() (Database, error)) error {
 	// Initialize database in read-only mode
-	db, err := NewDatabaseReadOnly()
+	db, err := newDBReadOnly()
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}

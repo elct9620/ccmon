@@ -1,4 +1,4 @@
-package main
+package receiver
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/elct9620/ccmon/db"
 	logsv1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	metricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	tracesv1 "go.opentelemetry.io/proto/otlp/collector/trace/v1"
@@ -19,17 +20,24 @@ import (
 // Receiver manages the OTLP gRPC server
 type Receiver struct {
 	server      *grpc.Server
-	requestChan chan APIRequest
+	requestChan chan db.APIRequest
 	program     *tea.Program
-	db          *Database
+	db          Database
+}
+
+// Database interface to avoid circular dependency
+type Database interface {
+	SaveAPIRequest(req db.APIRequest) error
+	GetAllRequests() ([]db.APIRequest, error)
+	Close() error
 }
 
 // NewReceiver creates a new OTLP receiver
-func NewReceiver(requestChan chan APIRequest, program *tea.Program, db *Database) *Receiver {
+func NewReceiver(requestChan chan db.APIRequest, program *tea.Program, database Database) *Receiver {
 	return &Receiver{
 		requestChan: requestChan,
 		program:     program,
-		db:          db,
+		db:          database,
 	}
 }
 
@@ -99,7 +107,7 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 					if apiReq != nil {
 						// Save to database
 						if r.receiver.db != nil {
-							if err := r.receiver.db.SaveRequest(apiReq); err != nil {
+							if err := r.receiver.db.SaveAPIRequest(*apiReq); err != nil {
 								log.Printf("Failed to save request to database: %v", err)
 							} else {
 								// Log the request in server mode
@@ -131,7 +139,7 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 }
 
 // parseAPIRequest extracts API request data from a log record
-func (r *logsReceiver) parseAPIRequest(logRecord *logsdata.LogRecord) *APIRequest {
+func (r *logsReceiver) parseAPIRequest(logRecord *logsdata.LogRecord) *db.APIRequest {
 	var sessionID, timestampStr, model string
 	var inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens int64
 	var costUSD float64
@@ -186,7 +194,7 @@ func (r *logsReceiver) parseAPIRequest(logRecord *logsdata.LogRecord) *APIReques
 
 	totalTokens := inputTokens + outputTokens + cacheReadTokens + cacheCreationTokens
 
-	return &APIRequest{
+	return &db.APIRequest{
 		SessionID:           sessionID,
 		Timestamp:           timestamp,
 		Model:               model,

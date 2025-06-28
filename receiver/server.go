@@ -1,4 +1,4 @@
-package main
+package receiver
 
 import (
 	"context"
@@ -8,14 +8,16 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	dbpkg "github.com/elct9620/ccmon/db"
 )
 
-// runServer runs the headless OTLP server mode
-func runServer() error {
+// RunServer runs the headless OTLP server mode
+func RunServer(newDB func() (Database, error)) error {
 	log.Println("Starting ccmon in server mode...")
 
 	// Initialize database
-	db, err := NewDatabase()
+	db, err := newDB()
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
@@ -53,7 +55,7 @@ func runServer() error {
 }
 
 // logRequestStats periodically logs request statistics
-func logRequestStats(ctx context.Context, db *Database) {
+func logRequestStats(ctx context.Context, db Database) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
@@ -70,7 +72,7 @@ func logRequestStats(ctx context.Context, db *Database) {
 			}
 
 			// Calculate stats
-			baseReqs, premiumReqs, baseTokens, premiumTokens, _, _, _, _, baseCost, premiumCost := CalculateStats(requests)
+			baseReqs, premiumReqs, baseTokens, premiumTokens, _, _, _, _, baseCost, premiumCost := dbpkg.CalculateStats(requests)
 			totalReqs := baseReqs + premiumReqs
 			totalTokens := baseTokens + premiumTokens
 			totalCost := baseCost + premiumCost

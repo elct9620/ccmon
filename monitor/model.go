@@ -1,42 +1,17 @@
-package main
+package monitor
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
-)
-
-// APIRequest represents a single Claude Code API request
-type APIRequest struct {
-	SessionID           string
-	Timestamp           time.Time
-	Model               string
-	InputTokens         int64
-	OutputTokens        int64
-	CacheReadTokens     int64
-	CacheCreationTokens int64
-	TotalTokens         int64
-	CostUSD             float64
-	DurationMS          int64
-}
-
-// TimeFilter represents available time filter options
-type TimeFilter int
-
-const (
-	FilterAll TimeFilter = iota
-	FilterHour
-	FilterDay
-	FilterWeek
-	FilterMonth
+	"github.com/elct9620/ccmon/db"
 )
 
 // Model represents the state of our TUI monitor application
 type Model struct {
-	requests             []APIRequest
+	requests             []db.APIRequest
 	table                table.Model
 	width                int
 	height               int
@@ -56,12 +31,12 @@ type Model struct {
 	premiumLimitedTokens int64
 	premiumCacheTokens   int64
 	premiumCost          float64
-	db                   *Database
-	timeFilter           TimeFilter
+	db                   Database
+	timeFilter           db.TimeFilter
 }
 
 // NewModel creates a new Model with initial state
-func NewModel(db *Database) Model {
+func NewModel(database Database) Model {
 	columns := []table.Column{
 		{Title: "Time", Width: 20},
 		{Title: "Model", Width: 25},
@@ -85,10 +60,10 @@ func NewModel(db *Database) Model {
 	t.SetStyles(s)
 
 	return Model{
-		requests:   make([]APIRequest, 0),
+		requests:   []db.APIRequest{},
 		table:      t,
-		db:         db,
-		timeFilter: FilterAll,
+		db:         database,
+		timeFilter: db.FilterAll,
 	}
 }
 
@@ -124,19 +99,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.table.Focus()
 			}
 		case "a":
-			m.timeFilter = FilterAll
+			m.timeFilter = db.FilterAll
 			return m, m.refreshStats
 		case "h":
-			m.timeFilter = FilterHour
+			m.timeFilter = db.FilterHour
 			return m, m.refreshStats
 		case "d":
-			m.timeFilter = FilterDay
+			m.timeFilter = db.FilterDay
 			return m, m.refreshStats
 		case "w":
-			m.timeFilter = FilterWeek
+			m.timeFilter = db.FilterWeek
 			return m, m.refreshStats
 		case "m":
-			m.timeFilter = FilterMonth
+			m.timeFilter = db.FilterMonth
 			return m, m.refreshStats
 		}
 
@@ -212,21 +187,16 @@ func formatDuration(ms int64) string {
 	return fmt.Sprintf("%.1fs", float64(ms)/1000)
 }
 
-// isBaseModel checks if the model is a base (Haiku) model
-func isBaseModel(model string) bool {
-	return strings.Contains(strings.ToLower(model), "haiku")
-}
-
 // getTimeFilterString returns a string representation of the current time filter
 func (m Model) getTimeFilterString() string {
 	switch m.timeFilter {
-	case FilterHour:
+	case db.FilterHour:
 		return "Last Hour"
-	case FilterDay:
+	case db.FilterDay:
 		return "Last 24 Hours"
-	case FilterWeek:
+	case db.FilterWeek:
 		return "Last 7 Days"
-	case FilterMonth:
+	case db.FilterMonth:
 		return "Last 30 Days"
 	default:
 		return "All Time"
@@ -237,13 +207,13 @@ func (m Model) getTimeFilterString() string {
 func (m Model) getTimeRange() (start, end time.Time) {
 	end = time.Now()
 	switch m.timeFilter {
-	case FilterHour:
+	case db.FilterHour:
 		start = end.Add(-1 * time.Hour)
-	case FilterDay:
+	case db.FilterDay:
 		start = end.Add(-24 * time.Hour)
-	case FilterWeek:
+	case db.FilterWeek:
 		start = end.Add(-7 * 24 * time.Hour)
-	case FilterMonth:
+	case db.FilterMonth:
 		start = end.Add(-30 * 24 * time.Hour)
 	default:
 		start = time.Time{} // Zero time for all records
@@ -275,18 +245,15 @@ func (m *Model) recalculateStats() {
 	m.premiumCacheTokens = 0
 	m.premiumCost = 0
 
-	// Get time range
-	start, end := m.getTimeRange()
+	// Get time range (not used for GetAPIRequests which handles filtering internally)
+	// start, end := m.getTimeRange()
 
 	// Query database
-	var requests []APIRequest
+	var requests []db.APIRequest
 	var err error
 
-	if m.timeFilter == FilterAll {
-		requests, err = m.db.GetAllRequests()
-	} else {
-		requests, err = m.db.QueryTimeRange(start, end)
-	}
+	filter := db.Filter{TimeFilter: m.timeFilter}
+	requests, err = m.db.GetAPIRequests(filter)
 
 	if err != nil {
 		// Handle error silently for now
@@ -301,7 +268,7 @@ func (m *Model) recalculateStats() {
 	}
 
 	// Calculate stats
-	baseReqs, premiumReqs, baseTokens, premiumTokens, baseLimited, premiumLimited, baseCache, premiumCache, baseCost, premiumCost := CalculateStats(requests)
+	baseReqs, premiumReqs, baseTokens, premiumTokens, baseLimited, premiumLimited, baseCache, premiumCache, baseCost, premiumCost := db.CalculateStats(requests)
 
 	m.baseRequests = baseReqs
 	m.premiumRequests = premiumReqs

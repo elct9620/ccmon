@@ -1,9 +1,10 @@
-package main
+package db
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"go.etcd.io/bbolt"
@@ -71,6 +72,11 @@ func NewDatabaseWithOptions(readOnly bool) (*Database, error) {
 // Close closes the database
 func (d *Database) Close() error {
 	return d.db.Close()
+}
+
+// SaveAPIRequest saves an API request to the database (implements receiver.Database interface)
+func (d *Database) SaveAPIRequest(req APIRequest) error {
+	return d.SaveRequest(&req)
 }
 
 // SaveRequest saves an API request to the database
@@ -184,4 +190,27 @@ func CalculateStats(requests []APIRequest) (baseReqs, premiumReqs int, baseToken
 		}
 	}
 	return
+}
+
+// GetAPIRequests returns requests based on filter (implements monitor.Database interface)
+func (d *Database) GetAPIRequests(filter Filter) ([]APIRequest, error) {
+	switch filter.TimeFilter {
+	case FilterHour:
+		return d.QueryTimeRange(time.Now().Add(-1*time.Hour), time.Now())
+	case FilterDay:
+		return d.QueryTimeRange(time.Now().Add(-24*time.Hour), time.Now())
+	case FilterWeek:
+		return d.QueryTimeRange(time.Now().Add(-7*24*time.Hour), time.Now())
+	case FilterMonth:
+		return d.QueryTimeRange(time.Now().Add(-30*24*time.Hour), time.Now())
+	default:
+		return d.GetAllRequests()
+	}
+}
+
+// isBaseModel checks if a model is a base model (haiku)
+func isBaseModel(model string) bool {
+	// Check if the model name contains "haiku" (case-insensitive)
+	lowerModel := strings.ToLower(model)
+	return strings.Contains(lowerModel, "haiku")
 }

@@ -4,6 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/elct9620/ccmon/db"
+	"github.com/elct9620/ccmon/monitor"
+	"github.com/elct9620/ccmon/receiver"
 )
 
 func main() {
@@ -14,12 +18,18 @@ func main() {
 	flag.Parse()
 
 	if serverMode {
-		if err := runServer(); err != nil {
+		if err := receiver.RunServer(func() (receiver.Database, error) {
+			db, err := db.NewDatabase()
+			return db, err
+		}); err != nil {
 			fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 			os.Exit(1)
 		}
 	} else {
-		if err := runMonitor(); err != nil {
+		if err := monitor.RunMonitor(func() (monitor.Database, error) {
+			db, err := db.NewDatabaseReadOnly()
+			return db, err
+		}); err != nil {
 			fmt.Fprintf(os.Stderr, "Monitor error: %v\n", err)
 			os.Exit(1)
 		}
