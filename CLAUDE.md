@@ -68,3 +68,7 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 - Statistics are tracked separately for base/premium tiers and combined totals
 - The gRPC server runs on port 4317 (standard OTLP port)
 - Table height is dynamically adjusted based on terminal size
+
+## Development Conventions
+
+- Always write devlog in `docs/devlog/` use Markdown format, group by day. e.g. 20250628.md

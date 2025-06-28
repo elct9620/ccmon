@@ -12,17 +12,25 @@ import (
 )
 
 func main() {
+	// Initialize database
+	db, err := NewDatabase()
+	if err != nil {
+		fmt.Println("Failed to initialize database:", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
 	// Create a channel for API requests
 	requestChan := make(chan APIRequest, 100)
 
 	// Create the Bubble Tea model
-	model := NewModel(requestChan)
+	model := NewModel(requestChan, db)
 
 	// Create the Bubble Tea program
 	p := tea.NewProgram(model, tea.WithAltScreen())
 
 	// Create and start the OTLP receiver
-	receiver := NewReceiver(requestChan, p)
+	receiver := NewReceiver(requestChan, p, db)
 
 	// Create a context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())

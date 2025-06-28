@@ -23,6 +23,17 @@ type APIRequest struct {
 	DurationMS          int64
 }
 
+// TimeFilter represents available time filter options
+type TimeFilter int
+
+const (
+	FilterAll TimeFilter = iota
+	FilterHour
+	FilterDay
+	FilterWeek
+	FilterMonth
+)
+
 // Model represents the state of our TUI application
 type Model struct {
 	requests             []APIRequest
@@ -47,10 +58,12 @@ type Model struct {
 	premiumCacheTokens   int64
 	premiumCost          float64
 	serverStatus         string
+	db                   *Database
+	timeFilter           TimeFilter
 }
 
 // NewModel creates a new Model with initial state
-func NewModel(requestChan chan APIRequest) Model {
+func NewModel(requestChan chan APIRequest, db *Database) Model {
 	columns := []table.Column{
 		{Title: "Time", Width: 20},
 		{Title: "Model", Width: 25},
@@ -78,6 +91,8 @@ func NewModel(requestChan chan APIRequest) Model {
 		table:        t,
 		requestChan:  requestChan,
 		serverStatus: "Starting...",
+		db:           db,
+		timeFilter:   FilterAll,
 	}
 }
 
@@ -86,6 +101,7 @@ func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		waitForRequest(m.requestChan),
 		tea.EnterAltScreen,
+		m.refreshStats, // Load initial data from database
 	)
 }
 
@@ -111,6 +127,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.table.Focus()
 			}
+		case "a":
+			m.timeFilter = FilterAll
+			return m, m.refreshStats
+		case "h":
+			m.timeFilter = FilterHour
+			return m, m.refreshStats
+		case "d":
+			m.timeFilter = FilterDay
+			return m, m.refreshStats
+		case "w":
+			m.timeFilter = FilterWeek
+			return m, m.refreshStats
+		case "m":
+			m.timeFilter = FilterMonth
+			return m, m.refreshStats
 		}
 
 	case tea.WindowSizeMsg:
@@ -165,6 +196,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case serverStartedMsg:
 		m.serverStatus = "Running on port 4317"
+
+	case refreshStatsMsg:
+		// Recalculate stats from database
+		if m.db != nil {
+			m.recalculateStats()
+		}
 	}
 
 	m.table, cmd = m.table.Update(msg)
@@ -223,5 +260,116 @@ func isBaseModel(model string) bool {
 	return strings.Contains(strings.ToLower(model), "haiku")
 }
 
+// getTimeFilterString returns a string representation of the current time filter
+func (m Model) getTimeFilterString() string {
+	switch m.timeFilter {
+	case FilterHour:
+		return "Last Hour"
+	case FilterDay:
+		return "Last 24 Hours"
+	case FilterWeek:
+		return "Last 7 Days"
+	case FilterMonth:
+		return "Last 30 Days"
+	default:
+		return "All Time"
+	}
+}
+
+// getTimeRange returns the start and end time for the current filter
+func (m Model) getTimeRange() (start, end time.Time) {
+	end = time.Now()
+	switch m.timeFilter {
+	case FilterHour:
+		start = end.Add(-1 * time.Hour)
+	case FilterDay:
+		start = end.Add(-24 * time.Hour)
+	case FilterWeek:
+		start = end.Add(-7 * 24 * time.Hour)
+	case FilterMonth:
+		start = end.Add(-30 * 24 * time.Hour)
+	default:
+		start = time.Time{} // Zero time for all records
+	}
+	return
+}
+
+// refreshStats returns a command to refresh statistics
+func (m Model) refreshStats() tea.Msg {
+	return refreshStatsMsg{}
+}
+
+// recalculateStats recalculates statistics from the database
+func (m *Model) recalculateStats() {
+	// Reset all stats
+	m.totalRequests = 0
+	m.totalTokens = 0
+	m.totalLimitedTokens = 0
+	m.totalCacheTokens = 0
+	m.totalCost = 0
+	m.baseRequests = 0
+	m.baseTokens = 0
+	m.baseLimitedTokens = 0
+	m.baseCacheTokens = 0
+	m.baseCost = 0
+	m.premiumRequests = 0
+	m.premiumTokens = 0
+	m.premiumLimitedTokens = 0
+	m.premiumCacheTokens = 0
+	m.premiumCost = 0
+
+	// Get time range
+	start, end := m.getTimeRange()
+
+	// Query database
+	var requests []APIRequest
+	var err error
+
+	if m.timeFilter == FilterAll {
+		requests, err = m.db.GetAllRequests()
+	} else {
+		requests, err = m.db.QueryTimeRange(start, end)
+	}
+
+	if err != nil {
+		// Handle error silently for now
+		return
+	}
+
+	// Update display requests (show latest 100)
+	if len(requests) > 100 {
+		m.requests = requests[len(requests)-100:]
+	} else {
+		m.requests = requests
+	}
+
+	// Calculate stats
+	baseReqs, premiumReqs, baseTokens, premiumTokens, baseLimited, premiumLimited, baseCache, premiumCache, baseCost, premiumCost := CalculateStats(requests)
+
+	m.baseRequests = baseReqs
+	m.premiumRequests = premiumReqs
+	m.totalRequests = baseReqs + premiumReqs
+
+	m.baseTokens = baseTokens
+	m.premiumTokens = premiumTokens
+	m.totalTokens = baseTokens + premiumTokens
+
+	m.baseLimitedTokens = baseLimited
+	m.premiumLimitedTokens = premiumLimited
+	m.totalLimitedTokens = baseLimited + premiumLimited
+
+	m.baseCacheTokens = baseCache
+	m.premiumCacheTokens = premiumCache
+	m.totalCacheTokens = baseCache + premiumCache
+
+	m.baseCost = baseCost
+	m.premiumCost = premiumCost
+	m.totalCost = baseCost + premiumCost
+
+	// Update table
+	m.updateTableRows()
+}
+
 // Message types
 type serverStartedMsg struct{}
+type refreshStatsMsg struct{}

@@ -20,13 +20,15 @@ type Receiver struct {
 	server      *grpc.Server
 	requestChan chan APIRequest
 	program     *tea.Program
+	db          *Database
 }
 
 // NewReceiver creates a new OTLP receiver
-func NewReceiver(requestChan chan APIRequest, program *tea.Program) *Receiver {
+func NewReceiver(requestChan chan APIRequest, program *tea.Program, db *Database) *Receiver {
 	return &Receiver{
 		requestChan: requestChan,
 		program:     program,
+		db:          db,
 	}
 }
 
@@ -98,12 +100,22 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 				// Check if this is an API request log
 				if body, ok := log.Body.Value.(*commonv1.AnyValue_StringValue); ok && body.StringValue == "claude_code.api_request" {
 					apiReq := r.parseAPIRequest(log)
-					if apiReq != nil && r.receiver.requestChan != nil {
+					if apiReq != nil {
+						// Save to database
+						if r.receiver.db != nil {
+							if err := r.receiver.db.SaveRequest(apiReq); err != nil {
+								// Log error but don't fail the request
+								fmt.Printf("Failed to save request to database: %v\n", err)
+							}
+						}
+
 						// Send to channel (non-blocking)
-						select {
-						case r.receiver.requestChan <- *apiReq:
-						default:
-							// Channel is full, drop the request
+						if r.receiver.requestChan != nil {
+							select {
+							case r.receiver.requestChan <- *apiReq:
+							default:
+								// Channel is full, drop the request
+							}
 						}
 					}
 				}

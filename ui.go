@@ -59,7 +59,7 @@ func (m Model) View() string {
 	b.WriteString(title + "\n")
 
 	// Status line
-	status := statusStyle.Render(fmt.Sprintf("Server: %s | Press 'q' to quit", m.serverStatus))
+	status := statusStyle.Render(fmt.Sprintf("Server: %s | Filter: %s | Press 'q' to quit", m.serverStatus, m.getTimeFilterString()))
 	b.WriteString(status + "\n\n")
 
 	// Statistics box
@@ -85,7 +85,7 @@ func (m Model) View() string {
 	}
 
 	// Help text at bottom
-	help := helpStyle.Render("\n  ↑/↓: Navigate • q: Quit")
+	help := helpStyle.Render("\n  ↑/↓: Navigate • Time: h=hour d=day w=week m=month a=all • q: Quit")
 	b.WriteString(help)
 
 	return b.String()
