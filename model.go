@@ -25,22 +25,28 @@ type APIRequest struct {
 
 // Model represents the state of our TUI application
 type Model struct {
-	requests        []APIRequest
-	table           table.Model
-	width           int
-	height          int
-	ready           bool
-	requestChan     chan APIRequest
-	totalRequests   int
-	totalTokens     int64
-	totalCost       float64
-	baseRequests    int
-	baseTokens      int64
-	baseCost        float64
-	premiumRequests int
-	premiumTokens   int64
-	premiumCost     float64
-	serverStatus    string
+	requests             []APIRequest
+	table                table.Model
+	width                int
+	height               int
+	ready                bool
+	requestChan          chan APIRequest
+	totalRequests        int
+	totalTokens          int64
+	totalLimitedTokens   int64
+	totalCacheTokens     int64
+	totalCost            float64
+	baseRequests         int
+	baseTokens           int64
+	baseLimitedTokens    int64
+	baseCacheTokens      int64
+	baseCost             float64
+	premiumRequests      int
+	premiumTokens        int64
+	premiumLimitedTokens int64
+	premiumCacheTokens   int64
+	premiumCost          float64
+	serverStatus         string
 }
 
 // NewModel creates a new Model with initial state
@@ -112,7 +118,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.ready = true
 		// Adjust table height based on window size
-		tableHeight := m.height - 15 // Leave room for header, stats, and footer
+		tableHeight := m.height - 17 // Leave room for header, stats table, and footer
 		if tableHeight > 0 {
 			m.table.SetHeight(tableHeight)
 		}
@@ -125,19 +131,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.requests = m.requests[:100]
 		}
 
+		// Calculate limited tokens (input + output only)
+		limitedTokens := msg.InputTokens + msg.OutputTokens
+		cacheTokens := msg.CacheReadTokens + msg.CacheCreationTokens
+
 		// Update statistics
 		m.totalRequests++
 		m.totalTokens += msg.TotalTokens
+		m.totalLimitedTokens += limitedTokens
+		m.totalCacheTokens += cacheTokens
 		m.totalCost += msg.CostUSD
 
 		// Update base or premium statistics
 		if isBaseModel(msg.Model) {
 			m.baseRequests++
 			m.baseTokens += msg.TotalTokens
+			m.baseLimitedTokens += limitedTokens
+			m.baseCacheTokens += cacheTokens
 			m.baseCost += msg.CostUSD
 		} else {
 			m.premiumRequests++
 			m.premiumTokens += msg.TotalTokens
+			m.premiumLimitedTokens += limitedTokens
+			m.premiumCacheTokens += cacheTokens
 			m.premiumCost += msg.CostUSD
 		}
 

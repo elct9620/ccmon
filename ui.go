@@ -37,6 +37,13 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("240")).
 			Padding(0, 1)
+
+	tableHeaderStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("86"))
+
+	tableCellStyle = lipgloss.NewStyle().
+			PaddingRight(2)
 )
 
 // View renders the entire UI
@@ -88,52 +95,98 @@ func (m Model) View() string {
 func (m Model) renderStats() string {
 	var b strings.Builder
 
-	// Current session stats
-	b.WriteString(headerStyle.Render("Session Statistics") + "\n\n")
+	// Header
+	b.WriteString(headerStyle.Render("Usage Statistics") + "\n\n")
 
-	// Base (Haiku) usage
-	baseLine := fmt.Sprintf(
-		"%s  %s %d  %s %s  %s %s",
-		baseStyle.Bold(true).Render("Base (Haiku):"),
-		baseStyle.Render("Requests:"),
-		m.baseRequests,
-		baseStyle.Render("Tokens:"),
+	// Create table headers
+	headers := []string{"Model Tier", "Requests", "Limited Tokens", "Cache Tokens", "Total Tokens", "Cost ($)"}
+
+	// Calculate column widths
+	colWidths := []int{15, 10, 15, 15, 15, 12}
+
+	// Render header row
+	for i, header := range headers {
+		cell := tableHeaderStyle.Render(padRight(header, colWidths[i]))
+		b.WriteString(cell)
+	}
+	b.WriteString("\n")
+
+	// Separator line
+	for _, width := range colWidths {
+		b.WriteString(strings.Repeat("─", width))
+	}
+	b.WriteString("\n")
+
+	// Base (Haiku) row
+	baseRow := []string{
+		baseStyle.Bold(true).Render("Base (Haiku)"),
+		fmt.Sprintf("%d", m.baseRequests),
+		formatTokenCount(m.baseLimitedTokens),
+		formatTokenCount(m.baseCacheTokens),
 		formatTokenCount(m.baseTokens),
-		baseStyle.Render("Cost:"),
-		fmt.Sprintf("$%.6f", m.baseCost),
-	)
-	b.WriteString(baseLine + "\n")
+		fmt.Sprintf("%.6f", m.baseCost),
+	}
+	for i, cell := range baseRow {
+		if i == 0 {
+			b.WriteString(padRight(cell, colWidths[i]))
+		} else {
+			b.WriteString(baseStyle.Render(padRight(cell, colWidths[i])))
+		}
+	}
+	b.WriteString("\n")
 
-	// Premium (Sonnet/Opus) usage
-	premiumLine := fmt.Sprintf(
-		"%s  %s %d  %s %s  %s %s",
-		premiumStyle.Bold(true).Render("Premium (S/O):"),
-		premiumStyle.Render("Requests:"),
-		m.premiumRequests,
-		premiumStyle.Render("Tokens:"),
+	// Premium (S/O) row
+	premiumRow := []string{
+		premiumStyle.Bold(true).Render("Premium (S/O)"),
+		fmt.Sprintf("%d", m.premiumRequests),
+		formatTokenCount(m.premiumLimitedTokens),
+		formatTokenCount(m.premiumCacheTokens),
 		formatTokenCount(m.premiumTokens),
-		premiumStyle.Render("Cost:"),
-		fmt.Sprintf("$%.6f", m.premiumCost),
-	)
-	b.WriteString(premiumLine + "\n")
+		fmt.Sprintf("%.6f", m.premiumCost),
+	}
+	for i, cell := range premiumRow {
+		if i == 0 {
+			b.WriteString(padRight(cell, colWidths[i]))
+		} else {
+			b.WriteString(premiumStyle.Render(padRight(cell, colWidths[i])))
+		}
+	}
+	b.WriteString("\n")
 
-	// Separator
-	b.WriteString(statStyle.Render("─────────────────────────────────────────────────────────────────────") + "\n")
+	// Separator before total
+	for _, width := range colWidths {
+		b.WriteString(strings.Repeat("─", width))
+	}
+	b.WriteString("\n")
 
-	// Total usage
-	totalLine := fmt.Sprintf(
-		"%s  %s %d  %s %s  %s %s",
-		statStyle.Render("Total:"),
-		statStyle.Render("Requests:"),
-		m.totalRequests,
-		statStyle.Render("Tokens:"),
+	// Total row
+	totalRow := []string{
+		statStyle.Bold(true).Render("Total"),
+		fmt.Sprintf("%d", m.totalRequests),
+		formatTokenCount(m.totalLimitedTokens),
+		formatTokenCount(m.totalCacheTokens),
 		formatTokenCount(m.totalTokens),
-		statStyle.Render("Cost:"),
-		fmt.Sprintf("$%.6f", m.totalCost),
-	)
-	b.WriteString(totalLine)
+		fmt.Sprintf("%.6f", m.totalCost),
+	}
+	for i, cell := range totalRow {
+		if i == 0 {
+			b.WriteString(padRight(cell, colWidths[i]))
+		} else {
+			b.WriteString(statStyle.Render(padRight(cell, colWidths[i])))
+		}
+	}
 
 	return b.String()
+}
+
+// padRight pads a string to the specified width
+func padRight(s string, width int) string {
+	// Account for ANSI escape codes when calculating padding
+	visualLen := lipgloss.Width(s)
+	if visualLen >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-visualLen)
 }
 
 // formatTokenCount formats large token counts with K/M suffixes
