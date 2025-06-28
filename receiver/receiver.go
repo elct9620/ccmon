@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/db"
+	"github.com/elct9620/ccmon/entity"
 	logsv1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	metricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	tracesv1 "go.opentelemetry.io/proto/otlp/collector/trace/v1"
@@ -107,24 +108,25 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 					if apiReq != nil {
 						// Save to database
 						if r.receiver.db != nil {
-							if err := r.receiver.db.SaveAPIRequest(*apiReq); err != nil {
+							dbReq := db.FromEntity(*apiReq)
+							if err := r.receiver.db.SaveAPIRequest(dbReq); err != nil {
 								log.Printf("Failed to save request to database: %v", err)
 							} else {
 								// Log the request in server mode
 								if r.receiver.requestChan == nil && r.receiver.program == nil {
-									limitedTokens := apiReq.InputTokens + apiReq.OutputTokens
 									log.Printf("Request received - Model: %s | Limited tokens: %d | Cache tokens: %d | Cost: $%.6f",
-										apiReq.Model, limitedTokens,
-										apiReq.CacheReadTokens+apiReq.CacheCreationTokens,
-										apiReq.CostUSD)
+										apiReq.Model(), apiReq.Tokens().Limited(),
+										apiReq.Tokens().Cache(),
+										apiReq.Cost().Amount())
 								}
 							}
 						}
 
 						// Send to channel (non-blocking) - only used in old architecture
 						if r.receiver.requestChan != nil {
+							dbReq := db.FromEntity(*apiReq)
 							select {
-							case r.receiver.requestChan <- *apiReq:
+							case r.receiver.requestChan <- dbReq:
 							default:
 								// Channel is full, drop the request
 							}
@@ -139,7 +141,7 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 }
 
 // parseAPIRequest extracts API request data from a log record
-func (r *logsReceiver) parseAPIRequest(logRecord *logsdata.LogRecord) *db.APIRequest {
+func (r *logsReceiver) parseAPIRequest(logRecord *logsdata.LogRecord) *entity.APIRequest {
 	var sessionID, timestampStr, model string
 	var inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens int64
 	var costUSD float64
@@ -192,18 +194,8 @@ func (r *logsReceiver) parseAPIRequest(logRecord *logsdata.LogRecord) *db.APIReq
 		timestamp = time.Now()
 	}
 
-	totalTokens := inputTokens + outputTokens + cacheReadTokens + cacheCreationTokens
-
-	return &db.APIRequest{
-		SessionID:           sessionID,
-		Timestamp:           timestamp,
-		Model:               model,
-		InputTokens:         inputTokens,
-		OutputTokens:        outputTokens,
-		CacheReadTokens:     cacheReadTokens,
-		CacheCreationTokens: cacheCreationTokens,
-		TotalTokens:         totalTokens,
-		CostUSD:             costUSD,
-		DurationMS:          durationMS,
-	}
+	tokens := entity.NewToken(inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens)
+	cost := entity.NewCost(costUSD)
+	req := entity.NewAPIRequest(sessionID, timestamp, model, tokens, cost, durationMS)
+	return &req
 }

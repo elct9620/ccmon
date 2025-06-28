@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
+	"github.com/elct9620/ccmon/entity"
 	"go.etcd.io/bbolt"
 )
 
@@ -171,24 +171,22 @@ func (d *Database) GetAllRequests() ([]APIRequest, error) {
 
 // CalculateStats calculates statistics for a set of requests
 func CalculateStats(requests []APIRequest) (baseReqs, premiumReqs int, baseTokens, premiumTokens, baseLimited, premiumLimited, baseCache, premiumCache int64, baseCost, premiumCost float64) {
-	for _, req := range requests {
-		limitedTokens := req.InputTokens + req.OutputTokens
-		cacheTokens := req.CacheReadTokens + req.CacheCreationTokens
+	// Convert to entities and calculate stats
+	entities := ToEntities(requests)
+	stats := entity.CalculateStats(entities)
 
-		if isBaseModel(req.Model) {
-			baseReqs++
-			baseTokens += req.TotalTokens
-			baseLimited += limitedTokens
-			baseCache += cacheTokens
-			baseCost += req.CostUSD
-		} else {
-			premiumReqs++
-			premiumTokens += req.TotalTokens
-			premiumLimited += limitedTokens
-			premiumCache += cacheTokens
-			premiumCost += req.CostUSD
-		}
-	}
+	// Extract values for backward compatibility
+	baseReqs = stats.BaseRequests
+	premiumReqs = stats.PremiumRequests
+	baseTokens = stats.BaseTokens.Total()
+	premiumTokens = stats.PremiumTokens.Total()
+	baseLimited = stats.BaseTokens.Limited()
+	premiumLimited = stats.PremiumTokens.Limited()
+	baseCache = stats.BaseTokens.Cache()
+	premiumCache = stats.PremiumTokens.Cache()
+	baseCost = stats.BaseCost.Amount()
+	premiumCost = stats.PremiumCost.Amount()
+
 	return
 }
 
@@ -206,11 +204,4 @@ func (d *Database) GetAPIRequests(filter Filter) ([]APIRequest, error) {
 	default:
 		return d.GetAllRequests()
 	}
-}
-
-// isBaseModel checks if a model is a base model (haiku)
-func isBaseModel(model string) bool {
-	// Check if the model name contains "haiku" (case-insensitive)
-	lowerModel := strings.ToLower(model)
-	return strings.Contains(lowerModel, "haiku")
 }

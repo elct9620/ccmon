@@ -7,32 +7,19 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/db"
+	"github.com/elct9620/ccmon/entity"
 )
 
 // Model represents the state of our TUI monitor application
 type Model struct {
-	requests             []db.APIRequest
-	table                table.Model
-	width                int
-	height               int
-	ready                bool
-	totalRequests        int
-	totalTokens          int64
-	totalLimitedTokens   int64
-	totalCacheTokens     int64
-	totalCost            float64
-	baseRequests         int
-	baseTokens           int64
-	baseLimitedTokens    int64
-	baseCacheTokens      int64
-	baseCost             float64
-	premiumRequests      int
-	premiumTokens        int64
-	premiumLimitedTokens int64
-	premiumCacheTokens   int64
-	premiumCost          float64
-	db                   Database
-	timeFilter           db.TimeFilter
+	requests   []entity.APIRequest
+	table      table.Model
+	width      int
+	height     int
+	ready      bool
+	stats      entity.Stats
+	db         Database
+	timeFilter db.TimeFilter
 }
 
 // NewModel creates a new Model with initial state
@@ -60,10 +47,11 @@ func NewModel(database Database) Model {
 	t.SetStyles(s)
 
 	return Model{
-		requests:   []db.APIRequest{},
+		requests:   []entity.APIRequest{},
 		table:      t,
 		db:         database,
 		timeFilter: db.FilterAll,
+		stats:      entity.Stats{},
 	}
 }
 
@@ -145,14 +133,14 @@ func (m *Model) updateTableRows() {
 	rows := make([]table.Row, 0, len(m.requests))
 	for _, req := range m.requests {
 		rows = append(rows, table.Row{
-			req.Timestamp.Format("15:04:05 2006-01-02"),
-			truncateString(req.Model, 25),
-			formatNumber(req.InputTokens),
-			formatNumber(req.OutputTokens),
-			formatNumber(req.CacheReadTokens + req.CacheCreationTokens),
-			formatNumber(req.TotalTokens),
-			formatCost(req.CostUSD),
-			formatDuration(req.DurationMS),
+			req.Timestamp().Format("15:04:05 2006-01-02"),
+			truncateString(req.Model().String(), 25),
+			formatNumber(req.Tokens().Input()),
+			formatNumber(req.Tokens().Output()),
+			formatNumber(req.Tokens().Cache()),
+			formatNumber(req.Tokens().Total()),
+			formatCost(req.Cost().Amount()),
+			formatDuration(req.DurationMS()),
 		})
 	}
 	m.table.SetRows(rows)
@@ -228,67 +216,26 @@ func (m Model) refreshStats() tea.Msg {
 
 // recalculateStats recalculates statistics from the database
 func (m *Model) recalculateStats() {
-	// Reset all stats
-	m.totalRequests = 0
-	m.totalTokens = 0
-	m.totalLimitedTokens = 0
-	m.totalCacheTokens = 0
-	m.totalCost = 0
-	m.baseRequests = 0
-	m.baseTokens = 0
-	m.baseLimitedTokens = 0
-	m.baseCacheTokens = 0
-	m.baseCost = 0
-	m.premiumRequests = 0
-	m.premiumTokens = 0
-	m.premiumLimitedTokens = 0
-	m.premiumCacheTokens = 0
-	m.premiumCost = 0
-
-	// Get time range (not used for GetAPIRequests which handles filtering internally)
-	// start, end := m.getTimeRange()
-
 	// Query database
-	var requests []db.APIRequest
-	var err error
-
 	filter := db.Filter{TimeFilter: m.timeFilter}
-	requests, err = m.db.GetAPIRequests(filter)
-
+	requests, err := m.db.GetAPIRequests(filter)
 	if err != nil {
 		// Handle error silently for now
 		return
 	}
 
+	// Convert to entities
+	entities := db.ToEntities(requests)
+
 	// Update display requests (show latest 100)
-	if len(requests) > 100 {
-		m.requests = requests[len(requests)-100:]
+	if len(entities) > 100 {
+		m.requests = entities[len(entities)-100:]
 	} else {
-		m.requests = requests
+		m.requests = entities
 	}
 
 	// Calculate stats
-	baseReqs, premiumReqs, baseTokens, premiumTokens, baseLimited, premiumLimited, baseCache, premiumCache, baseCost, premiumCost := db.CalculateStats(requests)
-
-	m.baseRequests = baseReqs
-	m.premiumRequests = premiumReqs
-	m.totalRequests = baseReqs + premiumReqs
-
-	m.baseTokens = baseTokens
-	m.premiumTokens = premiumTokens
-	m.totalTokens = baseTokens + premiumTokens
-
-	m.baseLimitedTokens = baseLimited
-	m.premiumLimitedTokens = premiumLimited
-	m.totalLimitedTokens = baseLimited + premiumLimited
-
-	m.baseCacheTokens = baseCache
-	m.premiumCacheTokens = premiumCache
-	m.totalCacheTokens = baseCache + premiumCache
-
-	m.baseCost = baseCost
-	m.premiumCost = premiumCost
-	m.totalCost = baseCost + premiumCost
+	m.stats = entity.CalculateStats(entities)
 
 	// Update table
 	m.updateTableRows()
