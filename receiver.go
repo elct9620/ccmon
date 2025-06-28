@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"time"
 
@@ -45,11 +46,6 @@ func (r *Receiver) Start(ctx context.Context) error {
 	tracesv1.RegisterTraceServiceServer(r.server, &traceReceiver{})
 	metricsv1.RegisterMetricsServiceServer(r.server, &metricsReceiver{})
 	logsv1.RegisterLogsServiceServer(r.server, &logsReceiver{receiver: r})
-
-	// Notify the UI that the server has started
-	if r.program != nil {
-		r.program.Send(serverStartedMsg{})
-	}
 
 	// Handle graceful shutdown
 	go func() {
@@ -96,20 +92,28 @@ type logsReceiver struct {
 func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsServiceRequest) (*logsv1.ExportLogsServiceResponse, error) {
 	for _, rl := range req.ResourceLogs {
 		for _, sl := range rl.ScopeLogs {
-			for _, log := range sl.LogRecords {
+			for _, logRecord := range sl.LogRecords {
 				// Check if this is an API request log
-				if body, ok := log.Body.Value.(*commonv1.AnyValue_StringValue); ok && body.StringValue == "claude_code.api_request" {
-					apiReq := r.parseAPIRequest(log)
+				if body, ok := logRecord.Body.Value.(*commonv1.AnyValue_StringValue); ok && body.StringValue == "claude_code.api_request" {
+					apiReq := r.parseAPIRequest(logRecord)
 					if apiReq != nil {
 						// Save to database
 						if r.receiver.db != nil {
 							if err := r.receiver.db.SaveRequest(apiReq); err != nil {
-								// Log error but don't fail the request
-								fmt.Printf("Failed to save request to database: %v\n", err)
+								log.Printf("Failed to save request to database: %v", err)
+							} else {
+								// Log the request in server mode
+								if r.receiver.requestChan == nil && r.receiver.program == nil {
+									limitedTokens := apiReq.InputTokens + apiReq.OutputTokens
+									log.Printf("Request received - Model: %s | Limited tokens: %d | Cache tokens: %d | Cost: $%.6f",
+										apiReq.Model, limitedTokens,
+										apiReq.CacheReadTokens+apiReq.CacheCreationTokens,
+										apiReq.CostUSD)
+								}
 							}
 						}
 
-						// Send to channel (non-blocking)
+						// Send to channel (non-blocking) - only used in old architecture
 						if r.receiver.requestChan != nil {
 							select {
 							case r.receiver.requestChan <- *apiReq:
@@ -127,13 +131,13 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 }
 
 // parseAPIRequest extracts API request data from a log record
-func (r *logsReceiver) parseAPIRequest(log *logsdata.LogRecord) *APIRequest {
+func (r *logsReceiver) parseAPIRequest(logRecord *logsdata.LogRecord) *APIRequest {
 	var sessionID, timestampStr, model string
 	var inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens int64
 	var costUSD float64
 	var durationMS int64
 
-	for _, attr := range log.Attributes {
+	for _, attr := range logRecord.Attributes {
 		switch attr.Key {
 		case "session.id":
 			if v, ok := attr.Value.Value.(*commonv1.AnyValue_StringValue); ok {

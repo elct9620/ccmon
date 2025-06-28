@@ -34,14 +34,13 @@ const (
 	FilterMonth
 )
 
-// Model represents the state of our TUI application
+// Model represents the state of our TUI monitor application
 type Model struct {
 	requests             []APIRequest
 	table                table.Model
 	width                int
 	height               int
 	ready                bool
-	requestChan          chan APIRequest
 	totalRequests        int
 	totalTokens          int64
 	totalLimitedTokens   int64
@@ -57,13 +56,12 @@ type Model struct {
 	premiumLimitedTokens int64
 	premiumCacheTokens   int64
 	premiumCost          float64
-	serverStatus         string
 	db                   *Database
 	timeFilter           TimeFilter
 }
 
 // NewModel creates a new Model with initial state
-func NewModel(requestChan chan APIRequest, db *Database) Model {
+func NewModel(db *Database) Model {
 	columns := []table.Column{
 		{Title: "Time", Width: 20},
 		{Title: "Model", Width: 25},
@@ -87,29 +85,27 @@ func NewModel(requestChan chan APIRequest, db *Database) Model {
 	t.SetStyles(s)
 
 	return Model{
-		requests:     make([]APIRequest, 0),
-		table:        t,
-		requestChan:  requestChan,
-		serverStatus: "Starting...",
-		db:           db,
-		timeFilter:   FilterAll,
+		requests:   make([]APIRequest, 0),
+		table:      t,
+		db:         db,
+		timeFilter: FilterAll,
 	}
 }
 
 // Init is the Bubble Tea initialization function
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
-		waitForRequest(m.requestChan),
 		tea.EnterAltScreen,
 		m.refreshStats, // Load initial data from database
+		tick(),         // Start periodic refresh
 	)
 }
 
-// waitForRequest returns a command that waits for new API requests
-func waitForRequest(requestChan chan APIRequest) tea.Cmd {
-	return func() tea.Msg {
-		return <-requestChan
-	}
+// tick returns a command that sends a tick message every 5 seconds
+func tick() tea.Cmd {
+	return tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
 }
 
 // Update handles messages and updates the model
@@ -154,48 +150,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.table.SetHeight(tableHeight)
 		}
 
-	case APIRequest:
-		// Add new request to the beginning of the list
-		m.requests = append([]APIRequest{msg}, m.requests...)
-		// Keep only the last 100 requests
-		if len(m.requests) > 100 {
-			m.requests = m.requests[:100]
-		}
-
-		// Calculate limited tokens (input + output only)
-		limitedTokens := msg.InputTokens + msg.OutputTokens
-		cacheTokens := msg.CacheReadTokens + msg.CacheCreationTokens
-
-		// Update statistics
-		m.totalRequests++
-		m.totalTokens += msg.TotalTokens
-		m.totalLimitedTokens += limitedTokens
-		m.totalCacheTokens += cacheTokens
-		m.totalCost += msg.CostUSD
-
-		// Update base or premium statistics
-		if isBaseModel(msg.Model) {
-			m.baseRequests++
-			m.baseTokens += msg.TotalTokens
-			m.baseLimitedTokens += limitedTokens
-			m.baseCacheTokens += cacheTokens
-			m.baseCost += msg.CostUSD
-		} else {
-			m.premiumRequests++
-			m.premiumTokens += msg.TotalTokens
-			m.premiumLimitedTokens += limitedTokens
-			m.premiumCacheTokens += cacheTokens
-			m.premiumCost += msg.CostUSD
-		}
-
-		// Update table rows
-		m.updateTableRows()
-
-		// Continue waiting for more requests
-		return m, waitForRequest(m.requestChan)
-
-	case serverStartedMsg:
-		m.serverStatus = "Running on port 4317"
+	case tickMsg:
+		// Periodic refresh
+		return m, tea.Batch(tick(), m.refreshStats)
 
 	case refreshStatsMsg:
 		// Recalculate stats from database
@@ -371,5 +328,5 @@ func (m *Model) recalculateStats() {
 }
 
 // Message types
-type serverStartedMsg struct{}
+type tickMsg time.Time
 type refreshStatsMsg struct{}

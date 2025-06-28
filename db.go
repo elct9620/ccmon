@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"go.etcd.io/bbolt"
@@ -21,26 +22,47 @@ type Database struct {
 
 // NewDatabase creates a new database instance
 func NewDatabase() (*Database, error) {
-	db, err := bbolt.Open(dbPath, 0600, &bbolt.Options{Timeout: 1 * time.Second})
+	return NewDatabaseWithOptions(false)
+}
+
+// NewDatabaseReadOnly creates a new read-only database instance
+func NewDatabaseReadOnly() (*Database, error) {
+	// Check if database file exists
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("database file does not exist: %s (run server mode first to create it)", dbPath)
+	}
+	return NewDatabaseWithOptions(true)
+}
+
+// NewDatabaseWithOptions creates a new database instance with specified options
+func NewDatabaseWithOptions(readOnly bool) (*Database, error) {
+	options := &bbolt.Options{
+		Timeout:  1 * time.Second,
+		ReadOnly: readOnly,
+	}
+
+	db, err := bbolt.Open(dbPath, 0600, options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Initialize buckets
-	err = db.Update(func(tx *bbolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(requestsBucket))
+	// Initialize buckets (only if not read-only)
+	if !readOnly {
+		err = db.Update(func(tx *bbolt.Tx) error {
+			_, err := tx.CreateBucketIfNotExists([]byte(requestsBucket))
+			if err != nil {
+				return fmt.Errorf("failed to create requests bucket: %w", err)
+			}
+			_, err = tx.CreateBucketIfNotExists([]byte(metadataBucket))
+			if err != nil {
+				return fmt.Errorf("failed to create metadata bucket: %w", err)
+			}
+			return nil
+		})
 		if err != nil {
-			return fmt.Errorf("failed to create requests bucket: %w", err)
+			db.Close()
+			return nil, err
 		}
-		_, err = tx.CreateBucketIfNotExists([]byte(metadataBucket))
-		if err != nil {
-			return fmt.Errorf("failed to create metadata bucket: %w", err)
-		}
-		return nil
-	})
-	if err != nil {
-		db.Close()
-		return nil, err
 	}
 
 	return &Database{db: db}, nil

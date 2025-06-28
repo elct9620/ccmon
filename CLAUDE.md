@@ -6,6 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ccmon is a TUI (Terminal User Interface) application that monitors Claude Code API usage by receiving OpenTelemetry (OTLP) telemetry data. It displays real-time statistics for token usage, costs, and request counts, with separate tracking for base (Haiku) and premium (Sonnet/Opus) models.
 
+## Operating Modes
+
+ccmon has two distinct operating modes:
+
+1. **Monitor Mode** (default): TUI dashboard that displays usage statistics from the database
+   ```bash
+   ./ccmon
+   ```
+
+2. **Server Mode**: Headless OTLP collector that receives and stores telemetry data
+   ```bash
+   ./ccmon -s
+   # or
+   ./ccmon --server
+   ```
+
 ## Build and Development Commands
 
 ```bash
@@ -15,8 +31,11 @@ go build -o ccmon .
 # Format code
 gofmt -w .
 
-# Run the application
+# Run monitor (TUI mode)
 ./ccmon
+
+# Run server (OTLP collector)
+./ccmon -s
 
 # Clean build artifacts
 rm ccmon
@@ -26,24 +45,39 @@ rm ccmon
 
 The application follows a modular architecture with clear separation of concerns:
 
-1. **main.go** - Entry point that initializes the Bubble Tea program, creates channels for communication, and starts the OTLP receiver
-2. **receiver.go** - OTLP gRPC server that receives telemetry data from Claude Code and parses API request information
-3. **model.go** - Bubble Tea model implementing the Elm architecture pattern, manages application state and handles updates
+### Monitor Mode Files
+1. **main.go** - Entry point with command-line flag parsing to determine mode
+2. **monitor.go** - Sets up the TUI monitor mode
+3. **model.go** - Bubble Tea model that reads from database and refreshes periodically
 4. **ui.go** - Rendering logic using Lipgloss for styled terminal output
+
+### Server Mode Files
+1. **server.go** - Headless OTLP server with console logging
+2. **receiver.go** - OTLP gRPC server that receives telemetry data and saves to database
+
+### Shared Components
+1. **db.go** - BoltDB database operations for persistent storage
 
 ### Key Design Patterns
 
-- **Channel-based Communication**: Uses Go channels to pass `APIRequest` structs from the OTLP receiver to the TUI
-- **Elm Architecture**: Bubble Tea's Update/View pattern for reactive UI updates
-- **Model Tier Separation**: Distinguishes between base models (Haiku) and premium models (Sonnet/Opus) using the `isBaseModel()` function
+- **Mode Separation**: Monitor mode (TUI) and server mode (headless) run independently
+- **Database-Centric**: Both modes interact through the BoltDB database
+- **Periodic Refresh**: Monitor mode refreshes every 5 seconds from database
+- **Model Tier Separation**: Distinguishes between base models (Haiku) and premium models (Sonnet/Opus)
 
 ### Data Flow
 
+**Server Mode:**
 1. Claude Code sends OTLP telemetry data to port 4317
 2. The receiver parses log records with body "claude_code.api_request"
-3. Extracted data is sent through a channel to the TUI model
-4. The model updates statistics and the table view
-5. The UI renders the updated state
+3. Extracted data is saved to BoltDB database
+4. Requests are logged to console
+
+**Monitor Mode:**
+1. Reads existing data from BoltDB database
+2. Refreshes statistics every 5 seconds
+3. Allows time-based filtering with keyboard shortcuts
+4. Displays data in a TUI table
 
 ### Environment Variables Required
 
@@ -64,10 +98,13 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 ## Important Implementation Details
 
 - All numeric values from Claude Code telemetry are sent as strings and must be parsed using `fmt.Sscanf()`
-- The application maintains a rolling buffer of the last 100 requests
+- Monitor mode refreshes from database every 5 seconds
+- Server mode logs each request to console for visibility
 - Statistics are tracked separately for base/premium tiers and combined totals
-- The gRPC server runs on port 4317 (standard OTLP port)
-- Table height is dynamically adjusted based on terminal size
+- The gRPC server runs on port 4317 (standard OTLP port) in server mode only
+- Table height is dynamically adjusted based on terminal size in monitor mode
+- Multiple monitors can connect to the same database file
+- Database limits stored requests to last 10,000 entries
 
 ## Development Conventions
 

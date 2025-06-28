@@ -59,7 +59,7 @@ func (m Model) View() string {
 	b.WriteString(title + "\n")
 
 	// Status line
-	status := statusStyle.Render(fmt.Sprintf("Server: %s | Filter: %s | Press 'q' to quit", m.serverStatus, m.getTimeFilterString()))
+	status := statusStyle.Render(fmt.Sprintf("Monitor Mode | Filter: %s | Press 'q' to quit", m.getTimeFilterString()))
 	b.WriteString(status + "\n\n")
 
 	// Statistics box
