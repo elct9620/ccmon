@@ -22,12 +22,8 @@ type GRPCAPIRequestRepository struct {
 // NewGRPCAPIRequestRepository creates a new gRPC repository instance
 func NewGRPCAPIRequestRepository(serverAddress string) (*GRPCAPIRequestRepository, error) {
 	// Create connection with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	conn, err := grpc.DialContext(ctx, serverAddress,
+	conn, err := grpc.NewClient(serverAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to gRPC server at %s: %w", serverAddress, err)

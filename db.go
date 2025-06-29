@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -52,7 +53,9 @@ func NewDatabaseWithOptions(dbPath string, readOnly bool) (*bbolt.DB, error) {
 	if !readOnly {
 		err = InitializeBuckets(db)
 		if err != nil {
-			db.Close()
+			if closeErr := db.Close(); closeErr != nil {
+				log.Printf("Error closing database after initialization failure: %v", closeErr)
+			}
 			return nil, err
 		}
 	}

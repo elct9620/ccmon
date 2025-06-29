@@ -136,27 +136,39 @@ func (r *logsReceiver) parseAPIRequest(logRecord *logsdata.LogRecord) *entity.AP
 			}
 		case "input_tokens":
 			if v, ok := attr.Value.Value.(*commonv1.AnyValue_StringValue); ok {
-				fmt.Sscanf(v.StringValue, "%d", &inputTokens)
+				if _, err := fmt.Sscanf(v.StringValue, "%d", &inputTokens); err != nil {
+					log.Printf("Warning: failed to parse input_tokens '%s': %v", v.StringValue, err)
+				}
 			}
 		case "output_tokens":
 			if v, ok := attr.Value.Value.(*commonv1.AnyValue_StringValue); ok {
-				fmt.Sscanf(v.StringValue, "%d", &outputTokens)
+				if _, err := fmt.Sscanf(v.StringValue, "%d", &outputTokens); err != nil {
+					log.Printf("Warning: failed to parse output_tokens '%s': %v", v.StringValue, err)
+				}
 			}
 		case "cache_read_tokens":
 			if v, ok := attr.Value.Value.(*commonv1.AnyValue_StringValue); ok {
-				fmt.Sscanf(v.StringValue, "%d", &cacheReadTokens)
+				if _, err := fmt.Sscanf(v.StringValue, "%d", &cacheReadTokens); err != nil {
+					log.Printf("Warning: failed to parse cache_read_tokens '%s': %v", v.StringValue, err)
+				}
 			}
 		case "cache_creation_tokens":
 			if v, ok := attr.Value.Value.(*commonv1.AnyValue_StringValue); ok {
-				fmt.Sscanf(v.StringValue, "%d", &cacheCreationTokens)
+				if _, err := fmt.Sscanf(v.StringValue, "%d", &cacheCreationTokens); err != nil {
+					log.Printf("Warning: failed to parse cache_creation_tokens '%s': %v", v.StringValue, err)
+				}
 			}
 		case "cost_usd":
 			if v, ok := attr.Value.Value.(*commonv1.AnyValue_StringValue); ok {
-				fmt.Sscanf(v.StringValue, "%f", &costUSD)
+				if _, err := fmt.Sscanf(v.StringValue, "%f", &costUSD); err != nil {
+					log.Printf("Warning: failed to parse cost_usd '%s': %v", v.StringValue, err)
+				}
 			}
 		case "duration_ms":
 			if v, ok := attr.Value.Value.(*commonv1.AnyValue_StringValue); ok {
-				fmt.Sscanf(v.StringValue, "%d", &durationMS)
+				if _, err := fmt.Sscanf(v.StringValue, "%d", &durationMS); err != nil {
+					log.Printf("Warning: failed to parse duration_ms '%s': %v", v.StringValue, err)
+				}
 			}
 		}
 	}

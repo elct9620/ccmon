@@ -43,8 +43,6 @@ var (
 				Bold(true).
 				Foreground(lipgloss.Color("86"))
 
-	tableCellStyle = lipgloss.NewStyle().
-			PaddingRight(2)
 )
 
 // View renders the entire UI

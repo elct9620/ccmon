@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -43,7 +44,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Failed to initialize database: %v\n", err)
 			os.Exit(1)
 		}
-		defer db.Close()
+		defer func() {
+			if err := db.Close(); err != nil {
+				log.Printf("Error closing database: %v", err)
+			}
+		}()
 
 		repo := repository.NewBoltDBAPIRequestRepository(db)
 
@@ -64,7 +69,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Failed to initialize gRPC repository: %v\n", err)
 			os.Exit(1)
 		}
-		defer repo.Close()
+		defer func() {
+			if err := repo.Close(); err != nil {
+				log.Printf("Error closing gRPC repository: %v", err)
+			}
+		}()
 
 		// Create query usecases (no append command needed for monitor)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)

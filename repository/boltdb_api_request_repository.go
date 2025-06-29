@@ -91,10 +91,6 @@ func (r *BoltDBAPIRequestRepository) saveRequest(req *schema.APIRequest) error {
 	})
 }
 
-// queryTimeRange queries requests within a time range
-func (r *BoltDBAPIRequestRepository) queryTimeRange(start, end time.Time) ([]schema.APIRequest, error) {
-	return r.queryTimeRangeWithLimit(start, end, 0, 0)
-}
 
 // queryTimeRangeWithLimit queries requests within a time range with limit and offset
 // limit = 0 means no limit, offset = 0 means no offset
@@ -283,11 +279,3 @@ func (r *BoltDBAPIRequestRepository) convertToEntities(requests []schema.APIRequ
 	return entities
 }
 
-// convertFromEntities converts a slice of entity APIRequests to database APIRequests
-func (r *BoltDBAPIRequestRepository) convertFromEntities(entities []entity.APIRequest) []schema.APIRequest {
-	requests := make([]schema.APIRequest, len(entities))
-	for i, e := range entities {
-		requests[i] = r.convertFromEntity(e)
-	}
-	return requests
-}

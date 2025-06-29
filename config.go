@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,12 +80,24 @@ func LoadConfig() (*Config, error) {
 	}
 
 	// Bind flags to viper
-	v.BindPFlag("database.path", pflag.Lookup("database-path"))
-	v.BindPFlag("server.address", pflag.Lookup("server-address"))
-	v.BindPFlag("monitor.server", pflag.Lookup("monitor-server"))
-	v.BindPFlag("monitor.timezone", pflag.Lookup("monitor-timezone"))
-	v.BindPFlag("claude.plan", pflag.Lookup("claude-plan"))
-	v.BindPFlag("claude.max_tokens", pflag.Lookup("claude-max-tokens"))
+	if err := v.BindPFlag("database.path", pflag.Lookup("database-path")); err != nil {
+		log.Printf("Warning: failed to bind database-path flag: %v", err)
+	}
+	if err := v.BindPFlag("server.address", pflag.Lookup("server-address")); err != nil {
+		log.Printf("Warning: failed to bind server-address flag: %v", err)
+	}
+	if err := v.BindPFlag("monitor.server", pflag.Lookup("monitor-server")); err != nil {
+		log.Printf("Warning: failed to bind monitor-server flag: %v", err)
+	}
+	if err := v.BindPFlag("monitor.timezone", pflag.Lookup("monitor-timezone")); err != nil {
+		log.Printf("Warning: failed to bind monitor-timezone flag: %v", err)
+	}
+	if err := v.BindPFlag("claude.plan", pflag.Lookup("claude-plan")); err != nil {
+		log.Printf("Warning: failed to bind claude-plan flag: %v", err)
+	}
+	if err := v.BindPFlag("claude.max_tokens", pflag.Lookup("claude-max-tokens")); err != nil {
+		log.Printf("Warning: failed to bind claude-max-tokens flag: %v", err)
+	}
 
 	// Set config name (without extension)
 	v.SetConfigName("config")
