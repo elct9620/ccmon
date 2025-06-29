@@ -13,6 +13,7 @@ import (
 type Config struct {
 	Database Database `mapstructure:"database"`
 	Server   Server   `mapstructure:"server"`
+	Monitor  Monitor  `mapstructure:"monitor"`
 	Claude   Claude   `mapstructure:"claude"`
 }
 
@@ -24,6 +25,11 @@ type Database struct {
 // Server configuration
 type Server struct {
 	Address string `mapstructure:"address"`
+}
+
+// Monitor configuration
+type Monitor struct {
+	Server string `mapstructure:"server"`
 }
 
 // Claude configuration
@@ -38,15 +44,16 @@ func LoadConfig() (*Config, error) {
 	// Set default values
 	v.SetDefault("database.path", "~/.ccmon/ccmon.db")
 	v.SetDefault("server.address", "127.0.0.1:4317")
+	v.SetDefault("monitor.server", "127.0.0.1:4317")
 	v.SetDefault("claude.plan", "unset")
 
 	// Set config name (without extension)
 	v.SetConfigName("config")
 
 	// Add config paths (first found wins)
-	v.AddConfigPath(".")                    // Current directory (highest priority)
+	v.AddConfigPath(".") // Current directory (highest priority)
 	if homeDir, err := os.UserHomeDir(); err == nil {
-		v.AddConfigPath(filepath.Join(homeDir, ".ccmon"))  // User config directory
+		v.AddConfigPath(filepath.Join(homeDir, ".ccmon")) // User config directory
 	}
 
 	// Read config file (if exists)
@@ -94,7 +101,7 @@ func (c *Config) Validate() error {
 		"max":   true,
 		"max20": true,
 	}
-	
+
 	if !validPlans[c.Claude.Plan] {
 		return fmt.Errorf("invalid claude plan: %s (must be one of: unset, pro, max, max20)", c.Claude.Plan)
 	}

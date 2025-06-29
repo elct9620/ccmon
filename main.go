@@ -38,15 +38,8 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		// Initialize database for monitor mode (read-only)
-		database, err := db.NewDatabaseReadOnly(config.Database.Path)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to initialize database: %v\n", err)
-			os.Exit(1)
-		}
-		defer database.Close()
-
-		if err := tui.RunMonitor(database); err != nil {
+		// Run monitor mode with gRPC client
+		if err := tui.RunMonitor(config.Monitor.Server); err != nil {
 			fmt.Fprintf(os.Stderr, "Monitor error: %v\n", err)
 			os.Exit(1)
 		}

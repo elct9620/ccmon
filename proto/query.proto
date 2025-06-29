@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package ccmon.v1;
+
+option go_package = "github.com/elct9620/ccmon/proto/queryv1";
+
+import "google/protobuf/timestamp.proto";
+
+// QueryService provides read-only access to ccmon data
+service QueryService {
+  // GetStats returns aggregated statistics
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+  
+  // GetAPIRequests returns API request records
+  rpc GetAPIRequests(GetAPIRequestsRequest) returns (GetAPIRequestsResponse);
+}
+
+// Time filter options
+enum TimeFilter {
+  TIME_FILTER_UNSPECIFIED = 0;
+  TIME_FILTER_ALL = 1;
+  TIME_FILTER_HOUR = 2;
+  TIME_FILTER_DAY = 3;
+  TIME_FILTER_WEEK = 4;
+  TIME_FILTER_MONTH = 5;
+}
+
+// GetStatsRequest specifies time range for statistics
+message GetStatsRequest {
+  TimeFilter time_filter = 1;
+}
+
+// GetStatsResponse contains aggregated statistics
+message GetStatsResponse {
+  Stats stats = 1;
+}
+
+// GetAPIRequestsRequest specifies filters for API requests
+message GetAPIRequestsRequest {
+  TimeFilter time_filter = 1;
+  int32 limit = 2;   // Optional limit for number of results
+  int32 offset = 3;  // Optional offset for pagination
+}
+
+// GetAPIRequestsResponse contains API request records
+message GetAPIRequestsResponse {
+  repeated APIRequest requests = 1;
+  int32 total_count = 2;  // Total count without pagination
+}
+
+// Stats represents aggregated statistics
+message Stats {
+  int32 base_requests = 1;
+  int32 premium_requests = 2;
+  int32 total_requests = 3;
+  
+  Token base_tokens = 4;
+  Token premium_tokens = 5;
+  Token total_tokens = 6;
+  
+  Cost base_cost = 7;
+  Cost premium_cost = 8;
+  Cost total_cost = 9;
+}
+
+// Token represents token usage statistics
+message Token {
+  int64 total = 1;
+  int64 input = 2;
+  int64 output = 3;
+  int64 cache_read = 4;
+  int64 cache_creation = 5;
+  int64 limited = 6;
+  int64 cache = 7;
+}
+
+// Cost represents cost information
+message Cost {
+  double amount = 1;
+}
+
+// APIRequest represents a single API request record
+message APIRequest {
+  string session_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  string model = 3;
+  int64 input_tokens = 4;
+  int64 output_tokens = 5;
+  int64 cache_read_tokens = 6;
+  int64 cache_creation_tokens = 7;
+  int64 total_tokens = 8;
+  double cost_usd = 9;
+  int64 duration_ms = 10;
+}

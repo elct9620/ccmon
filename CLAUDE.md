@@ -10,12 +10,12 @@ ccmon is a TUI (Terminal User Interface) application that monitors Claude Code A
 
 ccmon has two distinct operating modes:
 
-1. **Monitor Mode** (default): TUI dashboard that displays usage statistics from the database
+1. **Monitor Mode** (default): TUI dashboard that displays usage statistics via gRPC queries
    ```bash
    ./ccmon
    ```
 
-2. **Server Mode**: Headless OTLP collector that receives and stores telemetry data
+2. **Server Mode**: Headless OTLP collector + gRPC query service that receives and stores telemetry data
    ```bash
    ./ccmon -s
    # or
@@ -25,8 +25,11 @@ ccmon has two distinct operating modes:
 ## Build and Development Commands
 
 ```bash
-# Build the application
-go build -o ccmon .
+# Build the application (includes protobuf generation)
+make build
+
+# Generate protobuf code
+make generate
 
 # Format code
 gofmt -w .
@@ -34,11 +37,11 @@ gofmt -w .
 # Run monitor (TUI mode)
 ./ccmon
 
-# Run server (OTLP collector)
+# Run server (OTLP collector + Query service)
 ./ccmon -s
 
 # Clean build artifacts
-rm ccmon
+make clean
 ```
 
 ## Architecture
@@ -50,26 +53,29 @@ The application follows a modular architecture with clear separation of concerns
 2. **config.go** - Configuration system using Viper with TOML/YAML/JSON support
 
 #### TUI Handler (`handler/tui/`)
-1. **monitor.go** - Sets up the TUI monitor mode
-2. **model.go** - Bubble Tea model that reads from database and refreshes periodically  
+1. **monitor.go** - Sets up the TUI monitor mode with gRPC client
+2. **model.go** - Bubble Tea model that queries data via gRPC and refreshes periodically  
 3. **ui.go** - Rendering logic using Lipgloss for styled terminal output
 
 #### gRPC Handler (`handler/grpc/`)
 1. **server.go** - gRPC server lifecycle management and service registration
 2. **receiver/receiver.go** - OTLP message processing and data extraction
+3. **query/service.go** - Query service implementation for retrieving statistics and requests
 
 ### Shared Components
 1. **db/** - BoltDB database operations and entity mapping
 2. **entity/** - Domain entities following DDD principles with encapsulation
+3. **proto/** - Protocol Buffers definitions and generated gRPC code
 
 ### Key Design Patterns
 
 - **Handler Separation**: Clear separation between TUI and gRPC handlers with distinct responsibilities
 - **Server Lifecycle Management**: gRPC server setup and lifecycle managed in dedicated server layer
 - **Message Processing**: OTLP receiver focused solely on protocol message parsing and data extraction
+- **Query Service**: Dedicated gRPC service for read-only data access via protobuf interface
 - **Dependency Injection**: All dependencies initialized in main.go and injected into handlers
-- **Database-Centric**: Both modes interact through the BoltDB database
-- **Periodic Refresh**: Monitor mode refreshes every 5 seconds from database
+- **gRPC Communication**: Monitor mode communicates with server via gRPC instead of direct database access
+- **Periodic Refresh**: Monitor mode refreshes every 5 seconds via gRPC queries
 - **Model Tier Separation**: Distinguishes between base models (Haiku) and premium models (Sonnet/Opus)
 - **Domain-Driven Design**: Entities with private fields, getter methods, and encapsulated business logic
 
@@ -80,15 +86,17 @@ The application follows a modular architecture with clear separation of concerns
 2. Claude Code sends OTLP telemetry data to port 4317
 3. gRPC server (`handler/grpc/server.go`) handles connection and service registration
 4. OTLP receiver (`handler/grpc/receiver/`) parses log records with body "claude_code.api_request"
-5. Extracted data is saved to BoltDB database
-6. Requests are logged to console
+5. Query service (`handler/grpc/query/`) provides gRPC API for data access
+6. Extracted data is saved to BoltDB database
+7. Requests are logged to console
 
 **Monitor Mode:**
-1. main.go initializes read-only database and injects into TUI handler
-2. Reads existing data from BoltDB database
-3. Refreshes statistics every 5 seconds
-4. Allows time-based filtering with keyboard shortcuts
-5. Displays data in a TUI table
+1. main.go initializes gRPC client to connect to server
+2. TUI handler creates QueryClient for gRPC communication
+3. Queries data via gRPC calls to server's query service
+4. Refreshes statistics every 5 seconds via gRPC
+5. Allows time-based filtering with keyboard shortcuts
+6. Displays data in a TUI table
 
 ### Environment Variables Required
 
@@ -119,9 +127,15 @@ If no configuration file is found, default values are used.
 path = "~/.ccmon/ccmon.db"
 
 [server]
-# gRPC server address for OTLP receiver
+# gRPC server address for OTLP receiver + Query service
 # Default: 127.0.0.1:4317
 address = "127.0.0.1:4317"
+
+[monitor]
+# gRPC server address for query service
+# Default: 127.0.0.1:4317
+# Monitor connects to this address to query data from server
+server = "127.0.0.1:4317"
 
 [claude]
 # Claude subscription plan
@@ -140,13 +154,14 @@ See `config.toml.example` for a complete example configuration file.
 ## Important Implementation Details
 
 - All numeric values from Claude Code telemetry are sent as strings and must be parsed using `fmt.Sscanf()`
-- Monitor mode refreshes from database every 5 seconds
+- Monitor mode refreshes via gRPC queries every 5 seconds
 - Server mode logs each request to console for visibility
 - Statistics are tracked separately for base/premium tiers and combined totals
-- The gRPC server runs on port 4317 (standard OTLP port) in server mode only
+- The gRPC server runs on port 4317 (standard OTLP port) providing both OTLP and Query services
 - Table height is dynamically adjusted based on terminal size in monitor mode
-- Multiple monitors can connect to the same database file
+- Multiple monitors can connect to the same server via gRPC (no database conflicts)
 - Database limits stored requests to last 10,000 entries
+- Monitor and server can run on different machines by configuring monitor.server address
 
 ## Development Conventions
 

@@ -26,6 +26,13 @@ path = "~/.ccmon/ccmon.db"
 # Default is localhost for security, but can be changed if needed
 address = "127.0.0.1:4317"
 
+[monitor]
+# gRPC server address for query service
+# Default: 127.0.0.1:4317
+# Monitor connects to this address to query data from server
+# Can be different from server.address if needed
+server = "127.0.0.1:4317"
+
 [claude]
 # Claude subscription plan
 # Default: "unset"

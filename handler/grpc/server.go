@@ -11,7 +11,9 @@ import (
 	"time"
 
 	dbpkg "github.com/elct9620/ccmon/db"
+	"github.com/elct9620/ccmon/handler/grpc/query"
 	"github.com/elct9620/ccmon/handler/grpc/receiver"
+	pb "github.com/elct9620/ccmon/proto"
 	logsv1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	metricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	tracesv1 "go.opentelemetry.io/proto/otlp/collector/trace/v1"
@@ -22,6 +24,7 @@ import (
 type Database interface {
 	SaveAPIRequest(req dbpkg.APIRequest) error
 	GetAllRequests() ([]dbpkg.APIRequest, error)
+	GetAPIRequests(filter dbpkg.Filter) ([]dbpkg.APIRequest, error)
 	Close() error
 }
 
@@ -31,6 +34,9 @@ func RunServer(address string, db Database) error {
 
 	// Create the OTLP receiver
 	otlpReceiver := receiver.NewReceiver(nil, nil, db) // No channel or TUI program needed
+
+	// Create the query service
+	queryService := query.NewService(db)
 
 	// Set up gRPC server
 	lis, err := net.Listen("tcp", address)
@@ -44,6 +50,9 @@ func RunServer(address string, db Database) error {
 	tracesv1.RegisterTraceServiceServer(grpcServer, otlpReceiver.GetTraceServiceServer())
 	metricsv1.RegisterMetricsServiceServer(grpcServer, otlpReceiver.GetMetricsServiceServer())
 	logsv1.RegisterLogsServiceServer(grpcServer, otlpReceiver.GetLogsServiceServer())
+
+	// Register the query service
+	pb.RegisterQueryServiceServer(grpcServer, queryService)
 
 	// Create a context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
@@ -68,7 +77,7 @@ func RunServer(address string, db Database) error {
 	}()
 
 	// Start the gRPC server
-	log.Printf("OTLP receiver listening on %s\n", address)
+	log.Printf("gRPC server (OTLP + Query) listening on %s\n", address)
 	if err := grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("failed to start gRPC server: %w", err)
 	}
