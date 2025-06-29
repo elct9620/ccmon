@@ -54,6 +54,27 @@ docker build -t ccmon:dev .
 docker run --rm -p 4317:4317 ccmon:dev
 ```
 
+## Verification Workflow
+
+After making code changes and before committing, always run this verification workflow to ensure code quality:
+
+```bash
+# 1. Format code
+gofmt -w .
+
+# 2. Lint code (fix all issues)
+golangci-lint run
+
+# 3. Test code with coverage
+go test -cover ./...
+```
+
+### Coverage Guidelines
+- Aim for **>80% test coverage** for new code
+- Focus on testing business logic in `usecase/` and `entity/` packages
+- Repository and handler layers should have integration tests
+- Use `go test -coverprofile=coverage.out ./...` for detailed coverage analysis
+
 ## Docker Deployment
 
 ccmon provides production-ready Docker images with multi-architecture support:
