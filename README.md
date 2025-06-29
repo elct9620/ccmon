@@ -11,6 +11,7 @@ Inspired by [ccusage](https://github.com/ryoppippi/ccusage), but uses OTLP to re
 - **Cost Analysis**: Track API costs and usage patterns
 - **Block Progress**: Monitor Claude token limit progress with 5-hour block tracking
 - **Time Filtering**: Filter data by various time periods (last hour, day, week, etc.)
+- **Configurable Refresh**: Customizable monitor refresh intervals (1s to 5m)
 - **OTLP Integration**: Receives telemetry data via OpenTelemetry protocol
 - **Dual Operating Modes**: Monitor mode (TUI) and server mode (headless collector)
 
@@ -205,6 +206,8 @@ address = "127.0.0.1:4317"
 server = "127.0.0.1:4317"
 # Timezone for time filtering and display
 timezone = "UTC"
+# Monitor refresh interval (how often the TUI updates)
+refresh_interval = "5s"  # Options: "1s", "5s", "10s", "30s", "1m", etc.
 
 [claude]
 # Claude subscription plan for automatic token limit detection
@@ -214,6 +217,30 @@ max_tokens = 7000
 ```
 
 See `config.toml.example` for a complete configuration example.
+
+### Monitor Customization
+
+The monitor mode can be customized to fit different usage patterns and system capabilities:
+
+#### Refresh Interval
+Control how frequently the TUI updates its data display:
+
+```toml
+[monitor]
+refresh_interval = "5s"    # Default: matches Claude Code telemetry frequency
+# refresh_interval = "1s"  # Fast refresh for active development
+# refresh_interval = "10s" # Balanced refresh for normal usage  
+# refresh_interval = "30s" # Slower refresh to save resources
+# refresh_interval = "1m"  # Minimal overhead for background monitoring
+```
+
+**Guidelines:**
+- **1-2 seconds**: Best for active development and real-time monitoring
+- **5 seconds**: Default rate, aligns with Claude Code's telemetry frequency
+- **10-30 seconds**: Good balance between responsiveness and resource usage
+- **1-5 minutes**: Minimal overhead for background monitoring on slower systems
+
+**Note:** Claude Code sends telemetry approximately every 5 seconds, so refresh intervals shorter than 5s may not show new data more frequently.
 
 ## Claude Code Integration
 
