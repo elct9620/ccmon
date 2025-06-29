@@ -27,12 +27,14 @@ func main() {
 
 	if serverMode {
 		// Server mode: Use BoltDB repository
-		repo, err := repository.NewBoltDBAPIRequestRepository(config.Database.Path)
+		db, err := NewDatabase(config.Database.Path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to initialize repository: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Failed to initialize database: %v\n", err)
 			os.Exit(1)
 		}
-		defer repo.Close()
+		defer db.Close()
+
+		repo := repository.NewBoltDBAPIRequestRepository(db)
 
 		// Create usecases
 		appendCommand := usecase.NewAppendApiRequestCommand(repo)
