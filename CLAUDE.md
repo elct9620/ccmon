@@ -78,6 +78,9 @@ The application follows a modular architecture with clear separation of concerns
 - **Periodic Refresh**: Monitor mode refreshes every 5 seconds via gRPC queries
 - **Model Tier Separation**: Distinguishes between base models (Haiku) and premium models (Sonnet/Opus)
 - **Domain-Driven Design**: Entities with private fields, getter methods, and encapsulated business logic
+- **Entity-Based Architecture**: Handlers depend only on domain entities, not database implementation types
+- **UI-Owned Time Filtering**: Time range calculations handled in presentation layer using entity.Period
+- **Database Abstraction**: Database package converts between internal types and domain entities
 
 ### Data Flow
 
@@ -218,7 +221,7 @@ func (a APIRequest) ID() string {
 
 ### Value Objects
 
-Value objects like `Token`, `Cost`, and `Model` follow the same pattern:
+Value objects like `Token`, `Cost`, `Model`, and `Period` follow the same pattern:
 
 ```go
 type Cost struct {
@@ -237,6 +240,34 @@ func (c Cost) Amount() float64 {
 func (c Cost) Add(other Cost) Cost {
     return Cost{amount: c.amount + other.amount}
 }
+```
+
+### Period Value Object
+
+The `Period` value object represents time ranges for filtering operations:
+
+```go
+type Period struct {
+    startAt time.Time
+    endAt   time.Time
+}
+
+func NewPeriod(startAt, endAt time.Time) Period {
+    return Period{startAt: startAt, endAt: endAt}
+}
+
+func NewPeriodFromDuration(duration time.Duration) Period {
+    now := time.Now()
+    return Period{startAt: now.Add(-duration), endAt: now}
+}
+
+func NewAllTimePeriod() Period {
+    return Period{startAt: time.Time{}, endAt: time.Now()}
+}
+
+func (p Period) StartAt() time.Time { return p.startAt }
+func (p Period) EndAt() time.Time { return p.endAt }
+func (p Period) IsAllTime() bool { return p.startAt.IsZero() }
 ```
 
 ### Benefits
