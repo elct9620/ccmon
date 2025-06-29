@@ -109,3 +109,83 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 ## Development Conventions
 
 - Always write devlog in `docs/devlog/` use Markdown format, group by day. e.g. 20250628.md
+
+## Entity Design Patterns
+
+The `entity/` package contains domain entities following Domain-Driven Design (DDD) principles. All entities must adhere to these patterns:
+
+### Core Principles
+
+1. **Private Fields**: All struct fields must be private (lowercase) to ensure encapsulation
+2. **Getter Methods**: Provide public getter methods for accessing field values
+3. **Immutability**: Entities are immutable after creation - no setter methods
+4. **Factory Functions**: Use `NewXxx()` functions for entity creation
+5. **Business Logic**: Encapsulate domain behavior within entities
+
+### Implementation Pattern
+
+```go
+// Entity with private fields
+type APIRequest struct {
+    sessionID string
+    timestamp time.Time
+    model     Model
+    tokens    Token
+    cost      Cost
+    duration  time.Duration
+}
+
+// Factory function for creation
+func NewAPIRequest(sessionID string, timestamp time.Time, ...) APIRequest {
+    return APIRequest{
+        sessionID: sessionID,
+        timestamp: timestamp,
+        // ... initialize all fields
+    }
+}
+
+// Getter methods for field access
+func (a APIRequest) SessionID() string {
+    return a.sessionID
+}
+
+func (a APIRequest) Timestamp() time.Time {
+    return a.timestamp
+}
+
+// Business logic methods
+func (a APIRequest) ID() string {
+    return fmt.Sprintf("%s_%s", a.timestamp.Format(time.RFC3339Nano), a.sessionID)
+}
+```
+
+### Value Objects
+
+Value objects like `Token`, `Cost`, and `Model` follow the same pattern:
+
+```go
+type Cost struct {
+    amount float64
+}
+
+func NewCost(amount float64) Cost {
+    return Cost{amount: amount}
+}
+
+func (c Cost) Amount() float64 {
+    return c.amount
+}
+
+// Immutable operations return new instances
+func (c Cost) Add(other Cost) Cost {
+    return Cost{amount: c.amount + other.amount}
+}
+```
+
+### Benefits
+
+- **Encapsulation**: Internal representation is hidden from external packages
+- **Immutability**: Prevents accidental state mutations
+- **Testability**: Business logic can be tested without infrastructure dependencies
+- **Maintainability**: Changes to internal structure don't affect external code
+- **Domain Focus**: Entities contain only domain logic, no infrastructure concerns
