@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -85,7 +86,12 @@ func (m Model) View() string {
 	}
 
 	// Help text at bottom
-	help := helpStyle.Render("\n  ↑/↓: Navigate • Time: h=hour d=day w=week m=month a=all • o=sort • q: Quit")
+	helpText := "\n  ↑/↓: Navigate • Time: h=hour d=day w=week m=month a=all"
+	if m.block != nil {
+		helpText += " b=block"
+	}
+	helpText += " • o=sort • q: Quit"
+	help := helpStyle.Render(helpText)
 	b.WriteString(help)
 
 	return b.String()
@@ -176,6 +182,16 @@ func (m Model) renderStats() string {
 		}
 	}
 
+	// Add progress bar section if block is active
+	if m.stats.IsInActiveBlock() {
+		b.WriteString("\n\n")
+		b.WriteString(m.renderBlockProgress())
+	} else if m.block == nil {
+		// Show help message if no block is configured
+		b.WriteString("\n\n")
+		b.WriteString(helpStyle.Render("Use -b 5am to track token limits"))
+	}
+
 	return b.String()
 }
 
@@ -197,5 +213,71 @@ func formatTokenCount(tokens int64) string {
 		return fmt.Sprintf("%.1fK", float64(tokens)/1000)
 	} else {
 		return fmt.Sprintf("%.2fM", float64(tokens)/1000000)
+	}
+}
+
+// renderBlockProgress renders the block progress bar section
+func (m Model) renderBlockProgress() string {
+	var b strings.Builder
+
+	used, limit, percentage := m.stats.BlockProgress()
+	timeRemaining := m.stats.BlockTimeRemaining()
+
+	// Block header
+	blockTime := ""
+	if m.block != nil {
+		blockTime = m.block.FormatBlockTime(time.Now())
+	}
+	b.WriteString(headerStyle.Render(fmt.Sprintf("Block Progress (%s)", blockTime)))
+	b.WriteString("\n\n")
+
+	// Progress bar
+	progressBar := renderProgressBar(percentage, 40)
+	b.WriteString(progressBar)
+	b.WriteString(" ")
+	b.WriteString(statStyle.Render(fmt.Sprintf("%.1f%% (%s/%s tokens)", percentage, formatTokenCount(used), formatTokenCount(int64(limit)))))
+	b.WriteString("\n")
+
+	// Time remaining
+	if timeRemaining > 0 {
+		b.WriteString(helpStyle.Render(fmt.Sprintf("Time remaining: %s", formatDurationFromTime(timeRemaining))))
+	} else {
+		b.WriteString(helpStyle.Render("Block expired"))
+	}
+
+	return b.String()
+}
+
+// renderProgressBar creates a visual progress bar
+func renderProgressBar(percentage float64, width int) string {
+	filled := int(percentage / 100 * float64(width))
+	if filled > width {
+		filled = width
+	}
+
+	var color lipgloss.Color
+	if percentage >= 90 {
+		color = lipgloss.Color("196") // Red
+	} else if percentage >= 75 {
+		color = lipgloss.Color("214") // Orange
+	} else {
+		color = lipgloss.Color("42") // Green
+	}
+
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+	style := lipgloss.NewStyle().Foreground(color)
+	return "[" + style.Render(bar) + "]"
+}
+
+// formatDurationFromTime formats a duration for display
+func formatDurationFromTime(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	} else if d < time.Hour {
+		return fmt.Sprintf("%dm %ds", int(d.Minutes()), int(d.Seconds())%60)
+	} else {
+		hours := int(d.Hours())
+		minutes := int(d.Minutes()) % 60
+		return fmt.Sprintf("%dh %dm", hours, minutes)
 	}
 }

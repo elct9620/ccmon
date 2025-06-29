@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/elct9620/ccmon/entity"
 	grpcserver "github.com/elct9620/ccmon/handler/grpc"
 	"github.com/elct9620/ccmon/handler/tui"
 	"github.com/elct9620/ccmon/repository"
@@ -15,8 +16,11 @@ import (
 func main() {
 	// Parse command line flags
 	var serverMode bool
+	var blockTime string
 	flag.BoolVar(&serverMode, "s", false, "Run as OTLP server (headless mode)")
 	flag.BoolVar(&serverMode, "server", false, "Run as OTLP server (headless mode)")
+	flag.StringVar(&blockTime, "b", "", "Set block start time for token tracking (e.g., '5am', '11pm')")
+	flag.StringVar(&blockTime, "block", "", "Set block start time for token tracking (e.g., '5am', '11pm')")
 	flag.Parse()
 
 	// Load configuration
@@ -66,8 +70,27 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Run monitor with usecase and timezone
-		if err := tui.RunMonitor(getFilteredQuery, timezone); err != nil {
+		// Parse block configuration if provided
+		var block *entity.Block
+		var tokenLimit int
+		if blockTime != "" {
+			startHour, err := entity.ParseBlockTime(blockTime)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid block time format %s: %v\n", blockTime, err)
+				os.Exit(1)
+			}
+
+			blockEntity := entity.NewBlock(startHour, timezone)
+			block = &blockEntity
+			tokenLimit = config.Claude.GetTokenLimit()
+
+			if tokenLimit == 0 {
+				fmt.Fprintf(os.Stderr, "Warning: No token limit configured. Set claude.plan or claude.max_tokens in config.\n")
+			}
+		}
+
+		// Run monitor with usecase, timezone, and block config
+		if err := tui.RunMonitor(getFilteredQuery, timezone, block, tokenLimit); err != nil {
 			fmt.Fprintf(os.Stderr, "Monitor error: %v\n", err)
 			os.Exit(1)
 		}

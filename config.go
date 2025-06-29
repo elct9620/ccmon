@@ -36,7 +36,8 @@ type Monitor struct {
 
 // Claude configuration
 type Claude struct {
-	Plan string `mapstructure:"plan"` // enum: unset, pro, max, max20
+	Plan      string `mapstructure:"plan"`       // enum: unset, pro, max, max20
+	MaxTokens int    `mapstructure:"max_tokens"` // override default token limits
 }
 
 // LoadConfig loads configuration from files
@@ -49,6 +50,7 @@ func LoadConfig() (*Config, error) {
 	v.SetDefault("monitor.server", "127.0.0.1:4317")
 	v.SetDefault("monitor.timezone", "UTC")
 	v.SetDefault("claude.plan", "unset")
+	v.SetDefault("claude.max_tokens", 0) // 0 means use plan defaults
 
 	// Set config name (without extension)
 	v.SetConfigName("config")
@@ -117,5 +119,30 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// Validate max_tokens
+	if c.Claude.MaxTokens < 0 {
+		return fmt.Errorf("claude.max_tokens must be >= 0, got: %d", c.Claude.MaxTokens)
+	}
+
 	return nil
+}
+
+// GetTokenLimit returns the effective token limit based on plan and config
+func (c *Claude) GetTokenLimit() int {
+	// If max_tokens is explicitly set, use it
+	if c.MaxTokens > 0 {
+		return c.MaxTokens
+	}
+
+	// Otherwise, use plan defaults
+	switch c.Plan {
+	case "pro":
+		return 7000
+	case "max":
+		return 35000
+	case "max20":
+		return 140000
+	default:
+		return 0 // No limit for unset plan
+	}
 }

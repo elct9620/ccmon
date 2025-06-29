@@ -20,6 +20,7 @@ const (
 	FilterDay
 	FilterWeek
 	FilterMonth
+	FilterBlock // Current block timeframe
 )
 
 // SortOrder represents the sorting order for requests
@@ -42,10 +43,12 @@ type Model struct {
 	timeFilter       TimeFilter
 	sortOrder        SortOrder
 	timezone         *time.Location
+	block            *entity.Block // nil if no block configured
+	tokenLimit       int           // token limit for current block
 }
 
 // NewModel creates a new Model with initial state
-func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, timezone *time.Location) Model {
+func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, timezone *time.Location, block *entity.Block, tokenLimit int) Model {
 	columns := []table.Column{
 		{Title: "Time", Width: 20},
 		{Title: "Model", Width: 25},
@@ -76,6 +79,8 @@ func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, timezone *t
 		sortOrder:        SortDescending, // Default to latest first
 		stats:            entity.Stats{},
 		timezone:         timezone,
+		block:            block,
+		tokenLimit:       tokenLimit,
 	}
 }
 
@@ -125,6 +130,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "m":
 			m.timeFilter = FilterMonth
 			return m, m.refreshStats
+		case "b":
+			if m.block != nil {
+				m.timeFilter = FilterBlock
+				return m, m.refreshStats
+			}
+			// If no block configured, ignore the key press
 		case "o":
 			// Toggle sort order
 			if m.sortOrder == SortDescending {
@@ -220,6 +231,11 @@ func (m Model) getTimeFilterString() string {
 		return "Last 7 Days"
 	case FilterMonth:
 		return "Last 30 Days"
+	case FilterBlock:
+		if m.block != nil {
+			return "Current Block (" + m.block.FormatBlockTime(time.Now()) + ")"
+		}
+		return "Block (not configured)"
 	default:
 		return "All Time"
 	}
@@ -248,6 +264,11 @@ func (m Model) getTimePeriod() entity.Period {
 		return entity.NewPeriodFromDurationWithTimezone(7*24*time.Hour, m.timezone)
 	case FilterMonth:
 		return entity.NewPeriodFromDurationWithTimezone(30*24*time.Hour, m.timezone)
+	case FilterBlock:
+		if m.block != nil {
+			return m.block.CurrentBlock(time.Now())
+		}
+		return entity.NewAllTimePeriod()
 	default:
 		return entity.NewAllTimePeriod()
 	}
@@ -291,10 +312,20 @@ func (m *Model) recalculateStats() {
 	allRequests, err := m.getFilteredQuery.Execute(context.Background(), statsParams)
 	if err != nil {
 		// Handle error silently for now, use display requests for stats
-		m.stats = entity.CalculateStats(m.requests)
+		if m.block != nil && m.tokenLimit > 0 {
+			currentBlock := m.block.CurrentBlock(time.Now())
+			m.stats = entity.CalculateStatsWithBlock(m.requests, m.tokenLimit, currentBlock.StartAt(), currentBlock.EndAt())
+		} else {
+			m.stats = entity.CalculateStats(m.requests)
+		}
 	} else {
-		// Calculate stats with all requests for accuracy
-		m.stats = entity.CalculateStats(allRequests)
+		// Calculate stats with all requests for accuracy and block info if configured
+		if m.block != nil && m.tokenLimit > 0 {
+			currentBlock := m.block.CurrentBlock(time.Now())
+			m.stats = entity.CalculateStatsWithBlock(allRequests, m.tokenLimit, currentBlock.StartAt(), currentBlock.EndAt())
+		} else {
+			m.stats = entity.CalculateStats(allRequests)
+		}
 	}
 
 	// Update table

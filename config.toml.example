@@ -47,5 +47,12 @@ timezone = "UTC"
 # Claude subscription plan
 # Default: "unset"
 # Valid values: "unset", "pro", "max", "max20"
-# This will be used for future features like usage limit warnings
+# Used for automatic token limit detection when using block tracking (-b flag)
 plan = "unset"
+
+# Custom token limit override
+# Default: 0 (use plan defaults)
+# Set to override default limits: pro=7000, max=35000, max20=140000
+# Use with block tracking (-b flag) to monitor token usage within 5-hour blocks
+# Example: max_tokens = 10000
+max_tokens = 0
