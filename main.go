@@ -86,6 +86,23 @@ func main() {
 			os.Exit(1)
 		}
 
+		// Parse refresh interval
+		refreshInterval, err := time.ParseDuration(config.Monitor.RefreshInterval)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid refresh interval format %s: %v\n", config.Monitor.RefreshInterval, err)
+			os.Exit(1)
+		}
+
+		// Validate refresh interval bounds
+		if refreshInterval < time.Second {
+			fmt.Fprintf(os.Stderr, "Refresh interval too short (%v), minimum is 1 second\n", refreshInterval)
+			os.Exit(1)
+		}
+		if refreshInterval > 5*time.Minute {
+			fmt.Fprintf(os.Stderr, "Refresh interval too long (%v), maximum is 5 minutes\n", refreshInterval)
+			os.Exit(1)
+		}
+
 		// Parse block configuration if provided
 		var block *entity.Block
 		var tokenLimit int
@@ -105,8 +122,8 @@ func main() {
 			}
 		}
 
-		// Run monitor with usecases, timezone, and block config
-		if err := tui.RunMonitor(getFilteredQuery, calculateStatsQuery, timezone, block, tokenLimit); err != nil {
+		// Run monitor with usecases, timezone, block config, and refresh interval
+		if err := tui.RunMonitor(getFilteredQuery, calculateStatsQuery, timezone, block, tokenLimit, refreshInterval); err != nil {
 			fmt.Fprintf(os.Stderr, "Monitor error: %v\n", err)
 			os.Exit(1)
 		}

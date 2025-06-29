@@ -245,6 +245,12 @@ server = "127.0.0.1:4317"
 # Examples: "UTC", "America/New_York", "Europe/London", "Asia/Tokyo"
 timezone = "UTC"
 
+# Monitor refresh interval for updating data in TUI
+# Default: "5s"
+# Examples: "1s", "5s", "10s", "30s", "1m"
+# Minimum: 1s, Maximum: 5m
+refresh_interval = "5s"
+
 [claude]
 # Claude subscription plan
 # Default: "unset"

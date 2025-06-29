@@ -47,11 +47,12 @@ type ViewModel struct {
 	timezone            *time.Location
 	block               *entity.Block // nil if no block configured
 	tokenLimit          int           // token limit for current block
+	refreshInterval     time.Duration // refresh interval for auto-refresh
 	renderer            *Renderer     // renderer for the view
 }
 
 // NewViewModel creates a new ViewModel with initial state
-func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int) *ViewModel {
+func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int, refreshInterval time.Duration) *ViewModel {
 	// Start with basic columns, will be resized on first window size message
 	columns := []table.Column{
 		{Title: "Time", Width: 16},
@@ -87,6 +88,7 @@ func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calcula
 		timezone:            timezone,
 		block:               block,
 		tokenLimit:          tokenLimit,
+		refreshInterval:     refreshInterval,
 	}
 
 	// Create components and renderer
@@ -101,7 +103,7 @@ func (vm *ViewModel) Init() tea.Cmd {
 	return tea.Batch(
 		tea.EnterAltScreen,
 		vm.refreshStats, // Load initial data from database
-		tick(),          // Start periodic refresh
+		vm.tick(),       // Start periodic refresh
 	)
 }
 
@@ -162,7 +164,7 @@ func (vm *ViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		// Periodic refresh
-		return vm, tea.Batch(tick(), vm.refreshStats)
+		return vm, tea.Batch(vm.tick(), vm.refreshStats)
 
 	case refreshStatsMsg:
 		// Recalculate stats via usecase
@@ -435,9 +437,9 @@ func (vm *ViewModel) View() string {
 	return vm.renderer.View(vm, vm.width)
 }
 
-// tick returns a command that sends a tick message every 5 seconds
-func tick() tea.Cmd {
-	return tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
+// tick returns a command that sends a tick message using the configured refresh interval
+func (vm *ViewModel) tick() tea.Cmd {
+	return tea.Tick(vm.refreshInterval, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }

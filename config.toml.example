@@ -43,6 +43,14 @@ server = "127.0.0.1:4317"
 # Internal processing always uses UTC for consistency
 timezone = "UTC"
 
+# Monitor refresh interval for updating data in TUI
+# Default: "5s"
+# Examples: "1s", "5s", "10s", "30s", "1m"
+# Use Go duration format (see: https://pkg.go.dev/time#ParseDuration)
+# Minimum: 1s, Maximum: 5m
+# Note: Claude Code sends telemetry every ~5 seconds, so shorter intervals may not show new data
+refresh_interval = "5s"
+
 [claude]
 # Claude subscription plan
 # Default: "unset"

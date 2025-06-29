@@ -32,8 +32,9 @@ type Server struct {
 
 // Monitor configuration
 type Monitor struct {
-	Server   string `mapstructure:"server"`
-	Timezone string `mapstructure:"timezone"`
+	Server          string `mapstructure:"server"`
+	Timezone        string `mapstructure:"timezone"`
+	RefreshInterval string `mapstructure:"refresh_interval"`
 }
 
 // Claude configuration
@@ -51,6 +52,7 @@ func LoadConfig() (*Config, error) {
 	v.SetDefault("server.address", "127.0.0.1:4317")
 	v.SetDefault("monitor.server", "127.0.0.1:4317")
 	v.SetDefault("monitor.timezone", "UTC")
+	v.SetDefault("monitor.refresh_interval", "5s")
 	v.SetDefault("claude.plan", "unset")
 	v.SetDefault("claude.max_tokens", 0) // 0 means use plan defaults
 
