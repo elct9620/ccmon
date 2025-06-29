@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/elct9620/ccmon/compare/v0.1.3...v0.1.4) (2025-06-29)
+
+
+### Bug Fixes
+
+* grant contents write permission to build-and-push job for GitHub releases ([d7e0982](https://github.com/elct9620/ccmon/commit/d7e0982e63be3713fc6be8d9ca6815366e0111fe))
+
 ## [0.1.3](https://github.com/elct9620/ccmon/compare/v0.1.2...v0.1.3) (2025-06-29)
 
 
