@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/elct9620/ccmon/compare/v0.1.4...v0.2.0) (2025-06-29)
+
+
+### Features
+
+* add logging for received API requests in OTLP receiver ([319af85](https://github.com/elct9620/ccmon/commit/319af85174df7959158dba4581d97cf440174b73))
+
 ## [0.1.4](https://github.com/elct9620/ccmon/compare/v0.1.3...v0.1.4) (2025-06-29)
 
 
