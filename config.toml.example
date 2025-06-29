@@ -23,7 +23,7 @@ path = "~/.ccmon/ccmon.db"
 [server]
 # gRPC server address for OTLP receiver
 # Default: 127.0.0.1:4317
-# For security reasons, must be localhost (127.0.0.1, localhost, or [::1])
+# Default is localhost for security, but can be changed if needed
 address = "127.0.0.1:4317"
 
 [claude]

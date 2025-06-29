@@ -99,12 +99,5 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid claude plan: %s (must be one of: unset, pro, max, max20)", c.Claude.Plan)
 	}
 
-	// Validate server address (must be localhost for security)
-	if !strings.HasPrefix(c.Server.Address, "127.0.0.1:") && 
-	   !strings.HasPrefix(c.Server.Address, "localhost:") &&
-	   !strings.HasPrefix(c.Server.Address, "[::1]:") {
-		return fmt.Errorf("server address must be localhost for security reasons: %s", c.Server.Address)
-	}
-
 	return nil
 }
