@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/elct9620/ccmon/compare/v0.1.2...v0.1.3) (2025-06-29)
+
+
+### Bug Fixes
+
+* add required permissions for artifact attestation in release workflow ([93b2ec1](https://github.com/elct9620/ccmon/commit/93b2ec19bff806139e24581d6768dc2e83ba4104))
+
 ## [0.1.2](https://github.com/elct9620/ccmon/compare/v0.1.1...v0.1.2) (2025-06-29)
 
 
