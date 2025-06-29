@@ -63,9 +63,11 @@ The application follows a modular architecture with clear separation of concerns
 3. **query/service.go** - Query service implementation for retrieving statistics and requests
 
 ### Shared Components
-1. **db/** - BoltDB database operations and entity mapping
-2. **entity/** - Domain entities following DDD principles with encapsulation
-3. **proto/** - Protocol Buffers definitions and generated gRPC code
+1. **db.go** - Database factory functions for BoltDB initialization
+2. **repository/** - Data access layer with entity conversion and database operations
+3. **usecase/** - Business logic layer implementing CQRS commands and queries
+4. **entity/** - Domain entities following DDD principles with encapsulation
+5. **proto/** - Protocol Buffers definitions and generated gRPC code
 
 ### Key Design Patterns
 
@@ -80,25 +82,28 @@ The application follows a modular architecture with clear separation of concerns
 - **Domain-Driven Design**: Entities with private fields, getter methods, and encapsulated business logic
 - **Entity-Based Architecture**: Handlers depend only on domain entities, not database implementation types
 - **UI-Owned Time Filtering**: Time range calculations handled in presentation layer using entity.Period
-- **Database Abstraction**: Database package converts between internal types and domain entities
+- **Repository Pattern**: Repository layer handles entity conversion and database operations
+- **Database Factory Functions**: Simple factory functions for database initialization at root level
+- **Clean Architecture Compliance**: Proper dependency inversion with usecase and repository layers
 
 ### Data Flow
 
 **Server Mode:**
-1. main.go initializes read-write database and injects into gRPC handler
-2. Claude Code sends OTLP telemetry data to port 4317
-3. gRPC server (`handler/grpc/server.go`) handles connection and service registration
-4. OTLP receiver (`handler/grpc/receiver/`) parses log records with body "claude_code.api_request"
-5. Query service (`handler/grpc/query/`) provides gRPC API for data access
-6. Extracted data is saved to BoltDB database
-7. Requests are logged to console
+1. main.go creates BoltDB instance using factory functions and injects into repository
+2. Repository and usecase layers are initialized with proper dependency injection
+3. Claude Code sends OTLP telemetry data to port 4317
+4. gRPC server (`handler/grpc/server.go`) handles connection and service registration
+5. OTLP receiver (`handler/grpc/receiver/`) parses log records with body "claude_code.api_request"
+6. Data is saved via usecase commands that coordinate with repository layer
+7. Query service (`handler/grpc/query/`) provides gRPC API using usecase queries
+8. Requests are logged to console
 
 **Monitor Mode:**
-1. main.go initializes gRPC client to connect to server
-2. TUI handler creates QueryClient for gRPC communication
-3. Queries data via gRPC calls to server's query service
-4. Refreshes statistics every 5 seconds via gRPC
-5. Allows time-based filtering with keyboard shortcuts
+1. main.go initializes gRPC repository and usecase layer for monitor mode
+2. TUI handler receives usecase queries for data access
+3. Queries data via gRPC calls through repository abstraction
+4. Refreshes statistics every 5 seconds via usecase layer
+5. Allows time-based filtering with keyboard shortcuts using entity.Period
 6. Displays data in a TUI table
 
 ### Environment Variables Required
