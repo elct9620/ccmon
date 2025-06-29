@@ -90,6 +90,38 @@ export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 ```
 
+## Configuration
+
+ccmon supports configuration files in TOML, YAML, or JSON format. The application searches for configuration files in the following locations (first found wins):
+
+1. Current directory: `./config.{toml,yaml,json}` (highest priority)
+2. User config directory: `~/.ccmon/config.{toml,yaml,json}`
+
+If no configuration file is found, default values are used.
+
+### Configuration Options
+
+```toml
+[database]
+# Path to the BoltDB database file
+# Default: ~/.ccmon/ccmon.db
+path = "~/.ccmon/ccmon.db"
+
+[server]
+# gRPC server address for OTLP receiver
+# Default: 127.0.0.1:4317
+# Must be localhost for security reasons
+address = "127.0.0.1:4317"
+
+[claude]
+# Claude subscription plan
+# Default: "unset"
+# Valid values: "unset", "pro", "max", "max20"
+plan = "unset"
+```
+
+See `config.toml.example` for a complete example configuration file.
+
 ## Model Identification Logic
 
 - Base models (not counted against limits): Identified by checking if model name contains "haiku" (case-insensitive)

@@ -1,0 +1,34 @@
+# ccmon Configuration File Example
+# 
+# This is an example configuration file for ccmon.
+# Copy this file to one of the following locations:
+#   - ./config.toml (current directory - highest priority)
+#   - ~/.ccmon/config.toml (user config directory)
+#
+# You can use .toml, .yaml, or .json formats.
+# 
+# The application searches for configuration files in order:
+# 1. Current directory (./config.{toml,yaml,json})
+# 2. User config directory (~/.ccmon/config.{toml,yaml,json})
+# 
+# The first configuration file found will be used.
+# If no configuration file is found, default values will be used.
+
+[database]
+# Path to the BoltDB database file
+# Default: ~/.ccmon/ccmon.db
+# The ~ will be expanded to your home directory
+path = "~/.ccmon/ccmon.db"
+
+[server]
+# gRPC server address for OTLP receiver
+# Default: 127.0.0.1:4317
+# For security reasons, must be localhost (127.0.0.1, localhost, or [::1])
+address = "127.0.0.1:4317"
+
+[claude]
+# Claude subscription plan
+# Default: "unset"
+# Valid values: "unset", "pro", "max", "max20"
+# This will be used for future features like usage limit warnings
+plan = "unset"

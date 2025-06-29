@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/elct9620/ccmon/entity"
@@ -11,7 +12,6 @@ import (
 )
 
 const (
-	dbPath         = "ccmon.db"
 	requestsBucket = "requests"
 	metadataBucket = "metadata"
 )
@@ -22,21 +22,29 @@ type Database struct {
 }
 
 // NewDatabase creates a new database instance
-func NewDatabase() (*Database, error) {
-	return NewDatabaseWithOptions(false)
+func NewDatabase(dbPath string) (*Database, error) {
+	return NewDatabaseWithOptions(dbPath, false)
 }
 
 // NewDatabaseReadOnly creates a new read-only database instance
-func NewDatabaseReadOnly() (*Database, error) {
+func NewDatabaseReadOnly(dbPath string) (*Database, error) {
 	// Check if database file exists
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("database file does not exist: %s (run server mode first to create it)", dbPath)
 	}
-	return NewDatabaseWithOptions(true)
+	return NewDatabaseWithOptions(dbPath, true)
 }
 
 // NewDatabaseWithOptions creates a new database instance with specified options
-func NewDatabaseWithOptions(readOnly bool) (*Database, error) {
+func NewDatabaseWithOptions(dbPath string, readOnly bool) (*Database, error) {
+	// Create directory if it doesn't exist (for write mode)
+	if !readOnly {
+		dir := filepath.Dir(dbPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create database directory: %w", err)
+		}
+	}
+
 	options := &bbolt.Options{
 		Timeout:  1 * time.Second,
 		ReadOnly: readOnly,

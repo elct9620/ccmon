@@ -1,2 +1,7 @@
 ccmon
 ccmon.db
+
+# Local configuration files
+config.toml
+config.yaml
+config.json

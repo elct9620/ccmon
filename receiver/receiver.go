@@ -43,8 +43,8 @@ func NewReceiver(requestChan chan db.APIRequest, program *tea.Program, database 
 }
 
 // Start starts the OTLP gRPC server
-func (r *Receiver) Start(ctx context.Context) error {
-	lis, err := net.Listen("tcp", ":4317")
+func (r *Receiver) Start(ctx context.Context, address string) error {
+	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}

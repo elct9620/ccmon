@@ -13,7 +13,7 @@ import (
 )
 
 // RunServer runs the headless OTLP server mode
-func RunServer(newDB func() (Database, error)) error {
+func RunServer(address string, newDB func() (Database, error)) error {
 	log.Println("Starting ccmon in server mode...")
 
 	// Initialize database
@@ -43,8 +43,8 @@ func RunServer(newDB func() (Database, error)) error {
 	go logRequestStats(ctx, db)
 
 	// Start the receiver
-	log.Println("OTLP receiver listening on :4317")
-	if err := receiver.Start(ctx); err != nil {
+	log.Printf("OTLP receiver listening on %s\n", address)
+	if err := receiver.Start(ctx, address); err != nil {
 		return fmt.Errorf("failed to start receiver: %w", err)
 	}
 
