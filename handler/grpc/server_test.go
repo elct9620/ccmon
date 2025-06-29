@@ -98,9 +98,13 @@ func setupTestServer(t *testing.T) (*grpc.Server, *bufconn.Listener, pb.QuerySer
 	client := pb.NewQueryServiceClient(conn)
 
 	t.Cleanup(func() {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
 		grpcServer.Stop()
-		lis.Close()
+		if err := lis.Close(); err != nil {
+			t.Logf("Error closing listener: %v", err)
+		}
 	})
 
 	return grpcServer, lis, client, mockRepo
