@@ -67,6 +67,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Handler Separation**: Clear separation between TUI and gRPC handlers with distinct responsibilities
 - **Server Lifecycle Management**: gRPC server setup and lifecycle managed in dedicated server layer
 - **Message Processing**: OTLP receiver focused solely on protocol message parsing and data extraction
+- **Dependency Injection**: All dependencies initialized in main.go and injected into handlers
 - **Database-Centric**: Both modes interact through the BoltDB database
 - **Periodic Refresh**: Monitor mode refreshes every 5 seconds from database
 - **Model Tier Separation**: Distinguishes between base models (Haiku) and premium models (Sonnet/Opus)
@@ -75,17 +76,19 @@ The application follows a modular architecture with clear separation of concerns
 ### Data Flow
 
 **Server Mode:**
-1. Claude Code sends OTLP telemetry data to port 4317
-2. gRPC server (`handler/grpc/server.go`) handles connection and service registration
-3. OTLP receiver (`handler/grpc/receiver/`) parses log records with body "claude_code.api_request"
-4. Extracted data is saved to BoltDB database
-5. Requests are logged to console
+1. main.go initializes read-write database and injects into gRPC handler
+2. Claude Code sends OTLP telemetry data to port 4317
+3. gRPC server (`handler/grpc/server.go`) handles connection and service registration
+4. OTLP receiver (`handler/grpc/receiver/`) parses log records with body "claude_code.api_request"
+5. Extracted data is saved to BoltDB database
+6. Requests are logged to console
 
 **Monitor Mode:**
-1. Reads existing data from BoltDB database
-2. Refreshes statistics every 5 seconds
-3. Allows time-based filtering with keyboard shortcuts
-4. Displays data in a TUI table
+1. main.go initializes read-only database and injects into TUI handler
+2. Reads existing data from BoltDB database
+3. Refreshes statistics every 5 seconds
+4. Allows time-based filtering with keyboard shortcuts
+5. Displays data in a TUI table
 
 ### Environment Variables Required
 
