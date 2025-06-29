@@ -53,7 +53,7 @@ dockers:
   - image_templates:
       - "ghcr.io/elct9620/ccmon:{{ .Tag }}-amd64"
       - "ghcr.io/elct9620/ccmon:latest-amd64"
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.goreleaser
     use: buildx
     build_flag_templates:
       - "--pull"
@@ -68,7 +68,7 @@ dockers:
   - image_templates:
       - "ghcr.io/elct9620/ccmon:{{ .Tag }}-arm64"
       - "ghcr.io/elct9620/ccmon:latest-arm64"
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.goreleaser
     use: buildx
     build_flag_templates:
       - "--pull"
