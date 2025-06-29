@@ -8,9 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/handler/grpc/query"
 	"github.com/elct9620/ccmon/handler/grpc/receiver"
 	pb "github.com/elct9620/ccmon/proto"
@@ -22,7 +20,7 @@ import (
 )
 
 // RunServer runs the headless OTLP server mode
-func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, getAllQuery *usecase.GetAllApiRequestsQuery, getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getStatsQuery *usecase.GetStatsQuery) error {
+func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getStatsQuery *usecase.GetStatsQuery) error {
 	log.Println("Starting ccmon in server mode...")
 
 	// Create the OTLP receiver
@@ -60,8 +58,6 @@ func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, g
 		cancel()
 	}()
 
-	// Start request counter
-	go logRequestStats(ctx, getAllQuery)
 
 	// Handle graceful shutdown
 	go func() {
@@ -78,31 +74,3 @@ func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, g
 	return nil
 }
 
-// logRequestStats periodically logs request statistics
-func logRequestStats(ctx context.Context, getAllQuery *usecase.GetAllApiRequestsQuery) {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			// Get all requests to calculate stats
-			requests, err := getAllQuery.Execute(ctx)
-			if err != nil {
-				log.Printf("Error reading stats: %v", err)
-				continue
-			}
-
-			// Calculate stats
-			stats := entity.CalculateStats(requests)
-			totalReqs := stats.TotalRequests()
-			totalTokens := stats.TotalTokens().Total()
-			totalCost := stats.TotalCost().Amount()
-
-			log.Printf("Stats - Requests: %d (Base: %d, Premium: %d) | Tokens: %d | Cost: $%.6f",
-				totalReqs, stats.BaseRequests(), stats.PremiumRequests(), totalTokens, totalCost)
-		}
-	}
-}

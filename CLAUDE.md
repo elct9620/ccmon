@@ -163,7 +163,6 @@ See `config.toml.example` for a complete example configuration file.
 
 - All numeric values from Claude Code telemetry are sent as strings and must be parsed using `fmt.Sscanf()`
 - Monitor mode refreshes via gRPC queries every 5 seconds
-- Server mode logs each request to console for visibility
 - Statistics are tracked separately for base/premium tiers and combined totals
 - The gRPC server runs on port 4317 (standard OTLP port) providing both OTLP and Query services
 - Table height is dynamically adjusted based on terminal size in monitor mode

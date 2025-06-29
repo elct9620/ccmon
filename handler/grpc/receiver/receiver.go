@@ -93,14 +93,6 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 							}
 							if err := r.receiver.appendCommand.Execute(context.Background(), params); err != nil {
 								log.Printf("Failed to save request via usecase: %v", err)
-							} else {
-								// Log the request in server mode
-								if r.receiver.requestChan == nil && r.receiver.program == nil {
-									log.Printf("Request received - Model: %s | Limited tokens: %d | Cache tokens: %d | Cost: $%.6f",
-										apiReq.Model(), apiReq.Tokens().Limited(),
-										apiReq.Tokens().Cache(),
-										apiReq.Cost().Amount())
-								}
 							}
 						}
 

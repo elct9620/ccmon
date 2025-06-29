@@ -38,12 +38,11 @@ func main() {
 
 		// Create usecases
 		appendCommand := usecase.NewAppendApiRequestCommand(repo)
-		getAllQuery := usecase.NewGetAllApiRequestsQuery(repo)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
 		getStatsQuery := usecase.NewGetStatsQuery(repo)
 
 		// Run server with usecases
-		if err := grpcserver.RunServer(config.Server.Address, appendCommand, getAllQuery, getFilteredQuery, getStatsQuery); err != nil {
+		if err := grpcserver.RunServer(config.Server.Address, appendCommand, getFilteredQuery, getStatsQuery); err != nil {
 			fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 			os.Exit(1)
 		}
