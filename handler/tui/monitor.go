@@ -7,12 +7,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/entity"
-	"github.com/elct9620/ccmon/usecase"
 	pb "github.com/elct9620/ccmon/proto"
+	"github.com/elct9620/ccmon/usecase"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
-
 
 // QueryClient wraps the gRPC client for querying data
 type QueryClient struct {

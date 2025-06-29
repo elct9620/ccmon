@@ -31,7 +31,7 @@ func (r *BoltDBAPIRequestRepository) Save(req entity.APIRequest) error {
 func (r *BoltDBAPIRequestRepository) FindByPeriod(period entity.Period) ([]entity.APIRequest, error) {
 	var dbRequests []db.APIRequest
 	var err error
-	
+
 	if period.IsAllTime() {
 		// Get all requests
 		dbRequests, err = r.db.GetAllRequests()

@@ -21,12 +21,12 @@ func NewAppendApiRequestCommand(repository APIRequestRepository) *AppendApiReque
 
 // AppendApiRequestParams contains the parameters for appending an API request
 type AppendApiRequestParams struct {
-	SessionID   string
-	Timestamp   time.Time
-	Model       string
-	Tokens      entity.Token
-	Cost        entity.Cost
-	DurationMS  int64
+	SessionID  string
+	Timestamp  time.Time
+	Model      string
+	Tokens     entity.Token
+	Cost       entity.Cost
+	DurationMS int64
 }
 
 // Execute executes the append API request command

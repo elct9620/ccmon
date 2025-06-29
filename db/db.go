@@ -81,7 +81,6 @@ func (d *Database) Close() error {
 	return d.db.Close()
 }
 
-
 // SaveRequest saves an API request to the database
 func (d *Database) SaveRequest(req *APIRequest) error {
 	return d.db.Update(func(tx *bbolt.Tx) error {
@@ -171,5 +170,3 @@ func (d *Database) GetAllRequests() ([]APIRequest, error) {
 
 	return requests, err
 }
-
-

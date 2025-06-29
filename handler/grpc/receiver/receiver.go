@@ -18,9 +18,9 @@ import (
 
 // Receiver handles OTLP message processing
 type Receiver struct {
-	requestChan    chan entity.APIRequest
-	program        *tea.Program
-	appendCommand  *usecase.AppendApiRequestCommand
+	requestChan   chan entity.APIRequest
+	program       *tea.Program
+	appendCommand *usecase.AppendApiRequestCommand
 }
 
 // NewReceiver creates a new OTLP receiver

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/elct9620/ccmon/entity"
-	"github.com/elct9620/ccmon/usecase"
 	pb "github.com/elct9620/ccmon/proto"
+	"github.com/elct9620/ccmon/usecase"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
