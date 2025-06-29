@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/elct9620/ccmon/compare/v0.1.0...v0.1.1) (2025-06-29)
+
+
+### Bug Fixes
+
+* install protoc in release workflow to fix GoReleaser build failure ([085f66b](https://github.com/elct9620/ccmon/commit/085f66b146356b39ce74c3cb29eaf5b05ad9e67d))
+
 ## 0.1.0 (2025-06-29)
 
 
