@@ -50,4 +50,4 @@ EXPOSE 4317
 
 # Run as server by default with database in volume
 ENTRYPOINT ["./ccmon"]
-CMD ["--server", "--database-path", "/data/ccmon.db"]
+CMD ["--server", "--database-path", "/data/ccmon.db", "--server-address", "0.0.0.0:4317"]
