@@ -417,3 +417,7 @@ func (p Period) IsAllTime() bool { return p.startAt.IsZero() }
 - **Testability**: Business logic can be tested without infrastructure dependencies
 - **Maintainability**: Changes to internal structure don't affect external code
 - **Domain Focus**: Entities contain only domain logic, no infrastructure concerns
+
+## Testing Conventions
+
+- **ALWAYS use table-driven tests** for comprehensive test coverage and readability
