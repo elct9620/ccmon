@@ -51,15 +51,16 @@ type Model struct {
 
 // NewModel creates a new Model with initial state
 func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int) Model {
+	// Start with basic columns, will be resized on first window size message
 	columns := []table.Column{
-		{Title: "Time", Width: 20},
-		{Title: "Model", Width: 25},
-		{Title: "Input", Width: 8},
-		{Title: "Output", Width: 8},
-		{Title: "Cache", Width: 8},
-		{Title: "Total", Width: 8},
-		{Title: "Cost ($)", Width: 10},
-		{Title: "Duration", Width: 10},
+		{Title: "Time", Width: 16},
+		{Title: "Model", Width: 20},
+		{Title: "Input", Width: 6},
+		{Title: "Output", Width: 6},
+		{Title: "Cache", Width: 6},
+		{Title: "Total", Width: 6},
+		{Title: "Cost ($)", Width: 8},
+		{Title: "Duration", Width: 8},
 	}
 
 	t := table.New(
@@ -154,11 +155,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
-		// Adjust table height based on window size
-		tableHeight := m.height - 17 // Leave room for header, stats table, and footer
-		if tableHeight > 0 {
-			m.table.SetHeight(tableHeight)
-		}
+		// Resize table columns based on available width
+		m.resizeTableColumns()
+		// Calculate dynamic table height based on content
+		m.adjustTableHeight()
 
 	case tickMsg:
 		// Periodic refresh
@@ -346,6 +346,92 @@ func reverseRequests(requests []entity.APIRequest) {
 	for i, j := 0, len(requests)-1; i < j; i, j = i+1, j-1 {
 		requests[i], requests[j] = requests[j], requests[i]
 	}
+}
+
+// resizeTableColumns adjusts table column widths based on terminal width
+func (m *Model) resizeTableColumns() {
+	if m.width < 80 {
+		// Compact layout for narrow terminals
+		columns := []table.Column{
+			{Title: "Time", Width: 11},     // HH:MM:SS
+			{Title: "Model", Width: 10},    // Shortened
+			{Title: "In", Width: 4},        // Input tokens
+			{Title: "Out", Width: 4},       // Output tokens
+			{Title: "Tot", Width: 6},       // Total tokens
+			{Title: "Cost", Width: 8},      // Cost
+			{Title: "Dur", Width: 6},       // Duration
+		}
+		m.table.SetColumns(columns)
+	} else if m.width < 120 {
+		// Medium layout for normal terminals
+		columns := []table.Column{
+			{Title: "Time", Width: 16},
+			{Title: "Model", Width: 18},
+			{Title: "Input", Width: 6},
+			{Title: "Output", Width: 6},
+			{Title: "Cache", Width: 6},
+			{Title: "Total", Width: 8},
+			{Title: "Cost ($)", Width: 8},
+			{Title: "Duration", Width: 8},
+		}
+		m.table.SetColumns(columns)
+	} else {
+		// Full layout for wide terminals
+		columns := []table.Column{
+			{Title: "Time", Width: 20},
+			{Title: "Model", Width: 25},
+			{Title: "Input", Width: 8},
+			{Title: "Output", Width: 8},
+			{Title: "Cache", Width: 8},
+			{Title: "Total", Width: 8},
+			{Title: "Cost ($)", Width: 10},
+			{Title: "Duration", Width: 10},
+		}
+		m.table.SetColumns(columns)
+	}
+	
+	// Update table rows to match new column layout
+	m.updateTableRows()
+}
+
+// adjustTableHeight calculates and sets the appropriate table height
+func (m *Model) adjustTableHeight() {
+	// Be more conservative with height calculations to prevent overflow
+	// Components breakdown:
+	// - Title: 2 lines (title + newline)
+	// - Status: 2 lines (status + newline) 
+	// - Stats box: varies (8-12 lines with borders and content)
+	// - Table header: 1 line
+	// - Help text: 2 lines (newline + help)
+	// - Safety margin: 2 lines
+	
+	fixedHeight := 9 // Title, status, table header, help, margins
+	
+	// Calculate stats section height more accurately
+	statsHeight := 10 // Conservative estimate for stats box with borders
+	
+	if m.block != nil && m.tokenLimit > 0 {
+		statsHeight += 4 // Progress bar section
+	} else if m.block == nil {
+		statsHeight += 2 // Help message
+	}
+	
+	// For compact stats, reduce height
+	if m.width < 60 {
+		statsHeight = 8 // Compact stats are shorter
+	}
+	
+	// Calculate remaining height for table with safety margin
+	tableHeight := m.height - fixedHeight - statsHeight - 2 // Extra 2 lines safety margin
+	
+	// Ensure reasonable minimum and maximum
+	if tableHeight < 3 {
+		tableHeight = 3
+	} else if tableHeight > 20 {
+		tableHeight = 20 // Cap maximum table height
+	}
+	
+	m.table.SetHeight(tableHeight)
 }
 
 // Message types

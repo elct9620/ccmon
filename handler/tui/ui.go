@@ -104,11 +104,18 @@ func (m Model) renderStats() string {
 	// Header
 	b.WriteString(headerStyle.Render("Usage Statistics") + "\n\n")
 
-	// Create table headers
-	headers := []string{"Model Tier", "Requests", "Limited Tokens", "Cache Tokens", "Total Tokens", "Cost ($)"}
+	// Calculate available width for stats table (account for box padding)
+	availableWidth := m.width - 6 // Leave margin for box borders and padding
+	if availableWidth < 60 {
+		// Render compact stats for narrow terminals
+		return m.renderCompactStats()
+	}
 
-	// Calculate column widths
-	colWidths := []int{15, 10, 15, 15, 15, 12}
+	// Create table headers
+	headers := []string{"Model Tier", "Reqs", "Limited", "Cache", "Total", "Cost ($)"}
+
+	// Calculate dynamic column widths based on available space
+	colWidths := m.calculateStatsColumnWidths(availableWidth)
 
 	// Render header row
 	for i, header := range headers {
@@ -295,4 +302,73 @@ func formatDurationFromTime(d time.Duration) string {
 		minutes := int(d.Minutes()) % 60
 		return fmt.Sprintf("%dh %dm", hours, minutes)
 	}
+}
+
+// calculateStatsColumnWidths calculates dynamic column widths for stats table
+func (m Model) calculateStatsColumnWidths(availableWidth int) []int {
+	// Base minimum widths for each column
+	minWidths := []int{12, 5, 8, 6, 8, 10} // Model Tier, Reqs, Limited, Cache, Total, Cost
+	
+	// Calculate total minimum width
+	totalMinWidth := 0
+	for _, w := range minWidths {
+		totalMinWidth += w
+	}
+	
+	// If we have extra space, distribute it proportionally
+	if availableWidth > totalMinWidth {
+		extraSpace := availableWidth - totalMinWidth
+		// Distribute extra space: favor first and last columns
+		distribution := []float64{0.3, 0.1, 0.2, 0.1, 0.2, 0.1}
+		
+		for i := range minWidths {
+			extra := int(float64(extraSpace) * distribution[i])
+			minWidths[i] += extra
+		}
+	}
+	
+	return minWidths
+}
+
+// renderCompactStats renders a compact version of stats for narrow terminals
+func (m Model) renderCompactStats() string {
+	var b strings.Builder
+	
+	// Header
+	b.WriteString(headerStyle.Render("Usage Statistics") + "\n\n")
+	
+	// Compact format for narrow terminals
+	b.WriteString(statStyle.Render("Total Requests: "))
+	b.WriteString(fmt.Sprintf("%d\n", m.stats.TotalRequests()))
+	
+	b.WriteString(statStyle.Render("Total Tokens: "))
+	b.WriteString(fmt.Sprintf("%s\n", formatTokenCount(m.stats.TotalTokens().Total())))
+	
+	b.WriteString(statStyle.Render("Total Cost: "))
+	b.WriteString(fmt.Sprintf("$%.6f\n", m.stats.TotalCost().Amount()))
+	
+	b.WriteString("\n")
+	b.WriteString(baseStyle.Render("Base: "))
+	b.WriteString(fmt.Sprintf("%d reqs, %s tokens, $%.6f\n", 
+		m.stats.BaseRequests(), 
+		formatTokenCount(m.stats.BaseTokens().Total()),
+		m.stats.BaseCost().Amount()))
+	
+	b.WriteString(premiumStyle.Render("Premium: "))
+	b.WriteString(fmt.Sprintf("%d reqs, %s tokens, $%.6f", 
+		m.stats.PremiumRequests(), 
+		formatTokenCount(m.stats.PremiumTokens().Total()),
+		m.stats.PremiumCost().Amount()))
+	
+	// Add progress bar section if block is configured
+	if m.block != nil && m.tokenLimit > 0 {
+		b.WriteString("\n\n")
+		b.WriteString(m.renderBlockProgress())
+	} else if m.block == nil {
+		// Show help message if no block is configured
+		b.WriteString("\n\n")
+		b.WriteString(helpStyle.Render("Use -b 5am to track token limits"))
+	}
+	
+	return b.String()
 }
