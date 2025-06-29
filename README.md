@@ -26,10 +26,11 @@ Download the latest release for your platform from the [releases page](https://g
 # Pull the latest image
 docker pull ghcr.io/elct9620/ccmon:latest
 
-# Run in server mode
+# Run in server mode (recommended for security)
+# Note: Binding to 127.0.0.1:4317 restricts access to localhost only
 docker run -d \
-  --name ccmon-server \
-  -p 4317:4317 \
+  --name ccmon \
+  -p 127.0.0.1:4317:4317 \
   -v ccmon-data:/data \
   ghcr.io/elct9620/ccmon:latest
 ```
@@ -78,8 +79,8 @@ Monitor with Claude token limit progress bars for 5-hour blocks:
 ```bash
 # Using Docker (recommended)
 docker run -d \
-  --name ccmon-server \
-  -p 4317:4317 \
+  --name ccmon \
+  -p 127.0.0.1:4317:4317 \
   -v ccmon-data:/data \
   ghcr.io/elct9620/ccmon:latest
 
@@ -109,16 +110,16 @@ docker run --rm -it --network host ghcr.io/elct9620/ccmon:latest
 
 #### Server Mode (Step 1 - Required)
 ```bash
-# Run server with persistent data
+# Run server with persistent data (bind to localhost only for security)
 docker run -d \
-  --name ccmon-server \
-  -p 4317:4317 \
+  --name ccmon \
+  -p 127.0.0.1:4317:4317 \
   -v ccmon-data:/data \
   -e TZ=UTC \
   ghcr.io/elct9620/ccmon:latest
 
 # Check server logs
-docker logs ccmon-server
+docker logs ccmon
 ```
 
 #### Monitor Mode (Step 4 - After server is running)
@@ -142,11 +143,11 @@ Create a `docker-compose.yml` file:
 version: '3.8'
 
 services:
-  ccmon-server:
+  ccmon:
     image: ghcr.io/elct9620/ccmon:latest
-    container_name: ccmon-server
+    container_name: ccmon
     ports:
-      - "4317:4317"
+      - "127.0.0.1:4317:4317"  # Bind to localhost only for security
     volumes:
       - ccmon-data:/data
       - ./config.toml:/app/config.toml:ro  # Optional: custom config
@@ -258,8 +259,8 @@ make clean
 # Build local image
 docker build -t ccmon:dev .
 
-# Run development server
-docker run --rm -p 4317:4317 ccmon:dev
+# Run development server (bind to localhost for security)
+docker run --rm -p 127.0.0.1:4317:4317 ccmon:dev
 ```
 
 ## Architecture
