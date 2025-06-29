@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/elct9620/ccmon/db"
 	grpcserver "github.com/elct9620/ccmon/handler/grpc"
 	"github.com/elct9620/ccmon/handler/tui"
+	"github.com/elct9620/ccmon/repository"
+	"github.com/elct9620/ccmon/usecase"
 )
 
 func main() {
@@ -25,21 +26,39 @@ func main() {
 	}
 
 	if serverMode {
-		// Initialize database for server mode (read-write)
-		database, err := db.NewDatabase(config.Database.Path)
+		// Server mode: Use BoltDB repository
+		repo, err := repository.NewBoltDBAPIRequestRepository(config.Database.Path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to initialize database: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Failed to initialize repository: %v\n", err)
 			os.Exit(1)
 		}
-		defer database.Close()
+		defer repo.Close()
 
-		if err := grpcserver.RunServer(config.Server.Address, database); err != nil {
+		// Create usecases
+		appendCommand := usecase.NewAppendApiRequestCommand(repo)
+		getAllQuery := usecase.NewGetAllApiRequestsQuery(repo)
+		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
+		getStatsQuery := usecase.NewGetStatsQuery(repo)
+
+		// Run server with usecases
+		if err := grpcserver.RunServer(config.Server.Address, appendCommand, getAllQuery, getFilteredQuery, getStatsQuery); err != nil {
 			fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 			os.Exit(1)
 		}
 	} else {
-		// Run monitor mode with gRPC client
-		if err := tui.RunMonitor(config.Monitor.Server); err != nil {
+		// Monitor mode: Use gRPC repository
+		repo, err := repository.NewGRPCAPIRequestRepository(config.Monitor.Server)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to initialize gRPC repository: %v\n", err)
+			os.Exit(1)
+		}
+		defer repo.Close()
+
+		// Create query usecase (no append command needed for monitor)
+		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
+
+		// Run monitor with usecase
+		if err := tui.RunMonitor(getFilteredQuery); err != nil {
 			fmt.Fprintf(os.Stderr, "Monitor error: %v\n", err)
 			os.Exit(1)
 		}

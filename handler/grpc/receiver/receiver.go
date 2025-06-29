@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/usecase"
 	logsv1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	metricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	tracesv1 "go.opentelemetry.io/proto/otlp/collector/trace/v1"
@@ -17,24 +18,17 @@ import (
 
 // Receiver handles OTLP message processing
 type Receiver struct {
-	requestChan chan entity.APIRequest
-	program     *tea.Program
-	db          Database
-}
-
-// Database interface to avoid circular dependency
-type Database interface {
-	SaveAPIRequest(req entity.APIRequest) error
-	GetAllRequests() ([]entity.APIRequest, error)
-	Close() error
+	requestChan    chan entity.APIRequest
+	program        *tea.Program
+	appendCommand  *usecase.AppendApiRequestCommand
 }
 
 // NewReceiver creates a new OTLP receiver
-func NewReceiver(requestChan chan entity.APIRequest, program *tea.Program, database Database) *Receiver {
+func NewReceiver(requestChan chan entity.APIRequest, program *tea.Program, appendCommand *usecase.AppendApiRequestCommand) *Receiver {
 	return &Receiver{
-		requestChan: requestChan,
-		program:     program,
-		db:          database,
+		requestChan:   requestChan,
+		program:       program,
+		appendCommand: appendCommand,
 	}
 }
 
@@ -87,10 +81,18 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 				if body, ok := logRecord.Body.Value.(*commonv1.AnyValue_StringValue); ok && body.StringValue == "claude_code.api_request" {
 					apiReq := r.parseAPIRequest(logRecord)
 					if apiReq != nil {
-						// Save to database
-						if r.receiver.db != nil {
-							if err := r.receiver.db.SaveAPIRequest(*apiReq); err != nil {
-								log.Printf("Failed to save request to database: %v", err)
+						// Save via usecase command
+						if r.receiver.appendCommand != nil {
+							params := usecase.AppendApiRequestParams{
+								SessionID:  apiReq.SessionID(),
+								Timestamp:  apiReq.Timestamp(),
+								Model:      string(apiReq.Model()),
+								Tokens:     apiReq.Tokens(),
+								Cost:       apiReq.Cost(),
+								DurationMS: apiReq.DurationMS(),
+							}
+							if err := r.receiver.appendCommand.Execute(context.Background(), params); err != nil {
+								log.Printf("Failed to save request via usecase: %v", err)
 							} else {
 								// Log the request in server mode
 								if r.receiver.requestChan == nil && r.receiver.program == nil {

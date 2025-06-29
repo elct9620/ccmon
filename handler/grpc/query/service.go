@@ -6,27 +6,23 @@ import (
 	"time"
 
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/usecase"
 	pb "github.com/elct9620/ccmon/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Database interface to avoid circular dependency
-type Database interface {
-	GetAPIRequests(period entity.Period) ([]entity.APIRequest, error)
-	GetAllRequests() ([]entity.APIRequest, error)
-	Close() error
-}
-
 // Service implements the QueryService gRPC interface
 type Service struct {
 	pb.UnimplementedQueryServiceServer
-	db Database
+	getFilteredQuery *usecase.GetFilteredApiRequestsQuery
+	getStatsQuery    *usecase.GetStatsQuery
 }
 
 // NewService creates a new query service instance
-func NewService(database Database) *Service {
+func NewService(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getStatsQuery *usecase.GetStatsQuery) *Service {
 	return &Service{
-		db: database,
+		getFilteredQuery: getFilteredQuery,
+		getStatsQuery:    getStatsQuery,
 	}
 }
 
@@ -35,14 +31,12 @@ func (s *Service) GetStats(ctx context.Context, req *pb.GetStatsRequest) (*pb.Ge
 	// Convert proto time filter to entity.Period
 	period := convertTimeFilterToPeriod(req.TimeFilter)
 
-	// Get requests from database
-	requests, err := s.db.GetAPIRequests(period)
+	// Get stats via usecase
+	params := usecase.GetStatsParams{Period: period}
+	stats, err := s.getStatsQuery.Execute(ctx, params)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get requests: %w", err)
+		return nil, fmt.Errorf("failed to get stats: %w", err)
 	}
-
-	// Calculate stats
-	stats := entity.CalculateStats(requests)
 
 	// Convert to protobuf response
 	pbStats := &pb.Stats{
@@ -67,8 +61,9 @@ func (s *Service) GetAPIRequests(ctx context.Context, req *pb.GetAPIRequestsRequ
 	// Convert proto time filter to entity.Period
 	period := convertTimeFilterToPeriod(req.TimeFilter)
 
-	// Get requests from database
-	requests, err := s.db.GetAPIRequests(period)
+	// Get requests via usecase
+	params := usecase.GetFilteredApiRequestsParams{Period: period}
+	requests, err := s.getFilteredQuery.Execute(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get requests: %w", err)
 	}

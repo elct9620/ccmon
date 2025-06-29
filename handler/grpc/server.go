@@ -13,6 +13,7 @@ import (
 	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/handler/grpc/query"
 	"github.com/elct9620/ccmon/handler/grpc/receiver"
+	"github.com/elct9620/ccmon/usecase"
 	pb "github.com/elct9620/ccmon/proto"
 	logsv1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	metricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
@@ -20,23 +21,15 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Database interface to avoid circular dependency
-type Database interface {
-	SaveAPIRequest(req entity.APIRequest) error
-	GetAllRequests() ([]entity.APIRequest, error)
-	GetAPIRequests(period entity.Period) ([]entity.APIRequest, error)
-	Close() error
-}
-
 // RunServer runs the headless OTLP server mode
-func RunServer(address string, db Database) error {
+func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, getAllQuery *usecase.GetAllApiRequestsQuery, getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getStatsQuery *usecase.GetStatsQuery) error {
 	log.Println("Starting ccmon in server mode...")
 
 	// Create the OTLP receiver
-	otlpReceiver := receiver.NewReceiver(nil, nil, db) // No channel or TUI program needed
+	otlpReceiver := receiver.NewReceiver(nil, nil, appendCommand) // No channel or TUI program needed
 
 	// Create the query service
-	queryService := query.NewService(db)
+	queryService := query.NewService(getFilteredQuery, getStatsQuery)
 
 	// Set up gRPC server
 	lis, err := net.Listen("tcp", address)
@@ -68,7 +61,7 @@ func RunServer(address string, db Database) error {
 	}()
 
 	// Start request counter
-	go logRequestStats(ctx, db)
+	go logRequestStats(ctx, getAllQuery)
 
 	// Handle graceful shutdown
 	go func() {
@@ -86,7 +79,7 @@ func RunServer(address string, db Database) error {
 }
 
 // logRequestStats periodically logs request statistics
-func logRequestStats(ctx context.Context, db Database) {
+func logRequestStats(ctx context.Context, getAllQuery *usecase.GetAllApiRequestsQuery) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
@@ -96,7 +89,7 @@ func logRequestStats(ctx context.Context, db Database) {
 			return
 		case <-ticker.C:
 			// Get all requests to calculate stats
-			requests, err := db.GetAllRequests()
+			requests, err := getAllQuery.Execute(ctx)
 			if err != nil {
 				log.Printf("Error reading stats: %v", err)
 				continue

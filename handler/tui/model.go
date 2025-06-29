@@ -1,12 +1,14 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/usecase"
 )
 
 // TimeFilter represents the available time filter options for UI
@@ -22,18 +24,18 @@ const (
 
 // Model represents the state of our TUI monitor application
 type Model struct {
-	requests   []entity.APIRequest
-	table      table.Model
-	width      int
-	height     int
-	ready      bool
-	stats      entity.Stats
-	db         Database
-	timeFilter TimeFilter
+	requests         []entity.APIRequest
+	table            table.Model
+	width            int
+	height           int
+	ready            bool
+	stats            entity.Stats
+	getFilteredQuery *usecase.GetFilteredApiRequestsQuery
+	timeFilter       TimeFilter
 }
 
 // NewModel creates a new Model with initial state
-func NewModel(database Database) Model {
+func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery) Model {
 	columns := []table.Column{
 		{Title: "Time", Width: 20},
 		{Title: "Model", Width: 25},
@@ -57,11 +59,11 @@ func NewModel(database Database) Model {
 	t.SetStyles(s)
 
 	return Model{
-		requests:   []entity.APIRequest{},
-		table:      t,
-		db:         database,
-		timeFilter: FilterAll,
-		stats:      entity.Stats{},
+		requests:         []entity.APIRequest{},
+		table:            t,
+		getFilteredQuery: getFilteredQuery,
+		timeFilter:       FilterAll,
+		stats:            entity.Stats{},
 	}
 }
 
@@ -128,8 +130,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(tick(), m.refreshStats)
 
 	case refreshStatsMsg:
-		// Recalculate stats from database
-		if m.db != nil {
+		// Recalculate stats via usecase
+		if m.getFilteredQuery != nil {
 			m.recalculateStats()
 		}
 	}
@@ -222,11 +224,12 @@ func (m Model) refreshStats() tea.Msg {
 	return refreshStatsMsg{}
 }
 
-// recalculateStats recalculates statistics from the database
+// recalculateStats recalculates statistics via usecase
 func (m *Model) recalculateStats() {
-	// Query database with entity.Period
+	// Query via usecase with entity.Period
 	period := m.getTimePeriod()
-	requests, err := m.db.GetAPIRequests(period)
+	params := usecase.GetFilteredApiRequestsParams{Period: period}
+	requests, err := m.getFilteredQuery.Execute(context.Background(), params)
 	if err != nil {
 		// Handle error silently for now
 		return

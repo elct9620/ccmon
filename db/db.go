@@ -82,10 +82,15 @@ func (d *Database) Close() error {
 	return d.db.Close()
 }
 
-// SaveAPIRequest saves an API request to the database (implements receiver.Database interface)
-func (d *Database) SaveAPIRequest(req entity.APIRequest) error {
+// Save saves an API request to the database (implements usecase.APIRequestRepository interface)
+func (d *Database) Save(req entity.APIRequest) error {
 	dbReq := FromEntity(req)
 	return d.SaveRequest(&dbReq)
+}
+
+// SaveAPIRequest saves an API request to the database (implements receiver.Database interface)
+func (d *Database) SaveAPIRequest(req entity.APIRequest) error {
+	return d.Save(req)
 }
 
 // SaveRequest saves an API request to the database
@@ -135,8 +140,9 @@ func (d *Database) QueryTimeRange(start, end time.Time) ([]APIRequest, error) {
 	return requests, err
 }
 
-// GetAllRequests returns all requests (limited to last 10000 to prevent memory issues)
-func (d *Database) GetAllRequests() ([]entity.APIRequest, error) {
+// FindAll returns all requests (limited to last 10000 to prevent memory issues)
+// Implements usecase.APIRequestRepository interface
+func (d *Database) FindAll() ([]entity.APIRequest, error) {
 	var requests []APIRequest
 
 	err := d.db.View(func(tx *bbolt.Tx) error {
@@ -201,14 +207,14 @@ func CalculateStats(requests []APIRequest) (baseReqs, premiumReqs int, baseToken
 	return
 }
 
-// GetAPIRequests returns requests based on period (implements monitor.Database interface)
-func (d *Database) GetAPIRequests(period entity.Period) ([]entity.APIRequest, error) {
+// FindByPeriod returns requests based on period (implements usecase.APIRequestRepository interface)
+func (d *Database) FindByPeriod(period entity.Period) ([]entity.APIRequest, error) {
 	var dbRequests []APIRequest
 	var err error
 	
 	if period.IsAllTime() {
 		// Get all requests and convert to entities
-		entities, err := d.GetAllRequests()
+		entities, err := d.FindAll()
 		return entities, err
 	} else {
 		// Query time range and convert to entities
@@ -219,4 +225,14 @@ func (d *Database) GetAPIRequests(period entity.Period) ([]entity.APIRequest, er
 		entities := ToEntities(dbRequests)
 		return entities, nil
 	}
+}
+
+// GetAllRequests returns all requests (backward compatibility method)
+func (d *Database) GetAllRequests() ([]entity.APIRequest, error) {
+	return d.FindAll()
+}
+
+// GetAPIRequests returns requests based on period (backward compatibility method)
+func (d *Database) GetAPIRequests(period entity.Period) ([]entity.APIRequest, error) {
+	return d.FindByPeriod(period)
 }

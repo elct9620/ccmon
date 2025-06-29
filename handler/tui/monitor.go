@@ -7,12 +7,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/usecase"
 	pb "github.com/elct9620/ccmon/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Database interface to avoid circular dependency
+// Database interface to avoid circular dependency (kept for QueryClient compatibility)
 type Database interface {
 	GetAPIRequests(period entity.Period) ([]entity.APIRequest, error)
 	Close() error
@@ -104,17 +105,10 @@ func (qc *QueryClient) Close() error {
 	return qc.conn.Close()
 }
 
-// RunMonitor runs the TUI monitor mode with gRPC client
-func RunMonitor(serverAddress string) error {
-	// Create gRPC client
-	client, err := NewQueryClient(serverAddress)
-	if err != nil {
-		return fmt.Errorf("failed to create query client: %w", err)
-	}
-	defer client.Close()
-
+// RunMonitor runs the TUI monitor mode with usecase
+func RunMonitor(getFilteredQuery *usecase.GetFilteredApiRequestsQuery) error {
 	// Create the Bubble Tea model
-	model := NewModel(client)
+	model := NewModel(getFilteredQuery)
 
 	// Create and run the Bubble Tea program
 	p := tea.NewProgram(model, tea.WithAltScreen())
