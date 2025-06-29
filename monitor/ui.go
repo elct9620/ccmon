@@ -120,11 +120,11 @@ func (m Model) renderStats() string {
 	// Base (Haiku) row
 	baseRow := []string{
 		baseStyle.Bold(true).Render("Base (Haiku)"),
-		fmt.Sprintf("%d", m.stats.BaseRequests),
-		formatTokenCount(m.stats.BaseTokens.Limited()),
-		formatTokenCount(m.stats.BaseTokens.Cache()),
-		formatTokenCount(m.stats.BaseTokens.Total()),
-		fmt.Sprintf("%.6f", m.stats.BaseCost.Amount()),
+		fmt.Sprintf("%d", m.stats.BaseRequests()),
+		formatTokenCount(m.stats.BaseTokens().Limited()),
+		formatTokenCount(m.stats.BaseTokens().Cache()),
+		formatTokenCount(m.stats.BaseTokens().Total()),
+		fmt.Sprintf("%.6f", m.stats.BaseCost().Amount()),
 	}
 	for i, cell := range baseRow {
 		if i == 0 {
@@ -138,11 +138,11 @@ func (m Model) renderStats() string {
 	// Premium (S/O) row
 	premiumRow := []string{
 		premiumStyle.Bold(true).Render("Premium (S/O)"),
-		fmt.Sprintf("%d", m.stats.PremiumRequests),
-		formatTokenCount(m.stats.PremiumTokens.Limited()),
-		formatTokenCount(m.stats.PremiumTokens.Cache()),
-		formatTokenCount(m.stats.PremiumTokens.Total()),
-		fmt.Sprintf("%.6f", m.stats.PremiumCost.Amount()),
+		fmt.Sprintf("%d", m.stats.PremiumRequests()),
+		formatTokenCount(m.stats.PremiumTokens().Limited()),
+		formatTokenCount(m.stats.PremiumTokens().Cache()),
+		formatTokenCount(m.stats.PremiumTokens().Total()),
+		fmt.Sprintf("%.6f", m.stats.PremiumCost().Amount()),
 	}
 	for i, cell := range premiumRow {
 		if i == 0 {

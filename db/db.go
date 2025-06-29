@@ -176,16 +176,16 @@ func CalculateStats(requests []APIRequest) (baseReqs, premiumReqs int, baseToken
 	stats := entity.CalculateStats(entities)
 
 	// Extract values for backward compatibility
-	baseReqs = stats.BaseRequests
-	premiumReqs = stats.PremiumRequests
-	baseTokens = stats.BaseTokens.Total()
-	premiumTokens = stats.PremiumTokens.Total()
-	baseLimited = stats.BaseTokens.Limited()
-	premiumLimited = stats.PremiumTokens.Limited()
-	baseCache = stats.BaseTokens.Cache()
-	premiumCache = stats.PremiumTokens.Cache()
-	baseCost = stats.BaseCost.Amount()
-	premiumCost = stats.PremiumCost.Amount()
+	baseReqs = stats.BaseRequests()
+	premiumReqs = stats.PremiumRequests()
+	baseTokens = stats.BaseTokens().Total()
+	premiumTokens = stats.PremiumTokens().Total()
+	baseLimited = stats.BaseTokens().Limited()
+	premiumLimited = stats.PremiumTokens().Limited()
+	baseCache = stats.BaseTokens().Cache()
+	premiumCache = stats.PremiumTokens().Cache()
+	baseCost = stats.BaseCost().Amount()
+	premiumCost = stats.PremiumCost().Amount()
 
 	return
 }
