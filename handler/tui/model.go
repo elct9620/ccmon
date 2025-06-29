@@ -41,8 +41,7 @@ type Model struct {
 	stats              entity.Stats // Stats for the current filter (displayed in statistics table)
 	blockStats         entity.Stats // Stats for the current block (used for progress bar)
 	getFilteredQuery   *usecase.GetFilteredApiRequestsQuery
-	getStatsQuery      *usecase.GetStatsQuery
-	getBlockStatsQuery *usecase.GetBlockStatsQuery
+	calculateStatsQuery *usecase.CalculateStatsQuery
 	timeFilter         TimeFilter
 	sortOrder          SortOrder
 	timezone           *time.Location
@@ -51,7 +50,7 @@ type Model struct {
 }
 
 // NewModel creates a new Model with initial state
-func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getStatsQuery *usecase.GetStatsQuery, getBlockStatsQuery *usecase.GetBlockStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int) Model {
+func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int) Model {
 	columns := []table.Column{
 		{Title: "Time", Width: 20},
 		{Title: "Model", Width: 25},
@@ -78,8 +77,7 @@ func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getStatsQue
 		requests:           []entity.APIRequest{},
 		table:              t,
 		getFilteredQuery:   getFilteredQuery,
-		getStatsQuery:      getStatsQuery,
-		getBlockStatsQuery: getBlockStatsQuery,
+		calculateStatsQuery: calculateStatsQuery,
 		timeFilter:         FilterAll,
 		sortOrder:          SortDescending, // Default to latest first
 		stats:              entity.Stats{},
@@ -310,9 +308,9 @@ func (m *Model) recalculateStats() {
 	// For SortAscending, keep the original order (oldest first)
 
 	// Calculate filtered stats for display (always based on current filter)
-	if m.getStatsQuery != nil {
-		statsParams := usecase.GetStatsParams{Period: period}
-		stats, err := m.getStatsQuery.Execute(context.Background(), statsParams)
+	if m.calculateStatsQuery != nil {
+		statsParams := usecase.CalculateStatsParams{Period: period}
+		stats, err := m.calculateStatsQuery.Execute(context.Background(), statsParams)
 		if err != nil {
 			// Handle error silently for now, stats will remain empty
 			m.stats = entity.Stats{}
@@ -322,11 +320,15 @@ func (m *Model) recalculateStats() {
 	}
 
 	// Calculate block stats for progress bar (only when block tracking is enabled)
-	if m.block != nil && m.getBlockStatsQuery != nil {
-		blockStatsParams := usecase.GetBlockStatsParams{
-			Block: *m.block,
+	if m.block != nil && m.calculateStatsQuery != nil {
+		currentBlock := m.block.CurrentBlock(time.Now())
+		blockStatsParams := usecase.CalculateStatsParams{
+			Period:          currentBlock,
+			BlockTokenLimit: m.tokenLimit,
+			BlockStartTime:  currentBlock.StartAt(),
+			BlockEndTime:    currentBlock.EndAt(),
 		}
-		blockStats, err := m.getBlockStatsQuery.Execute(context.Background(), blockStatsParams)
+		blockStats, err := m.calculateStatsQuery.Execute(context.Background(), blockStatsParams)
 		if err != nil {
 			// Keep previous block stats or use empty stats
 			m.blockStats = entity.Stats{}

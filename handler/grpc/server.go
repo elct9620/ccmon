@@ -20,14 +20,14 @@ import (
 )
 
 // RunServer runs the headless OTLP server mode
-func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getStatsQuery *usecase.GetStatsQuery) error {
+func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery) error {
 	log.Println("Starting ccmon in server mode...")
 
 	// Create the OTLP receiver
 	otlpReceiver := receiver.NewReceiver(nil, nil, appendCommand) // No channel or TUI program needed
 
 	// Create the query service
-	queryService := query.NewService(getFilteredQuery, getStatsQuery)
+	queryService := query.NewService(getFilteredQuery, calculateStatsQuery)
 
 	// Set up gRPC server
 	lis, err := net.Listen("tcp", address)

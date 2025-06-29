@@ -113,32 +113,18 @@ func (s Stats) BlockTokenLimit() int {
 	return s.blockTokenLimit
 }
 
-// CalculateStats calculates statistics for a set of API requests
-func CalculateStats(requests []APIRequest) Stats {
-	return CalculateStatsWithBlock(requests, 0, time.Time{}, time.Time{})
-}
-
-// CalculateStatsWithBlock calculates statistics with block information
-func CalculateStatsWithBlock(requests []APIRequest, blockTokenLimit int, blockStart, blockEnd time.Time) Stats {
-	var stats Stats
-
-	for _, req := range requests {
-		if req.Model().IsBase() {
-			stats.baseRequests++
-			stats.baseTokens = stats.baseTokens.Add(req.Tokens())
-			stats.baseCost = stats.baseCost.Add(req.Cost())
-		} else {
-			stats.premiumRequests++
-			stats.premiumTokens = stats.premiumTokens.Add(req.Tokens())
-			stats.premiumCost = stats.premiumCost.Add(req.Cost())
-		}
+// NewStats creates a new Stats instance with the given values
+func NewStats(baseRequests, premiumRequests int, baseTokens, premiumTokens Token, baseCost, premiumCost Cost, blockTokenLimit int, blockStartTime, blockEndTime time.Time) Stats {
+	return Stats{
+		baseRequests:    baseRequests,
+		premiumRequests: premiumRequests,
+		baseTokens:      baseTokens,
+		premiumTokens:   premiumTokens,
+		baseCost:        baseCost,
+		premiumCost:     premiumCost,
+		blockTokenLimit: blockTokenLimit,
+		blockStartTime:  blockStartTime,
+		blockEndTime:    blockEndTime,
+		isBlockActive:   blockTokenLimit > 0 && !blockStartTime.IsZero(),
 	}
-
-	// Set block information
-	stats.blockTokenLimit = blockTokenLimit
-	stats.blockStartTime = blockStart
-	stats.blockEndTime = blockEnd
-	stats.isBlockActive = blockTokenLimit > 0 && !blockStart.IsZero()
-
-	return stats
 }

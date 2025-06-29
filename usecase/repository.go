@@ -16,10 +16,3 @@ type APIRequestRepository interface {
 	FindAll() ([]entity.APIRequest, error)
 }
 
-// BlockStatsRepository defines the repository interface for block tracking statistics
-type BlockStatsRepository interface {
-	// GetBlockStats returns statistics for a specific block period
-	// This is used for progress bar calculation and should always return
-	// stats for the exact block period regardless of UI filters
-	GetBlockStats(block entity.Block) (entity.Stats, error)
-}

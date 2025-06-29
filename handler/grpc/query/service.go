@@ -14,15 +14,15 @@ import (
 // Service implements the QueryService gRPC interface
 type Service struct {
 	pb.UnimplementedQueryServiceServer
-	getFilteredQuery *usecase.GetFilteredApiRequestsQuery
-	getStatsQuery    *usecase.GetStatsQuery
+	getFilteredQuery    *usecase.GetFilteredApiRequestsQuery
+	calculateStatsQuery *usecase.CalculateStatsQuery
 }
 
 // NewService creates a new query service instance
-func NewService(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getStatsQuery *usecase.GetStatsQuery) *Service {
+func NewService(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery) *Service {
 	return &Service{
-		getFilteredQuery: getFilteredQuery,
-		getStatsQuery:    getStatsQuery,
+		getFilteredQuery:    getFilteredQuery,
+		calculateStatsQuery: calculateStatsQuery,
 	}
 }
 
@@ -32,8 +32,8 @@ func (s *Service) GetStats(ctx context.Context, req *pb.GetStatsRequest) (*pb.Ge
 	period := convertTimestampsToPeriod(req.StartTime, req.EndTime)
 
 	// Get stats via usecase
-	params := usecase.GetStatsParams{Period: period}
-	stats, err := s.getStatsQuery.Execute(ctx, params)
+	params := usecase.CalculateStatsParams{Period: period}
+	stats, err := s.calculateStatsQuery.Execute(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get stats: %w", err)
 	}
