@@ -45,33 +45,41 @@ rm ccmon
 
 The application follows a modular architecture with clear separation of concerns:
 
-### Monitor Mode Files
-1. **main.go** - Entry point with command-line flag parsing to determine mode
-2. **monitor.go** - Sets up the TUI monitor mode
-3. **model.go** - Bubble Tea model that reads from database and refreshes periodically
-4. **ui.go** - Rendering logic using Lipgloss for styled terminal output
+### Handler Architecture
+1. **main.go** - Entry point with command-line flag parsing and mode routing
+2. **config.go** - Configuration system using Viper with TOML/YAML/JSON support
 
-### Server Mode Files
-1. **server.go** - Headless OTLP server with console logging
-2. **receiver.go** - OTLP gRPC server that receives telemetry data and saves to database
+#### TUI Handler (`handler/tui/`)
+1. **monitor.go** - Sets up the TUI monitor mode
+2. **model.go** - Bubble Tea model that reads from database and refreshes periodically  
+3. **ui.go** - Rendering logic using Lipgloss for styled terminal output
+
+#### gRPC Handler (`handler/grpc/`)
+1. **server.go** - gRPC server lifecycle management and service registration
+2. **receiver/receiver.go** - OTLP message processing and data extraction
 
 ### Shared Components
-1. **db.go** - BoltDB database operations for persistent storage
+1. **db/** - BoltDB database operations and entity mapping
+2. **entity/** - Domain entities following DDD principles with encapsulation
 
 ### Key Design Patterns
 
-- **Mode Separation**: Monitor mode (TUI) and server mode (headless) run independently
+- **Handler Separation**: Clear separation between TUI and gRPC handlers with distinct responsibilities
+- **Server Lifecycle Management**: gRPC server setup and lifecycle managed in dedicated server layer
+- **Message Processing**: OTLP receiver focused solely on protocol message parsing and data extraction
 - **Database-Centric**: Both modes interact through the BoltDB database
 - **Periodic Refresh**: Monitor mode refreshes every 5 seconds from database
 - **Model Tier Separation**: Distinguishes between base models (Haiku) and premium models (Sonnet/Opus)
+- **Domain-Driven Design**: Entities with private fields, getter methods, and encapsulated business logic
 
 ### Data Flow
 
 **Server Mode:**
 1. Claude Code sends OTLP telemetry data to port 4317
-2. The receiver parses log records with body "claude_code.api_request"
-3. Extracted data is saved to BoltDB database
-4. Requests are logged to console
+2. gRPC server (`handler/grpc/server.go`) handles connection and service registration
+3. OTLP receiver (`handler/grpc/receiver/`) parses log records with body "claude_code.api_request"
+4. Extracted data is saved to BoltDB database
+5. Requests are logged to console
 
 **Monitor Mode:**
 1. Reads existing data from BoltDB database
