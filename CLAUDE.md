@@ -48,6 +48,61 @@ gofmt -w .
 
 # Clean build artifacts
 make clean
+
+# Docker development
+docker build -t ccmon:dev .
+docker run --rm -p 4317:4317 ccmon:dev
+```
+
+## Docker Deployment
+
+ccmon provides production-ready Docker images with multi-architecture support:
+
+```bash
+# Run production server
+docker run -d \
+  --name ccmon-server \
+  -p 4317:4317 \
+  -v ccmon-data:/data \
+  ghcr.io/elct9620/ccmon:latest
+
+# Connect monitor to server
+docker run --rm -it \
+  --network host \
+  ghcr.io/elct9620/ccmon:latest
+```
+
+### Docker Configuration
+- **Base Image**: Alpine Linux for minimal size and security
+- **User**: Non-root user for security best practices
+- **Volumes**: `/data` for database persistence
+- **Network**: Binds to `0.0.0.0:4317` for external access
+- **Multi-arch**: Supports both amd64 and arm64 platforms
+
+## Release Process
+
+ccmon uses automated release management with conventional commits:
+
+### Conventional Commits
+- `feat:` - New features (minor version bump)
+- `fix:` - Bug fixes (patch version bump) 
+- `feat!:` or `fix!:` - Breaking changes (major version bump)
+- `docs:`, `chore:`, `refactor:` - No version bump
+
+### Automated Release Flow
+1. **Push to main** - Triggers release-please workflow
+2. **Release PR Creation** - release-please creates/updates release PR with changelog
+3. **Merge Release PR** - Creates GitHub release with semantic version tag
+4. **Asset Building** - GoReleaser builds cross-platform binaries and Docker images
+5. **Publication** - Binaries attached to release, Docker images pushed to ghcr.io
+
+### Manual Release Commands
+```bash
+# Check what would be released (dry run)
+goreleaser release --snapshot --clean
+
+# Test Docker build locally
+docker build -t ccmon:test .
 ```
 
 ## Architecture
