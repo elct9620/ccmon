@@ -26,10 +26,10 @@ func NewService(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getStatsQ
 	}
 }
 
-// GetStats returns aggregated statistics based on time filter
+// GetStats returns aggregated statistics based on time range
 func (s *Service) GetStats(ctx context.Context, req *pb.GetStatsRequest) (*pb.GetStatsResponse, error) {
-	// Convert proto time filter to entity.Period
-	period := convertTimeFilterToPeriod(req.TimeFilter)
+	// Convert proto timestamps to entity.Period
+	period := convertTimestampsToPeriod(req.StartTime, req.EndTime)
 
 	// Get stats via usecase
 	params := usecase.GetStatsParams{Period: period}
@@ -58,8 +58,8 @@ func (s *Service) GetStats(ctx context.Context, req *pb.GetStatsRequest) (*pb.Ge
 
 // GetAPIRequests returns API request records based on filters
 func (s *Service) GetAPIRequests(ctx context.Context, req *pb.GetAPIRequestsRequest) (*pb.GetAPIRequestsResponse, error) {
-	// Convert proto time filter to entity.Period
-	period := convertTimeFilterToPeriod(req.TimeFilter)
+	// Convert proto timestamps to entity.Period
+	period := convertTimestampsToPeriod(req.StartTime, req.EndTime)
 
 	// Get requests via usecase with limit and offset
 	params := usecase.GetFilteredApiRequestsParams{
@@ -88,22 +88,30 @@ func (s *Service) GetAPIRequests(ctx context.Context, req *pb.GetAPIRequestsRequ
 	}, nil
 }
 
-// convertTimeFilterToPeriod converts protobuf TimeFilter to entity.Period
-func convertTimeFilterToPeriod(filter pb.TimeFilter) entity.Period {
-	switch filter {
-	case pb.TimeFilter_TIME_FILTER_ALL:
-		return entity.NewAllTimePeriod()
-	case pb.TimeFilter_TIME_FILTER_HOUR:
-		return entity.NewPeriodFromDuration(time.Hour)
-	case pb.TimeFilter_TIME_FILTER_DAY:
-		return entity.NewPeriodFromDuration(24 * time.Hour)
-	case pb.TimeFilter_TIME_FILTER_WEEK:
-		return entity.NewPeriodFromDuration(7 * 24 * time.Hour)
-	case pb.TimeFilter_TIME_FILTER_MONTH:
-		return entity.NewPeriodFromDuration(30 * 24 * time.Hour)
-	default:
+// convertTimestampsToPeriod converts protobuf timestamps to entity.Period
+func convertTimestampsToPeriod(startTime, endTime *timestamppb.Timestamp) entity.Period {
+	// Handle nil timestamps - use all time period
+	if startTime == nil && endTime == nil {
 		return entity.NewAllTimePeriod()
 	}
+
+	var start, end time.Time
+
+	// Convert startTime, default to zero time for "all time from beginning"
+	if startTime != nil {
+		start = startTime.AsTime()
+	} else {
+		start = time.Time{} // Zero time represents "all time"
+	}
+
+	// Convert endTime, default to current time
+	if endTime != nil {
+		end = endTime.AsTime()
+	} else {
+		end = time.Now().UTC()
+	}
+
+	return entity.NewPeriod(start, end)
 }
 
 // convertTokenToProto converts entity.Token to protobuf Token

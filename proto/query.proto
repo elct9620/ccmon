@@ -15,19 +15,10 @@ service QueryService {
   rpc GetAPIRequests(GetAPIRequestsRequest) returns (GetAPIRequestsResponse);
 }
 
-// Time filter options
-enum TimeFilter {
-  TIME_FILTER_UNSPECIFIED = 0;
-  TIME_FILTER_ALL = 1;
-  TIME_FILTER_HOUR = 2;
-  TIME_FILTER_DAY = 3;
-  TIME_FILTER_WEEK = 4;
-  TIME_FILTER_MONTH = 5;
-}
-
 // GetStatsRequest specifies time range for statistics
 message GetStatsRequest {
-  TimeFilter time_filter = 1;
+  google.protobuf.Timestamp start_time = 1;  // Optional: if not set, includes all time from beginning
+  google.protobuf.Timestamp end_time = 2;    // Optional: if not set, includes up to current time
 }
 
 // GetStatsResponse contains aggregated statistics
@@ -37,9 +28,10 @@ message GetStatsResponse {
 
 // GetAPIRequestsRequest specifies filters for API requests
 message GetAPIRequestsRequest {
-  TimeFilter time_filter = 1;
-  int32 limit = 2;   // Optional limit for number of results
-  int32 offset = 3;  // Optional offset for pagination
+  google.protobuf.Timestamp start_time = 1;  // Optional: if not set, includes all time from beginning
+  google.protobuf.Timestamp end_time = 2;    // Optional: if not set, includes up to current time
+  int32 limit = 3;   // Optional limit for number of results
+  int32 offset = 4;  // Optional offset for pagination
 }
 
 // GetAPIRequestsResponse contains API request records

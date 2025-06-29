@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -29,7 +30,8 @@ type Server struct {
 
 // Monitor configuration
 type Monitor struct {
-	Server string `mapstructure:"server"`
+	Server   string `mapstructure:"server"`
+	Timezone string `mapstructure:"timezone"`
 }
 
 // Claude configuration
@@ -45,6 +47,7 @@ func LoadConfig() (*Config, error) {
 	v.SetDefault("database.path", "~/.ccmon/ccmon.db")
 	v.SetDefault("server.address", "127.0.0.1:4317")
 	v.SetDefault("monitor.server", "127.0.0.1:4317")
+	v.SetDefault("monitor.timezone", "UTC")
 	v.SetDefault("claude.plan", "unset")
 
 	// Set config name (without extension)
@@ -104,6 +107,14 @@ func (c *Config) Validate() error {
 
 	if !validPlans[c.Claude.Plan] {
 		return fmt.Errorf("invalid claude plan: %s (must be one of: unset, pro, max, max20)", c.Claude.Plan)
+	}
+
+	// Validate timezone
+	if c.Monitor.Timezone != "" {
+		_, err := time.LoadLocation(c.Monitor.Timezone)
+		if err != nil {
+			return fmt.Errorf("invalid timezone: %s (%w)", c.Monitor.Timezone, err)
+		}
 	}
 
 	return nil

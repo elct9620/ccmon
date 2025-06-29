@@ -164,7 +164,7 @@ func (r *logsReceiver) parseAPIRequest(logRecord *logsdata.LogRecord) *entity.AP
 	// Parse timestamp
 	timestamp, err := time.Parse(time.RFC3339, timestampStr)
 	if err != nil {
-		timestamp = time.Now()
+		timestamp = time.Now().UTC()
 	}
 
 	tokens := entity.NewToken(inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens)

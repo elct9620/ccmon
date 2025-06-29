@@ -10,6 +10,7 @@ import (
 	pb "github.com/elct9620/ccmon/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // GRPCAPIRequestRepository implements APIRequestRepository using gRPC client
@@ -49,14 +50,20 @@ func (r *GRPCAPIRequestRepository) Save(req entity.APIRequest) error {
 // Use limit = 0 for no limit (fetch all records)
 // Use offset = 0 when no offset is needed
 func (r *GRPCAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-	// Convert entity.Period to protobuf TimeFilter
-	timeFilter := convertPeriodToTimeFilter(period)
+	// Convert entity.Period to protobuf timestamps
+	var startTime, endTime *timestamppb.Timestamp
 
-	// Create gRPC request with limit and offset
+	if !period.IsAllTime() {
+		startTime = timestamppb.New(period.StartAt())
+	}
+	endTime = timestamppb.New(period.EndAt())
+
+	// Create gRPC request with timestamps, limit and offset
 	req := &pb.GetAPIRequestsRequest{
-		TimeFilter: timeFilter,
-		Limit:      int32(limit),
-		Offset:     int32(offset),
+		StartTime: startTime,
+		EndTime:   endTime,
+		Limit:     int32(limit),
+		Offset:    int32(offset),
 	}
 
 	// Call gRPC service
@@ -86,27 +93,6 @@ func (r *GRPCAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
 // Close closes the gRPC connection
 func (r *GRPCAPIRequestRepository) Close() error {
 	return r.conn.Close()
-}
-
-// convertPeriodToTimeFilter converts entity.Period to protobuf TimeFilter
-func convertPeriodToTimeFilter(period entity.Period) pb.TimeFilter {
-	if period.IsAllTime() {
-		return pb.TimeFilter_TIME_FILTER_ALL
-	}
-
-	duration := period.Duration()
-	switch {
-	case duration <= time.Hour:
-		return pb.TimeFilter_TIME_FILTER_HOUR
-	case duration <= 24*time.Hour:
-		return pb.TimeFilter_TIME_FILTER_DAY
-	case duration <= 7*24*time.Hour:
-		return pb.TimeFilter_TIME_FILTER_WEEK
-	case duration <= 30*24*time.Hour:
-		return pb.TimeFilter_TIME_FILTER_MONTH
-	default:
-		return pb.TimeFilter_TIME_FILTER_ALL
-	}
 }
 
 // convertProtoToAPIRequest converts protobuf APIRequest to entity.APIRequest

@@ -33,6 +33,16 @@ address = "127.0.0.1:4317"
 # Can be different from server.address if needed
 server = "127.0.0.1:4317"
 
+# Timezone for time filtering and display in monitor mode
+# Default: "UTC"
+# Examples: "UTC", "America/New_York", "Europe/London", "Asia/Tokyo"
+# Use IANA timezone names (see: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
+# This affects:
+#   - How hour/day/week/month filters are calculated (e.g., "last hour" in your timezone)
+#   - How timestamps are displayed in the TUI table
+# Internal processing always uses UTC for consistency
+timezone = "UTC"
+
 [claude]
 # Claude subscription plan
 # Default: "unset"

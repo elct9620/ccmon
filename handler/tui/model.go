@@ -41,10 +41,11 @@ type Model struct {
 	getFilteredQuery *usecase.GetFilteredApiRequestsQuery
 	timeFilter       TimeFilter
 	sortOrder        SortOrder
+	timezone         *time.Location
 }
 
 // NewModel creates a new Model with initial state
-func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery) Model {
+func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, timezone *time.Location) Model {
 	columns := []table.Column{
 		{Title: "Time", Width: 20},
 		{Title: "Model", Width: 25},
@@ -74,6 +75,7 @@ func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery) Model {
 		timeFilter:       FilterAll,
 		sortOrder:        SortDescending, // Default to latest first
 		stats:            entity.Stats{},
+		timezone:         timezone,
 	}
 }
 
@@ -162,8 +164,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) updateTableRows() {
 	rows := make([]table.Row, 0, len(m.requests))
 	for _, req := range m.requests {
+		// Format timestamp in configured timezone
+		timestamp := req.Timestamp().In(m.timezone).Format("15:04:05 2006-01-02")
 		rows = append(rows, table.Row{
-			req.Timestamp().Format("15:04:05 2006-01-02"),
+			timestamp,
 			truncateString(req.Model().String(), 25),
 			formatNumber(req.Tokens().Input()),
 			formatNumber(req.Tokens().Output()),
@@ -233,17 +237,17 @@ func (m Model) getSortOrderString() string {
 	}
 }
 
-// getTimePeriod returns entity.Period for the current filter
+// getTimePeriod returns entity.Period for the current filter using configured timezone
 func (m Model) getTimePeriod() entity.Period {
 	switch m.timeFilter {
 	case FilterHour:
-		return entity.NewPeriodFromDuration(time.Hour)
+		return entity.NewPeriodFromDurationWithTimezone(time.Hour, m.timezone)
 	case FilterDay:
-		return entity.NewPeriodFromDuration(24 * time.Hour)
+		return entity.NewPeriodFromDurationWithTimezone(24*time.Hour, m.timezone)
 	case FilterWeek:
-		return entity.NewPeriodFromDuration(7 * 24 * time.Hour)
+		return entity.NewPeriodFromDurationWithTimezone(7*24*time.Hour, m.timezone)
 	case FilterMonth:
-		return entity.NewPeriodFromDuration(30 * 24 * time.Hour)
+		return entity.NewPeriodFromDurationWithTimezone(30*24*time.Hour, m.timezone)
 	default:
 		return entity.NewAllTimePeriod()
 	}

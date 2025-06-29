@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	grpcserver "github.com/elct9620/ccmon/handler/grpc"
 	"github.com/elct9620/ccmon/handler/tui"
@@ -58,8 +59,15 @@ func main() {
 		// Create query usecase (no append command needed for monitor)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
 
-		// Run monitor with usecase
-		if err := tui.RunMonitor(getFilteredQuery); err != nil {
+		// Load timezone for monitor mode
+		timezone, err := time.LoadLocation(config.Monitor.Timezone)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to load timezone %s: %v\n", config.Monitor.Timezone, err)
+			os.Exit(1)
+		}
+
+		// Run monitor with usecase and timezone
+		if err := tui.RunMonitor(getFilteredQuery, timezone); err != nil {
 			fmt.Fprintf(os.Stderr, "Monitor error: %v\n", err)
 			os.Exit(1)
 		}
