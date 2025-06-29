@@ -64,7 +64,7 @@ Headless OTLP collector + gRPC query service that receives telemetry data from C
 TUI dashboard that connects to the server and displays usage statistics:
 ```bash
 ./ccmon                    # Connect to default server (localhost:4317)
-./ccmon --server host:port # Connect to specific server
+./ccmon --monitor-server host:port # Connect to specific server
 ```
 
 #### 3. Block Tracking Mode
@@ -101,7 +101,7 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 4. **Start the monitor** to view data:
 ```bash
 # Using Docker
-docker run --rm -it --network host ghcr.io/elct9620/ccmon:latest
+docker run --rm -it --network host ghcr.io/elct9620/ccmon:latest --monitor-server localhost:4317
 
 # Or using binary
 ./ccmon
@@ -133,7 +133,7 @@ docker run --rm -it \
 # Connect to server on different host
 docker run --rm -it \
   ghcr.io/elct9620/ccmon:latest \
-  --server your-server:4317
+  --monitor-server your-server:4317
 ```
 
 ### Docker Compose
@@ -177,7 +177,7 @@ docker-compose logs -f
 docker run --rm -it \
   --network host \
   ghcr.io/elct9620/ccmon:latest \
-  --server localhost:4317
+  --monitor-server localhost:4317
 
 # Stop the server
 docker-compose down
@@ -229,7 +229,7 @@ Control how frequently the TUI updates its data display:
 [monitor]
 refresh_interval = "5s"    # Default: matches Claude Code telemetry frequency
 # refresh_interval = "1s"  # Fast refresh for active development
-# refresh_interval = "10s" # Balanced refresh for normal usage  
+# refresh_interval = "10s" # Balanced refresh for normal usage
 # refresh_interval = "30s" # Slower refresh to save resources
 # refresh_interval = "1m"  # Minimal overhead for background monitoring
 ```
