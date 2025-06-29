@@ -13,11 +13,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Database interface to avoid circular dependency (kept for QueryClient compatibility)
-type Database interface {
-	GetAPIRequests(period entity.Period) ([]entity.APIRequest, error)
-	Close() error
-}
 
 // QueryClient wraps the gRPC client for querying data
 type QueryClient struct {

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/elct9620/ccmon/entity"
 	"go.etcd.io/bbolt"
 )
 
@@ -82,16 +81,6 @@ func (d *Database) Close() error {
 	return d.db.Close()
 }
 
-// Save saves an API request to the database (implements usecase.APIRequestRepository interface)
-func (d *Database) Save(req entity.APIRequest) error {
-	dbReq := FromEntity(req)
-	return d.SaveRequest(&dbReq)
-}
-
-// SaveAPIRequest saves an API request to the database (implements receiver.Database interface)
-func (d *Database) SaveAPIRequest(req entity.APIRequest) error {
-	return d.Save(req)
-}
 
 // SaveRequest saves an API request to the database
 func (d *Database) SaveRequest(req *APIRequest) error {
@@ -140,9 +129,8 @@ func (d *Database) QueryTimeRange(start, end time.Time) ([]APIRequest, error) {
 	return requests, err
 }
 
-// FindAll returns all requests (limited to last 10000 to prevent memory issues)
-// Implements usecase.APIRequestRepository interface
-func (d *Database) FindAll() ([]entity.APIRequest, error) {
+// GetAllRequests returns all requests (limited to last 10000 to prevent memory issues)
+func (d *Database) GetAllRequests() ([]APIRequest, error) {
 	var requests []APIRequest
 
 	err := d.db.View(func(tx *bbolt.Tx) error {
@@ -181,58 +169,7 @@ func (d *Database) FindAll() ([]entity.APIRequest, error) {
 		return nil
 	})
 
-	// Convert to entities
-	entities := ToEntities(requests)
-	return entities, err
+	return requests, err
 }
 
-// CalculateStats calculates statistics for a set of requests
-func CalculateStats(requests []APIRequest) (baseReqs, premiumReqs int, baseTokens, premiumTokens, baseLimited, premiumLimited, baseCache, premiumCache int64, baseCost, premiumCost float64) {
-	// Convert to entities and calculate stats
-	entities := ToEntities(requests)
-	stats := entity.CalculateStats(entities)
 
-	// Extract values for backward compatibility
-	baseReqs = stats.BaseRequests()
-	premiumReqs = stats.PremiumRequests()
-	baseTokens = stats.BaseTokens().Total()
-	premiumTokens = stats.PremiumTokens().Total()
-	baseLimited = stats.BaseTokens().Limited()
-	premiumLimited = stats.PremiumTokens().Limited()
-	baseCache = stats.BaseTokens().Cache()
-	premiumCache = stats.PremiumTokens().Cache()
-	baseCost = stats.BaseCost().Amount()
-	premiumCost = stats.PremiumCost().Amount()
-
-	return
-}
-
-// FindByPeriod returns requests based on period (implements usecase.APIRequestRepository interface)
-func (d *Database) FindByPeriod(period entity.Period) ([]entity.APIRequest, error) {
-	var dbRequests []APIRequest
-	var err error
-	
-	if period.IsAllTime() {
-		// Get all requests and convert to entities
-		entities, err := d.FindAll()
-		return entities, err
-	} else {
-		// Query time range and convert to entities
-		dbRequests, err = d.QueryTimeRange(period.StartAt(), period.EndAt())
-		if err != nil {
-			return nil, err
-		}
-		entities := ToEntities(dbRequests)
-		return entities, nil
-	}
-}
-
-// GetAllRequests returns all requests (backward compatibility method)
-func (d *Database) GetAllRequests() ([]entity.APIRequest, error) {
-	return d.FindAll()
-}
-
-// GetAPIRequests returns requests based on period (backward compatibility method)
-func (d *Database) GetAPIRequests(period entity.Period) ([]entity.APIRequest, error) {
-	return d.FindByPeriod(period)
-}
