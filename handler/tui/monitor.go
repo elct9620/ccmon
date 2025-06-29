@@ -9,10 +9,10 @@ import (
 	"github.com/elct9620/ccmon/usecase"
 )
 
-// RunMonitor runs the TUI monitor mode with usecase
-func RunMonitor(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getBlockStatsQuery *usecase.GetBlockStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int) error {
+// RunMonitor runs the TUI monitor mode with usecases
+func RunMonitor(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getStatsQuery *usecase.GetStatsQuery, getBlockStatsQuery *usecase.GetBlockStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int) error {
 	// Create the Bubble Tea model
-	model := NewModel(getFilteredQuery, getBlockStatsQuery, timezone, block, tokenLimit)
+	model := NewModel(getFilteredQuery, getStatsQuery, getBlockStatsQuery, timezone, block, tokenLimit)
 
 	// Create and run the Bubble Tea program
 	p := tea.NewProgram(model, tea.WithAltScreen())

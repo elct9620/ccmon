@@ -222,7 +222,7 @@ func (m Model) renderBlockProgress() string {
 
 	// Calculate progress directly from block stats and token limit
 	// Only premium tokens count toward limits (Haiku is free)
-	used := m.stats.PremiumTokens().Limited()
+	used := m.blockStats.PremiumTokens().Limited()
 	limit := int64(m.tokenLimit)
 	percentage := float64(used) / float64(limit) * 100
 	

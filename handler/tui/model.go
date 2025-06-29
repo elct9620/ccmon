@@ -38,8 +38,10 @@ type Model struct {
 	width              int
 	height             int
 	ready              bool
-	stats              entity.Stats
+	stats              entity.Stats // Stats for the current filter (displayed in statistics table)
+	blockStats         entity.Stats // Stats for the current block (used for progress bar)
 	getFilteredQuery   *usecase.GetFilteredApiRequestsQuery
+	getStatsQuery      *usecase.GetStatsQuery
 	getBlockStatsQuery *usecase.GetBlockStatsQuery
 	timeFilter         TimeFilter
 	sortOrder          SortOrder
@@ -49,7 +51,7 @@ type Model struct {
 }
 
 // NewModel creates a new Model with initial state
-func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getBlockStatsQuery *usecase.GetBlockStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int) Model {
+func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getStatsQuery *usecase.GetStatsQuery, getBlockStatsQuery *usecase.GetBlockStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int) Model {
 	columns := []table.Column{
 		{Title: "Time", Width: 20},
 		{Title: "Model", Width: 25},
@@ -76,10 +78,12 @@ func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getBlockSta
 		requests:           []entity.APIRequest{},
 		table:              t,
 		getFilteredQuery:   getFilteredQuery,
+		getStatsQuery:      getStatsQuery,
 		getBlockStatsQuery: getBlockStatsQuery,
 		timeFilter:         FilterAll,
 		sortOrder:          SortDescending, // Default to latest first
 		stats:              entity.Stats{},
+		blockStats:         entity.Stats{},
 		timezone:           timezone,
 		block:              block,
 		tokenLimit:         tokenLimit,
@@ -305,33 +309,29 @@ func (m *Model) recalculateStats() {
 	}
 	// For SortAscending, keep the original order (oldest first)
 
-	// Calculate stats: Use block stats for progress bars, or filtered stats for display
+	// Calculate filtered stats for display (always based on current filter)
+	if m.getStatsQuery != nil {
+		statsParams := usecase.GetStatsParams{Period: period}
+		stats, err := m.getStatsQuery.Execute(context.Background(), statsParams)
+		if err != nil {
+			// Handle error silently for now, stats will remain empty
+			m.stats = entity.Stats{}
+		} else {
+			m.stats = stats
+		}
+	}
+
+	// Calculate block stats for progress bar (only when block tracking is enabled)
 	if m.block != nil && m.getBlockStatsQuery != nil {
-		// For block tracking: Always use current block stats regardless of display filter
 		blockStatsParams := usecase.GetBlockStatsParams{
 			Block: *m.block,
 		}
 		blockStats, err := m.getBlockStatsQuery.Execute(context.Background(), blockStatsParams)
 		if err != nil {
-			// Fallback to filtered stats calculation
-			m.stats = entity.CalculateStats(m.requests)
+			// Keep previous block stats or use empty stats
+			m.blockStats = entity.Stats{}
 		} else {
-			// Use block stats directly - progress calculation will be handled in UI layer
-			m.stats = blockStats
-		}
-	} else {
-		// For non-block mode: Calculate stats from filtered requests
-		statsParams := usecase.GetFilteredApiRequestsParams{
-			Period: period,
-			Limit:  0, // No limit for stats calculation
-			Offset: 0,
-		}
-		allRequests, err := m.getFilteredQuery.Execute(context.Background(), statsParams)
-		if err != nil {
-			// Handle error silently for now, use display requests for stats
-			m.stats = entity.CalculateStats(m.requests)
-		} else {
-			m.stats = entity.CalculateStats(allRequests)
+			m.blockStats = blockStats
 		}
 	}
 
