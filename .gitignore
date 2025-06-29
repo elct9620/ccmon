@@ -5,3 +5,8 @@ ccmon.db
 config.toml
 config.yaml
 config.json
+
+# Release artifacts
+dist/
+*.tar.gz
+*.zip

@@ -1,0 +1,117 @@
+version: 2
+
+project_name: ccmon
+
+before:
+  hooks:
+    - go mod tidy
+    - make generate
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    binary: ccmon
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+
+dockers:
+  - image_templates:
+      - "ghcr.io/elct9620/ccmon:{{ .Tag }}-amd64"
+      - "ghcr.io/elct9620/ccmon:latest-amd64"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+    goarch: amd64
+
+  - image_templates:
+      - "ghcr.io/elct9620/ccmon:{{ .Tag }}-arm64"
+      - "ghcr.io/elct9620/ccmon:latest-arm64"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "ghcr.io/elct9620/ccmon:{{ .Tag }}"
+    image_templates:
+      - "ghcr.io/elct9620/ccmon:{{ .Tag }}-amd64"
+      - "ghcr.io/elct9620/ccmon:{{ .Tag }}-arm64"
+
+  - name_template: "ghcr.io/elct9620/ccmon:latest"
+    image_templates:
+      - "ghcr.io/elct9620/ccmon:latest-amd64"
+      - "ghcr.io/elct9620/ccmon:latest-arm64"
+
+release:
+  github:
+    owner: elct9620
+    name: ccmon
+  draft: false
+  prerelease: auto
+  mode: keep-existing
+  header: |
+    ## ccmon {{ .Tag }}
+    
+    ### Changes
+  footer: |
+    
+    ### Docker Images
+    
+    Multi-architecture Docker images are available:
+    ```bash
+    docker pull ghcr.io/elct9620/ccmon:{{ .Tag }}
+    docker pull ghcr.io/elct9620/ccmon:latest
+    ```
+    
+    ### Installation
+    
+    Download the appropriate binary for your platform from the assets below.
