@@ -6,8 +6,18 @@ import (
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/elct9620/ccmon/db"
 	"github.com/elct9620/ccmon/entity"
+)
+
+// TimeFilter represents the available time filter options for UI
+type TimeFilter int
+
+const (
+	FilterAll TimeFilter = iota
+	FilterHour
+	FilterDay
+	FilterWeek
+	FilterMonth
 )
 
 // Model represents the state of our TUI monitor application
@@ -19,7 +29,7 @@ type Model struct {
 	ready      bool
 	stats      entity.Stats
 	db         Database
-	timeFilter db.TimeFilter
+	timeFilter TimeFilter
 }
 
 // NewModel creates a new Model with initial state
@@ -50,7 +60,7 @@ func NewModel(database Database) Model {
 		requests:   []entity.APIRequest{},
 		table:      t,
 		db:         database,
-		timeFilter: db.FilterAll,
+		timeFilter: FilterAll,
 		stats:      entity.Stats{},
 	}
 }
@@ -87,19 +97,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.table.Focus()
 			}
 		case "a":
-			m.timeFilter = db.FilterAll
+			m.timeFilter = FilterAll
 			return m, m.refreshStats
 		case "h":
-			m.timeFilter = db.FilterHour
+			m.timeFilter = FilterHour
 			return m, m.refreshStats
 		case "d":
-			m.timeFilter = db.FilterDay
+			m.timeFilter = FilterDay
 			return m, m.refreshStats
 		case "w":
-			m.timeFilter = db.FilterWeek
+			m.timeFilter = FilterWeek
 			return m, m.refreshStats
 		case "m":
-			m.timeFilter = db.FilterMonth
+			m.timeFilter = FilterMonth
 			return m, m.refreshStats
 		}
 
@@ -178,35 +188,33 @@ func formatDuration(ms int64) string {
 // getTimeFilterString returns a string representation of the current time filter
 func (m Model) getTimeFilterString() string {
 	switch m.timeFilter {
-	case db.FilterHour:
+	case FilterHour:
 		return "Last Hour"
-	case db.FilterDay:
+	case FilterDay:
 		return "Last 24 Hours"
-	case db.FilterWeek:
+	case FilterWeek:
 		return "Last 7 Days"
-	case db.FilterMonth:
+	case FilterMonth:
 		return "Last 30 Days"
 	default:
 		return "All Time"
 	}
 }
 
-// getTimeRange returns the start and end time for the current filter
-func (m Model) getTimeRange() (start, end time.Time) {
-	end = time.Now()
+// getTimePeriod returns entity.Period for the current filter
+func (m Model) getTimePeriod() entity.Period {
 	switch m.timeFilter {
-	case db.FilterHour:
-		start = end.Add(-1 * time.Hour)
-	case db.FilterDay:
-		start = end.Add(-24 * time.Hour)
-	case db.FilterWeek:
-		start = end.Add(-7 * 24 * time.Hour)
-	case db.FilterMonth:
-		start = end.Add(-30 * 24 * time.Hour)
+	case FilterHour:
+		return entity.NewPeriodFromDuration(time.Hour)
+	case FilterDay:
+		return entity.NewPeriodFromDuration(24 * time.Hour)
+	case FilterWeek:
+		return entity.NewPeriodFromDuration(7 * 24 * time.Hour)
+	case FilterMonth:
+		return entity.NewPeriodFromDuration(30 * 24 * time.Hour)
 	default:
-		start = time.Time{} // Zero time for all records
+		return entity.NewAllTimePeriod()
 	}
-	return
 }
 
 // refreshStats returns a command to refresh statistics
@@ -216,26 +224,23 @@ func (m Model) refreshStats() tea.Msg {
 
 // recalculateStats recalculates statistics from the database
 func (m *Model) recalculateStats() {
-	// Query database
-	filter := db.Filter{TimeFilter: m.timeFilter}
-	requests, err := m.db.GetAPIRequests(filter)
+	// Query database with entity.Period
+	period := m.getTimePeriod()
+	requests, err := m.db.GetAPIRequests(period)
 	if err != nil {
 		// Handle error silently for now
 		return
 	}
 
-	// Convert to entities
-	entities := db.ToEntities(requests)
-
 	// Update display requests (show latest 100)
-	if len(entities) > 100 {
-		m.requests = entities[len(entities)-100:]
+	if len(requests) > 100 {
+		m.requests = requests[len(requests)-100:]
 	} else {
-		m.requests = entities
+		m.requests = requests
 	}
 
 	// Calculate stats
-	m.stats = entity.CalculateStats(entities)
+	m.stats = entity.CalculateStats(requests)
 
 	// Update table
 	m.updateTableRows()

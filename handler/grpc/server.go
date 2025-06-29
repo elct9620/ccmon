@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	dbpkg "github.com/elct9620/ccmon/db"
+	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/handler/grpc/query"
 	"github.com/elct9620/ccmon/handler/grpc/receiver"
 	pb "github.com/elct9620/ccmon/proto"
@@ -22,9 +22,9 @@ import (
 
 // Database interface to avoid circular dependency
 type Database interface {
-	SaveAPIRequest(req dbpkg.APIRequest) error
-	GetAllRequests() ([]dbpkg.APIRequest, error)
-	GetAPIRequests(filter dbpkg.Filter) ([]dbpkg.APIRequest, error)
+	SaveAPIRequest(req entity.APIRequest) error
+	GetAllRequests() ([]entity.APIRequest, error)
+	GetAPIRequests(period entity.Period) ([]entity.APIRequest, error)
 	Close() error
 }
 
@@ -103,13 +103,13 @@ func logRequestStats(ctx context.Context, db Database) {
 			}
 
 			// Calculate stats
-			baseReqs, premiumReqs, baseTokens, premiumTokens, _, _, _, _, baseCost, premiumCost := dbpkg.CalculateStats(requests)
-			totalReqs := baseReqs + premiumReqs
-			totalTokens := baseTokens + premiumTokens
-			totalCost := baseCost + premiumCost
+			stats := entity.CalculateStats(requests)
+			totalReqs := stats.TotalRequests()
+			totalTokens := stats.TotalTokens().Total()
+			totalCost := stats.TotalCost().Amount()
 
 			log.Printf("Stats - Requests: %d (Base: %d, Premium: %d) | Tokens: %d | Cost: $%.6f",
-				totalReqs, baseReqs, premiumReqs, totalTokens, totalCost)
+				totalReqs, stats.BaseRequests(), stats.PremiumRequests(), totalTokens, totalCost)
 		}
 	}
 }

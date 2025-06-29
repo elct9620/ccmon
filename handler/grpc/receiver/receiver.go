@@ -7,7 +7,6 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/elct9620/ccmon/db"
 	"github.com/elct9620/ccmon/entity"
 	logsv1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	metricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
@@ -18,20 +17,20 @@ import (
 
 // Receiver handles OTLP message processing
 type Receiver struct {
-	requestChan chan db.APIRequest
+	requestChan chan entity.APIRequest
 	program     *tea.Program
 	db          Database
 }
 
 // Database interface to avoid circular dependency
 type Database interface {
-	SaveAPIRequest(req db.APIRequest) error
-	GetAllRequests() ([]db.APIRequest, error)
+	SaveAPIRequest(req entity.APIRequest) error
+	GetAllRequests() ([]entity.APIRequest, error)
 	Close() error
 }
 
 // NewReceiver creates a new OTLP receiver
-func NewReceiver(requestChan chan db.APIRequest, program *tea.Program, database Database) *Receiver {
+func NewReceiver(requestChan chan entity.APIRequest, program *tea.Program, database Database) *Receiver {
 	return &Receiver{
 		requestChan: requestChan,
 		program:     program,
@@ -90,8 +89,7 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 					if apiReq != nil {
 						// Save to database
 						if r.receiver.db != nil {
-							dbReq := db.FromEntity(*apiReq)
-							if err := r.receiver.db.SaveAPIRequest(dbReq); err != nil {
+							if err := r.receiver.db.SaveAPIRequest(*apiReq); err != nil {
 								log.Printf("Failed to save request to database: %v", err)
 							} else {
 								// Log the request in server mode
@@ -106,9 +104,8 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 
 						// Send to channel (non-blocking) - only used in old architecture
 						if r.receiver.requestChan != nil {
-							dbReq := db.FromEntity(*apiReq)
 							select {
-							case r.receiver.requestChan <- dbReq:
+							case r.receiver.requestChan <- *apiReq:
 							default:
 								// Channel is full, drop the request
 							}

@@ -3,8 +3,8 @@ package query
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/elct9620/ccmon/db"
 	"github.com/elct9620/ccmon/entity"
 	pb "github.com/elct9620/ccmon/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -12,8 +12,8 @@ import (
 
 // Database interface to avoid circular dependency
 type Database interface {
-	GetAPIRequests(filter db.Filter) ([]db.APIRequest, error)
-	GetAllRequests() ([]db.APIRequest, error)
+	GetAPIRequests(period entity.Period) ([]entity.APIRequest, error)
+	GetAllRequests() ([]entity.APIRequest, error)
 	Close() error
 }
 
@@ -32,20 +32,17 @@ func NewService(database Database) *Service {
 
 // GetStats returns aggregated statistics based on time filter
 func (s *Service) GetStats(ctx context.Context, req *pb.GetStatsRequest) (*pb.GetStatsResponse, error) {
-	// Convert proto time filter to db filter
-	dbFilter := db.Filter{
-		TimeFilter: convertTimeFilter(req.TimeFilter),
-	}
+	// Convert proto time filter to entity.Period
+	period := convertTimeFilterToPeriod(req.TimeFilter)
 
 	// Get requests from database
-	requests, err := s.db.GetAPIRequests(dbFilter)
+	requests, err := s.db.GetAPIRequests(period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get requests: %w", err)
 	}
 
-	// Convert to entities and calculate stats
-	entities := db.ToEntities(requests)
-	stats := entity.CalculateStats(entities)
+	// Calculate stats
+	stats := entity.CalculateStats(requests)
 
 	// Convert to protobuf response
 	pbStats := &pb.Stats{
@@ -67,13 +64,11 @@ func (s *Service) GetStats(ctx context.Context, req *pb.GetStatsRequest) (*pb.Ge
 
 // GetAPIRequests returns API request records based on filters
 func (s *Service) GetAPIRequests(ctx context.Context, req *pb.GetAPIRequestsRequest) (*pb.GetAPIRequestsResponse, error) {
-	// Convert proto time filter to db filter
-	dbFilter := db.Filter{
-		TimeFilter: convertTimeFilter(req.TimeFilter),
-	}
+	// Convert proto time filter to entity.Period
+	period := convertTimeFilterToPeriod(req.TimeFilter)
 
 	// Get requests from database
-	requests, err := s.db.GetAPIRequests(dbFilter)
+	requests, err := s.db.GetAPIRequests(period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get requests: %w", err)
 	}
@@ -99,8 +94,8 @@ func (s *Service) GetAPIRequests(ctx context.Context, req *pb.GetAPIRequestsRequ
 
 	// Convert to protobuf messages
 	pbRequests := make([]*pb.APIRequest, len(requests))
-	for i, req := range requests {
-		pbRequests[i] = convertAPIRequestToProto(req)
+	for i, apiReq := range requests {
+		pbRequests[i] = convertAPIRequestToProto(apiReq)
 	}
 
 	return &pb.GetAPIRequestsResponse{
@@ -109,21 +104,21 @@ func (s *Service) GetAPIRequests(ctx context.Context, req *pb.GetAPIRequestsRequ
 	}, nil
 }
 
-// convertTimeFilter converts protobuf TimeFilter to db.TimeFilter
-func convertTimeFilter(filter pb.TimeFilter) db.TimeFilter {
+// convertTimeFilterToPeriod converts protobuf TimeFilter to entity.Period
+func convertTimeFilterToPeriod(filter pb.TimeFilter) entity.Period {
 	switch filter {
 	case pb.TimeFilter_TIME_FILTER_ALL:
-		return db.FilterAll
+		return entity.NewAllTimePeriod()
 	case pb.TimeFilter_TIME_FILTER_HOUR:
-		return db.FilterHour
+		return entity.NewPeriodFromDuration(time.Hour)
 	case pb.TimeFilter_TIME_FILTER_DAY:
-		return db.FilterDay
+		return entity.NewPeriodFromDuration(24 * time.Hour)
 	case pb.TimeFilter_TIME_FILTER_WEEK:
-		return db.FilterWeek
+		return entity.NewPeriodFromDuration(7 * 24 * time.Hour)
 	case pb.TimeFilter_TIME_FILTER_MONTH:
-		return db.FilterMonth
+		return entity.NewPeriodFromDuration(30 * 24 * time.Hour)
 	default:
-		return db.FilterAll
+		return entity.NewAllTimePeriod()
 	}
 }
 
@@ -147,18 +142,18 @@ func convertCostToProto(cost entity.Cost) *pb.Cost {
 	}
 }
 
-// convertAPIRequestToProto converts db.APIRequest to protobuf APIRequest
-func convertAPIRequestToProto(req db.APIRequest) *pb.APIRequest {
+// convertAPIRequestToProto converts entity.APIRequest to protobuf APIRequest
+func convertAPIRequestToProto(req entity.APIRequest) *pb.APIRequest {
 	return &pb.APIRequest{
-		SessionId:           req.SessionID,
-		Timestamp:           timestamppb.New(req.Timestamp),
-		Model:               req.Model,
-		InputTokens:         req.InputTokens,
-		OutputTokens:        req.OutputTokens,
-		CacheReadTokens:     req.CacheReadTokens,
-		CacheCreationTokens: req.CacheCreationTokens,
-		TotalTokens:         req.TotalTokens,
-		CostUsd:             req.CostUSD,
-		DurationMs:          req.DurationMS,
+		SessionId:           req.SessionID(),
+		Timestamp:           timestamppb.New(req.Timestamp()),
+		Model:               string(req.Model()),
+		InputTokens:         req.Tokens().Input(),
+		OutputTokens:        req.Tokens().Output(),
+		CacheReadTokens:     req.Tokens().CacheRead(),
+		CacheCreationTokens: req.Tokens().CacheCreation(),
+		TotalTokens:         req.Tokens().Total(),
+		CostUsd:             req.Cost().Amount(),
+		DurationMs:          req.DurationMS(),
 	}
 }

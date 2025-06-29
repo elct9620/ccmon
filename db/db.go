@@ -83,8 +83,9 @@ func (d *Database) Close() error {
 }
 
 // SaveAPIRequest saves an API request to the database (implements receiver.Database interface)
-func (d *Database) SaveAPIRequest(req APIRequest) error {
-	return d.SaveRequest(&req)
+func (d *Database) SaveAPIRequest(req entity.APIRequest) error {
+	dbReq := FromEntity(req)
+	return d.SaveRequest(&dbReq)
 }
 
 // SaveRequest saves an API request to the database
@@ -135,7 +136,7 @@ func (d *Database) QueryTimeRange(start, end time.Time) ([]APIRequest, error) {
 }
 
 // GetAllRequests returns all requests (limited to last 10000 to prevent memory issues)
-func (d *Database) GetAllRequests() ([]APIRequest, error) {
+func (d *Database) GetAllRequests() ([]entity.APIRequest, error) {
 	var requests []APIRequest
 
 	err := d.db.View(func(tx *bbolt.Tx) error {
@@ -174,7 +175,9 @@ func (d *Database) GetAllRequests() ([]APIRequest, error) {
 		return nil
 	})
 
-	return requests, err
+	// Convert to entities
+	entities := ToEntities(requests)
+	return entities, err
 }
 
 // CalculateStats calculates statistics for a set of requests
@@ -198,18 +201,22 @@ func CalculateStats(requests []APIRequest) (baseReqs, premiumReqs int, baseToken
 	return
 }
 
-// GetAPIRequests returns requests based on filter (implements monitor.Database interface)
-func (d *Database) GetAPIRequests(filter Filter) ([]APIRequest, error) {
-	switch filter.TimeFilter {
-	case FilterHour:
-		return d.QueryTimeRange(time.Now().Add(-1*time.Hour), time.Now())
-	case FilterDay:
-		return d.QueryTimeRange(time.Now().Add(-24*time.Hour), time.Now())
-	case FilterWeek:
-		return d.QueryTimeRange(time.Now().Add(-7*24*time.Hour), time.Now())
-	case FilterMonth:
-		return d.QueryTimeRange(time.Now().Add(-30*24*time.Hour), time.Now())
-	default:
-		return d.GetAllRequests()
+// GetAPIRequests returns requests based on period (implements monitor.Database interface)
+func (d *Database) GetAPIRequests(period entity.Period) ([]entity.APIRequest, error) {
+	var dbRequests []APIRequest
+	var err error
+	
+	if period.IsAllTime() {
+		// Get all requests and convert to entities
+		entities, err := d.GetAllRequests()
+		return entities, err
+	} else {
+		// Query time range and convert to entities
+		dbRequests, err = d.QueryTimeRange(period.StartAt(), period.EndAt())
+		if err != nil {
+			return nil, err
+		}
+		entities := ToEntities(dbRequests)
+		return entities, nil
 	}
 }
