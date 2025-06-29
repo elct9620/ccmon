@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -40,7 +41,7 @@ type Claude struct {
 	MaxTokens int    `mapstructure:"max_tokens"` // override default token limits
 }
 
-// LoadConfig loads configuration from files
+// LoadConfig loads configuration from files and command-line flags
 func LoadConfig() (*Config, error) {
 	v := viper.New()
 
@@ -51,6 +52,39 @@ func LoadConfig() (*Config, error) {
 	v.SetDefault("monitor.timezone", "UTC")
 	v.SetDefault("claude.plan", "unset")
 	v.SetDefault("claude.max_tokens", 0) // 0 means use plan defaults
+
+	// Define command-line flags using pflag (if not already defined)
+	if pflag.Lookup("database-path") == nil {
+		pflag.String("database-path", "", "Path to the BoltDB database file")
+	}
+	if pflag.Lookup("server-address") == nil {
+		pflag.String("server-address", "", "gRPC server address for OTLP receiver + Query service")
+	}
+	if pflag.Lookup("monitor-server") == nil {
+		pflag.String("monitor-server", "", "gRPC server address for query service")
+	}
+	if pflag.Lookup("monitor-timezone") == nil {
+		pflag.String("monitor-timezone", "", "Timezone for time filtering and display")
+	}
+	if pflag.Lookup("claude-plan") == nil {
+		pflag.String("claude-plan", "", "Claude subscription plan (unset, pro, max, max20)")
+	}
+	if pflag.Lookup("claude-max-tokens") == nil {
+		pflag.Int("claude-max-tokens", 0, "Custom token limit override (0 means use plan defaults)")
+	}
+
+	// Parse flags if not already parsed
+	if !pflag.Parsed() {
+		pflag.Parse()
+	}
+
+	// Bind flags to viper
+	v.BindPFlag("database.path", pflag.Lookup("database-path"))
+	v.BindPFlag("server.address", pflag.Lookup("server-address"))
+	v.BindPFlag("monitor.server", pflag.Lookup("monitor-server"))
+	v.BindPFlag("monitor.timezone", pflag.Lookup("monitor-timezone"))
+	v.BindPFlag("claude.plan", pflag.Lookup("claude-plan"))
+	v.BindPFlag("claude.max_tokens", pflag.Lookup("claude-max-tokens"))
 
 	// Set config name (without extension)
 	v.SetConfigName("config")

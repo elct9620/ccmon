@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -11,23 +10,30 @@ import (
 	"github.com/elct9620/ccmon/handler/tui"
 	"github.com/elct9620/ccmon/repository"
 	"github.com/elct9620/ccmon/usecase"
+	"github.com/spf13/pflag"
 )
 
 func main() {
-	// Parse command line flags
+	// Parse command line flags using pflag
 	var serverMode bool
 	var blockTime string
-	flag.BoolVar(&serverMode, "s", false, "Run as OTLP server (headless mode)")
-	flag.BoolVar(&serverMode, "server", false, "Run as OTLP server (headless mode)")
-	flag.StringVar(&blockTime, "b", "", "Set block start time for token tracking (e.g., '5am', '11pm')")
-	flag.StringVar(&blockTime, "block", "", "Set block start time for token tracking (e.g., '5am', '11pm')")
-	flag.Parse()
+	pflag.BoolVarP(&serverMode, "server", "s", false, "Run as OTLP server (headless mode)")
+	pflag.StringVarP(&blockTime, "block", "b", "", "Set block start time for token tracking (e.g., '5am', '11pm')")
+	
+	// Add help flag
+	pflag.BoolP("help", "h", false, "Show help")
 
-	// Load configuration
+	// Load configuration (this will parse flags internally)
 	config, err := LoadConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Check for help flag after config is loaded
+	if help, _ := pflag.CommandLine.GetBool("help"); help {
+		pflag.Usage()
+		os.Exit(0)
 	}
 
 	if serverMode {
