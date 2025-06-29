@@ -13,7 +13,6 @@ type Renderer struct {
 	tableComponent *components.TableComponent
 }
 
-
 // NewRenderer creates a new renderer with components
 func NewRenderer(tableComponent *components.TableComponent) *Renderer {
 	return &Renderer{
