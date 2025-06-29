@@ -95,16 +95,16 @@ The application follows a modular architecture with clear separation of concerns
 4. gRPC server (`handler/grpc/server.go`) handles connection and service registration
 5. OTLP receiver (`handler/grpc/receiver/`) parses log records with body "claude_code.api_request"
 6. Data is saved via usecase commands that coordinate with repository layer
-7. Query service (`handler/grpc/query/`) provides gRPC API using usecase queries
-8. Requests are logged to console
+7. Query service (`handler/grpc/query/`) provides gRPC API using usecase queries with efficient limiting
 
 **Monitor Mode:**
 1. main.go initializes gRPC repository and usecase layer for monitor mode
 2. TUI handler receives usecase queries for data access
-3. Queries data via gRPC calls through repository abstraction
+3. Queries data via gRPC calls through repository abstraction with limit parameters
 4. Refreshes statistics every 5 seconds via usecase layer
-5. Allows time-based filtering with keyboard shortcuts using entity.Period
-6. Displays data in a TUI table
+5. Uses dual query strategy: limit=100 for display, limit=0 for accurate statistics
+6. Allows time-based filtering and sorting with keyboard shortcuts using entity.Period
+7. Displays data in a sortable TUI table with latest-first default ordering
 
 ### Environment Variables Required
 
@@ -166,9 +166,11 @@ See `config.toml.example` for a complete example configuration file.
 - Statistics are tracked separately for base/premium tiers and combined totals
 - The gRPC server runs on port 4317 (standard OTLP port) providing both OTLP and Query services
 - Table height is dynamically adjusted based on terminal size in monitor mode
+- TUI supports sortable request list with 'o' key to toggle between latest-first and oldest-first
 - Multiple monitors can connect to the same server via gRPC (no database conflicts)
-- Database limits stored requests to last 10,000 entries
+- Database limits stored requests to last 10,000 entries with efficient limiting support
 - Monitor and server can run on different machines by configuring monitor.server address
+- Network traffic optimized: TUI requests only 100 records for display, separate unlimited query for statistics
 
 ## Development Conventions
 
