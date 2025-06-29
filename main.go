@@ -25,18 +25,28 @@ func main() {
 	}
 
 	if serverMode {
-		if err := grpcserver.RunServer(config.Server.Address, func() (grpcserver.Database, error) {
-			db, err := db.NewDatabase(config.Database.Path)
-			return db, err
-		}); err != nil {
+		// Initialize database for server mode (read-write)
+		database, err := db.NewDatabase(config.Database.Path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to initialize database: %v\n", err)
+			os.Exit(1)
+		}
+		defer database.Close()
+
+		if err := grpcserver.RunServer(config.Server.Address, database); err != nil {
 			fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 			os.Exit(1)
 		}
 	} else {
-		if err := tui.RunMonitor(func() (tui.Database, error) {
-			db, err := db.NewDatabaseReadOnly(config.Database.Path)
-			return db, err
-		}); err != nil {
+		// Initialize database for monitor mode (read-only)
+		database, err := db.NewDatabaseReadOnly(config.Database.Path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to initialize database: %v\n", err)
+			os.Exit(1)
+		}
+		defer database.Close()
+
+		if err := tui.RunMonitor(database); err != nil {
 			fmt.Fprintf(os.Stderr, "Monitor error: %v\n", err)
 			os.Exit(1)
 		}

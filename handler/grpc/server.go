@@ -26,15 +26,8 @@ type Database interface {
 }
 
 // RunServer runs the headless OTLP server mode
-func RunServer(address string, newDB func() (Database, error)) error {
+func RunServer(address string, db Database) error {
 	log.Println("Starting ccmon in server mode...")
-
-	// Initialize database
-	db, err := newDB()
-	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
-	}
-	defer db.Close()
 
 	// Create the OTLP receiver
 	otlpReceiver := receiver.NewReceiver(nil, nil, db) // No channel or TUI program needed

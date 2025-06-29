@@ -14,14 +14,7 @@ type Database interface {
 }
 
 // RunMonitor runs the TUI monitor mode
-func RunMonitor(newDBReadOnly func() (Database, error)) error {
-	// Initialize database in read-only mode
-	db, err := newDBReadOnly()
-	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
-	}
-	defer db.Close()
-
+func RunMonitor(db Database) error {
 	// Create the Bubble Tea model
 	model := NewModel(db)
 
