@@ -91,7 +91,6 @@ func (r *GRPCAPIRequestRepository) Close() error {
 	return r.conn.Close()
 }
 
-
 // convertProtoToAPIRequest converts protobuf APIRequest to entity.APIRequest
 func convertProtoToAPIRequest(pbReq *pb.APIRequest) entity.APIRequest {
 	// Create token entity

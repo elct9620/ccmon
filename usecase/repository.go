@@ -15,4 +15,3 @@ type APIRequestRepository interface {
 	// FindAll retrieves all API requests (limited to prevent memory issues)
 	FindAll() ([]entity.APIRequest, error)
 }
-

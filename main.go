@@ -20,7 +20,7 @@ func main() {
 	var blockTime string
 	pflag.BoolVarP(&serverMode, "server", "s", false, "Run as OTLP server (headless mode)")
 	pflag.StringVarP(&blockTime, "block", "b", "", "Set block start time for token tracking (e.g., '5am', '11pm')")
-	
+
 	// Add help flag
 	pflag.BoolP("help", "h", false, "Show help")
 

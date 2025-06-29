@@ -91,7 +91,6 @@ func (r *BoltDBAPIRequestRepository) saveRequest(req *schema.APIRequest) error {
 	})
 }
 
-
 // queryTimeRangeWithLimit queries requests within a time range with limit and offset
 // limit = 0 means no limit, offset = 0 means no offset
 func (r *BoltDBAPIRequestRepository) queryTimeRangeWithLimit(start, end time.Time, limit int, offset int) ([]schema.APIRequest, error) {
@@ -278,4 +277,3 @@ func (r *BoltDBAPIRequestRepository) convertToEntities(requests []schema.APIRequ
 	}
 	return entities
 }
-
