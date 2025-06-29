@@ -95,6 +95,22 @@ func (r *GRPCAPIRequestRepository) Close() error {
 	return r.conn.Close()
 }
 
+// GetBlockStats returns statistics for a specific block period
+// Implements BlockStatsRepository interface
+func (r *GRPCAPIRequestRepository) GetBlockStats(block entity.Block) (entity.Stats, error) {
+	// Get current block period
+	currentBlock := block.CurrentBlock(time.Now())
+	
+	// Query all requests in the current block period (no limit for accurate stats)
+	requests, err := r.FindByPeriodWithLimit(currentBlock, 0, 0)
+	if err != nil {
+		return entity.Stats{}, fmt.Errorf("failed to get block stats: %w", err)
+	}
+	
+	// Calculate stats from block requests without token limit (will be set by caller)
+	return entity.CalculateStats(requests), nil
+}
+
 // convertProtoToAPIRequest converts protobuf APIRequest to entity.APIRequest
 func convertProtoToAPIRequest(pbReq *pb.APIRequest) entity.APIRequest {
 	// Create token entity

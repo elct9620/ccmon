@@ -27,10 +27,12 @@ func NewPeriodFromDuration(duration time.Duration) Period {
 
 // NewPeriodFromDurationWithTimezone creates a Period from current time minus duration in specified timezone
 func NewPeriodFromDurationWithTimezone(duration time.Duration, timezone *time.Location) Period {
-	now := time.Now().In(timezone).UTC()
+	now := time.Now().In(timezone)
+	startAt := now.Add(-duration).UTC()
+	endAt := now.UTC()
 	return Period{
-		startAt: now.Add(-duration),
-		endAt:   now,
+		startAt: startAt,
+		endAt:   endAt,
 	}
 }
 

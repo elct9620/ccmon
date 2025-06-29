@@ -182,8 +182,8 @@ func (m Model) renderStats() string {
 		}
 	}
 
-	// Add progress bar section if block is active
-	if m.stats.IsInActiveBlock() {
+	// Add progress bar section if block is configured
+	if m.block != nil && m.tokenLimit > 0 {
 		b.WriteString("\n\n")
 		b.WriteString(m.renderBlockProgress())
 	} else if m.block == nil {
@@ -220,8 +220,23 @@ func formatTokenCount(tokens int64) string {
 func (m Model) renderBlockProgress() string {
 	var b strings.Builder
 
-	used, limit, percentage := m.stats.BlockProgress()
-	timeRemaining := m.stats.BlockTimeRemaining()
+	// Calculate progress directly from block stats and token limit
+	// Only premium tokens count toward limits (Haiku is free)
+	used := m.stats.PremiumTokens().Limited()
+	limit := int64(m.tokenLimit)
+	percentage := float64(used) / float64(limit) * 100
+	
+	if percentage > 100 {
+		percentage = 100
+	}
+
+	// Calculate time remaining until next block
+	currentBlock := m.block.CurrentBlock(time.Now())
+	now := time.Now().UTC()
+	var timeRemaining time.Duration
+	if now.Before(currentBlock.EndAt()) {
+		timeRemaining = currentBlock.EndAt().Sub(now)
+	}
 
 	// Block header
 	blockTime := ""
@@ -235,7 +250,7 @@ func (m Model) renderBlockProgress() string {
 	progressBar := renderProgressBar(percentage, 40)
 	b.WriteString(progressBar)
 	b.WriteString(" ")
-	b.WriteString(statStyle.Render(fmt.Sprintf("%.1f%% (%s/%s tokens)", percentage, formatTokenCount(used), formatTokenCount(int64(limit)))))
+	b.WriteString(statStyle.Render(fmt.Sprintf("%.1f%% (%s/%s tokens)", percentage, formatTokenCount(used), formatTokenCount(limit))))
 	b.WriteString("\n")
 
 	// Time remaining

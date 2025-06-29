@@ -63,6 +63,10 @@ func main() {
 		// Create query usecase (no append command needed for monitor)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
 
+		// Repository implements both APIRequestRepository and BlockStatsRepository
+		var blockStatsRepo usecase.BlockStatsRepository = repo
+		getBlockStatsQuery := usecase.NewGetBlockStatsQuery(blockStatsRepo)
+
 		// Load timezone for monitor mode
 		timezone, err := time.LoadLocation(config.Monitor.Timezone)
 		if err != nil {
@@ -89,8 +93,8 @@ func main() {
 			}
 		}
 
-		// Run monitor with usecase, timezone, and block config
-		if err := tui.RunMonitor(getFilteredQuery, timezone, block, tokenLimit); err != nil {
+		// Run monitor with usecase, timezone, block config, and block stats query
+		if err := tui.RunMonitor(getFilteredQuery, getBlockStatsQuery, timezone, block, tokenLimit); err != nil {
 			fmt.Fprintf(os.Stderr, "Monitor error: %v\n", err)
 			os.Exit(1)
 		}

@@ -10,9 +10,9 @@ import (
 )
 
 // RunMonitor runs the TUI monitor mode with usecase
-func RunMonitor(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, timezone *time.Location, block *entity.Block, tokenLimit int) error {
+func RunMonitor(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, getBlockStatsQuery *usecase.GetBlockStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int) error {
 	// Create the Bubble Tea model
-	model := NewModel(getFilteredQuery, timezone, block, tokenLimit)
+	model := NewModel(getFilteredQuery, getBlockStatsQuery, timezone, block, tokenLimit)
 
 	// Create and run the Bubble Tea program
 	p := tea.NewProgram(model, tea.WithAltScreen())
