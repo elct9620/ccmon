@@ -22,6 +22,12 @@ ccmon has two distinct operating modes:
    ./ccmon --server
    ```
 
+3. **Block Tracking Mode**: Monitor with Claude token limit progress bars for 5-hour blocks
+   ```bash
+   ./ccmon -b 5am      # Track usage from 5am start blocks
+   ./ccmon --block 11pm # Track usage from 11pm start blocks
+   ```
+
 ## Build and Development Commands
 
 ```bash
@@ -145,14 +151,52 @@ address = "127.0.0.1:4317"
 # Monitor connects to this address to query data from server
 server = "127.0.0.1:4317"
 
+# Timezone for time filtering and display in monitor mode
+# Default: "UTC"
+# Examples: "UTC", "America/New_York", "Europe/London", "Asia/Tokyo"
+timezone = "UTC"
+
 [claude]
 # Claude subscription plan
 # Default: "unset"
 # Valid values: "unset", "pro", "max", "max20"
+# Used for automatic token limit detection when using block tracking (-b flag)
 plan = "unset"
+
+# Custom token limit override
+# Default: 0 (use plan defaults)
+# Set to override default limits: pro=7000, max=35000, max20=140000
+# Use with block tracking (-b flag) to monitor token usage within 5-hour blocks
+max_tokens = 0
 ```
 
 See `config.toml.example` for a complete example configuration file.
+
+## Block Tracking Feature
+
+ccmon supports Claude's 5-hour token limit blocks for monitoring API usage against subscription plan limits.
+
+### Usage
+```bash
+./ccmon -b 5am      # Track from 5am blocks (5am-10am, 10am-3pm, etc.)
+./ccmon --block 11pm # Track from 11pm blocks (11pm-4am, 4am-9am, etc.)
+```
+
+### Features
+- **Visual Progress Bar**: Color-coded bars (green → orange → red) showing usage percentage
+- **Token Counting**: Only premium tokens (Sonnet/Opus) count toward limits; Haiku tokens are free
+- **Time Remaining**: Shows countdown until next 5-hour block starts
+- **Plan Integration**: Auto-detects limits based on `claude.plan` config (pro=7K, max=35K, max20=140K)
+- **Custom Limits**: Override with `claude.max_tokens` config for custom token limits
+- **Timezone Support**: Uses `monitor.timezone` config for accurate block calculations
+- **Keyboard Filter**: Press 'b' key to filter requests by current block timeframe
+
+### Display Format
+```
+Block Progress (5am - 10am):
+[████████░░] 80% (5,600/7,000 tokens)
+Time remaining: 2h 15m
+```
 
 ## Model Identification Logic
 
@@ -167,6 +211,7 @@ See `config.toml.example` for a complete example configuration file.
 - The gRPC server runs on port 4317 (standard OTLP port) providing both OTLP and Query services
 - Table height is dynamically adjusted based on terminal size in monitor mode
 - TUI supports sortable request list with 'o' key to toggle between latest-first and oldest-first
+- Block tracking mode shows progress bars for 5-hour token limit periods with 'b' key filtering
 - Multiple monitors can connect to the same server via gRPC (no database conflicts)
 - Database limits stored requests to last 10,000 entries with efficient limiting support
 - Monitor and server can run on different machines by configuring monitor.server address
