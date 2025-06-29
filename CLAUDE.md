@@ -103,6 +103,9 @@ goreleaser release --snapshot --clean
 
 # Test Docker build locally
 docker build -t ccmon:test .
+
+# Set specific version (e.g., 0.1.0) using Release-As footer
+git commit --allow-empty -m "chore: release 0.1.0" -m "Release-As: 0.1.0"
 ```
 
 ## Architecture
