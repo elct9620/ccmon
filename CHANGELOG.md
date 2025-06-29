@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/elct9620/ccmon/compare/v0.1.1...v0.1.2) (2025-06-29)
+
+
+### Bug Fixes
+
+* add GoReleaser-specific Dockerfile for pre-built binary Docker builds ([20a269f](https://github.com/elct9620/ccmon/commit/20a269f9cfcdbb8aed2af8554fed420b73480a56))
+* update GoReleaser config to v2 format and remove deprecated options ([631697b](https://github.com/elct9620/ccmon/commit/631697b644f2fec5bca013b886f20339fff35016))
+
 ## [0.1.1](https://github.com/elct9620/ccmon/compare/v0.1.0...v0.1.1) (2025-06-29)
 
 
