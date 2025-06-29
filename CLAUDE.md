@@ -84,6 +84,9 @@ The application follows a modular architecture with clear separation of concerns
 - **Dependency Injection**: All dependencies initialized in main.go and injected into handlers
 - **gRPC Communication**: Monitor mode communicates with server via gRPC instead of direct database access
 - **Periodic Refresh**: Monitor mode refreshes every 5 seconds via gRPC queries
+- **Dual Statistics System**: Separate `stats` (filtered display) and `blockStats` (progress tracking) for independent concerns
+- **Complete Usecase Integration**: All statistics go through proper usecase layer, no direct entity calculations in TUI
+- **BlockStatsRepository Pattern**: Dedicated interface for block-specific statistics with interface segregation
 - **Model Tier Separation**: Distinguishes between base models (Haiku) and premium models (Sonnet/Opus)
 - **Domain-Driven Design**: Entities with private fields, getter methods, and encapsulated business logic
 - **Entity-Based Architecture**: Handlers depend only on domain entities, not database implementation types
@@ -104,13 +107,20 @@ The application follows a modular architecture with clear separation of concerns
 7. Query service (`handler/grpc/query/`) provides gRPC API using usecase queries with efficient limiting
 
 **Monitor Mode:**
-1. main.go initializes gRPC repository and usecase layer for monitor mode
-2. TUI handler receives usecase queries for data access
+1. main.go initializes gRPC repository and multiple usecase layers for monitor mode:
+   - `GetFilteredApiRequestsQuery` for display requests
+   - `GetStatsQuery` for filtered statistics  
+   - `GetBlockStatsQuery` for block progress tracking
+2. TUI handler receives all usecase queries for comprehensive data access
 3. Queries data via gRPC calls through repository abstraction with limit parameters
-4. Refreshes statistics every 5 seconds via usecase layer
+4. Refreshes statistics every 5 seconds via dual stats system:
+   - **Display statistics**: Uses `GetStatsQuery` with current filter period
+   - **Block statistics**: Uses `GetBlockStatsQuery` with current block period (when enabled)
 5. Uses dual query strategy: limit=100 for display, limit=0 for accurate statistics
-6. Allows time-based filtering and sorting with keyboard shortcuts using entity.Period
-7. Displays data in a sortable TUI table with latest-first default ordering
+6. Separate statistics tracking: `stats` for display table, `blockStats` for progress bar
+7. Allows time-based filtering and sorting with keyboard shortcuts using entity.Period
+8. Displays data in a sortable TUI table with latest-first default ordering
+9. Progress bars remain stable regardless of display filter changes
 
 ### Environment Variables Required
 
