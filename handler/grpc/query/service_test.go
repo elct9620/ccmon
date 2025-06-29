@@ -27,7 +27,7 @@ func (m *mockAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, l
 	if m.findErr != nil {
 		return nil, m.findErr
 	}
-	
+
 	// Filter requests by period
 	var filtered []entity.APIRequest
 	for _, req := range m.requests {
@@ -38,18 +38,18 @@ func (m *mockAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, l
 		}
 		filtered = append(filtered, req)
 	}
-	
+
 	// Apply offset
 	if offset > len(filtered) {
 		return []entity.APIRequest{}, nil
 	}
 	filtered = filtered[offset:]
-	
+
 	// Apply limit
 	if limit > 0 && limit < len(filtered) {
 		filtered = filtered[:limit]
 	}
-	
+
 	return filtered, nil
 }
 
@@ -59,14 +59,14 @@ func (m *mockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
 
 func TestQueryService_GetStats(t *testing.T) {
 	baseTime := time.Date(2024, 6, 29, 12, 0, 0, 0, time.UTC)
-	
+
 	tests := []struct {
-		name           string
-		requests       []entity.APIRequest
-		startTime      *time.Time
-		endTime        *time.Time
-		expectedStats  func(t *testing.T, stats *pb.Stats)
-		expectError    bool
+		name          string
+		requests      []entity.APIRequest
+		startTime     *time.Time
+		endTime       *time.Time
+		expectedStats func(t *testing.T, stats *pb.Stats)
+		expectError   bool
 	}{
 		{
 			name: "mixed_requests_all_time",
@@ -105,22 +105,22 @@ func TestQueryService_GetStats(t *testing.T) {
 				if stats.TotalRequests != 3 {
 					t.Errorf("Expected 3 total requests, got %d", stats.TotalRequests)
 				}
-				
+
 				// Base tokens: 100+50+10+5 = 165
 				if stats.BaseTokens.Total != 165 {
 					t.Errorf("Expected 165 base tokens, got %d", stats.BaseTokens.Total)
 				}
-				
+
 				// Premium tokens: (200+100+20+10) + (300+150+30+15) = 330 + 495 = 825
 				if stats.PremiumTokens.Total != 825 {
 					t.Errorf("Expected 825 premium tokens, got %d", stats.PremiumTokens.Total)
 				}
-				
+
 				// Total tokens: 165 + 825 = 990
 				if stats.TotalTokens.Total != 990 {
 					t.Errorf("Expected 990 total tokens, got %d", stats.TotalTokens.Total)
 				}
-				
+
 				// Total cost: 0.15 + 0.70 + 1.50 = 2.35
 				if stats.TotalCost.Amount != 2.35 {
 					t.Errorf("Expected $2.35 total cost, got $%.2f", stats.TotalCost.Amount)
@@ -173,10 +173,10 @@ func TestQueryService_GetStats(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "empty_repository",
-			requests:    []entity.APIRequest{},
-			startTime:   nil,
-			endTime:     nil,
+			name:      "empty_repository",
+			requests:  []entity.APIRequest{},
+			startTime: nil,
+			endTime:   nil,
 			expectedStats: func(t *testing.T, stats *pb.Stats) {
 				if stats.TotalRequests != 0 {
 					t.Errorf("Expected 0 requests, got %d", stats.TotalRequests)
@@ -222,7 +222,7 @@ func TestQueryService_GetStats(t *testing.T) {
 				}
 				// Base cost should equal total cost
 				if stats.BaseCost.Amount != stats.TotalCost.Amount {
-					t.Errorf("Base cost (%.2f) should equal total cost (%.2f)", 
+					t.Errorf("Base cost (%.2f) should equal total cost (%.2f)",
 						stats.BaseCost.Amount, stats.TotalCost.Amount)
 				}
 			},
@@ -260,7 +260,7 @@ func TestQueryService_GetStats(t *testing.T) {
 				}
 				// Premium cost should equal total cost
 				if stats.PremiumCost.Amount != stats.TotalCost.Amount {
-					t.Errorf("Premium cost (%.2f) should equal total cost (%.2f)", 
+					t.Errorf("Premium cost (%.2f) should equal total cost (%.2f)",
 						stats.PremiumCost.Amount, stats.TotalCost.Amount)
 				}
 			},
@@ -320,12 +320,12 @@ func TestQueryService_GetAPIRequests(t *testing.T) {
 	baseTime := time.Date(2024, 6, 29, 12, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name              string
-		requests          []entity.APIRequest
-		requestParams     *pb.GetAPIRequestsRequest
-		expectedCount     int
-		validateFirstReq  func(t *testing.T, req *pb.APIRequest)
-		expectError       bool
+		name             string
+		requests         []entity.APIRequest
+		requestParams    *pb.GetAPIRequestsRequest
+		expectedCount    int
+		validateFirstReq func(t *testing.T, req *pb.APIRequest)
+		expectError      bool
 	}{
 		{
 			name: "all_requests_no_pagination",
@@ -550,7 +550,7 @@ func TestQueryService_GetAPIRequests(t *testing.T) {
 
 func TestQueryService_ConvertTimestampsToPeriod(t *testing.T) {
 	baseTime := time.Date(2024, 6, 29, 12, 0, 0, 0, time.UTC)
-	
+
 	tests := []struct {
 		name      string
 		startTime *timestamppb.Timestamp

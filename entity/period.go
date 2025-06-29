@@ -58,19 +58,3 @@ func (p Period) EndAt() time.Time {
 func (p Period) IsAllTime() bool {
 	return p.startAt.IsZero()
 }
-
-// Contains checks if the given time is within this period
-func (p Period) Contains(t time.Time) bool {
-	if p.IsAllTime() {
-		return t.Before(p.endAt) || t.Equal(p.endAt)
-	}
-	return (t.After(p.startAt) || t.Equal(p.startAt)) && (t.Before(p.endAt) || t.Equal(p.endAt))
-}
-
-// Duration returns the duration of this period
-func (p Period) Duration() time.Duration {
-	if p.IsAllTime() {
-		return 0 // Undefined for all-time periods
-	}
-	return p.endAt.Sub(p.startAt)
-}

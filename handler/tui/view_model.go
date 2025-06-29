@@ -184,14 +184,6 @@ func (vm *ViewModel) Table() table.Model {
 	return vm.table
 }
 
-func (vm *ViewModel) Width() int {
-	return vm.width
-}
-
-func (vm *ViewModel) Height() int {
-	return vm.height
-}
-
 func (vm *ViewModel) Ready() bool {
 	return vm.ready
 }
@@ -202,18 +194,6 @@ func (vm *ViewModel) Stats() entity.Stats {
 
 func (vm *ViewModel) BlockStats() entity.Stats {
 	return vm.blockStats
-}
-
-func (vm *ViewModel) TimeFilter() TimeFilter {
-	return vm.timeFilter
-}
-
-func (vm *ViewModel) SortOrder() SortOrder {
-	return vm.sortOrder
-}
-
-func (vm *ViewModel) Timezone() *time.Location {
-	return vm.timezone
 }
 
 func (vm *ViewModel) Block() *entity.Block {
@@ -452,7 +432,7 @@ type refreshStatsMsg struct{}
 
 // View renders the UI using the renderer
 func (vm *ViewModel) View() string {
-	return vm.renderer.View(vm)
+	return vm.renderer.View(vm, vm.width)
 }
 
 // tick returns a command that sends a tick message every 5 seconds

@@ -41,8 +41,3 @@ func (tc *TableComponent) RenderTable(requests []entity.APIRequest, tableModel t
 
 	return tableModel.View()
 }
-
-// GetModel returns the underlying table model
-func (tc *TableComponent) GetModel() table.Model {
-	return tc.model
-}

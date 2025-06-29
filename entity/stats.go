@@ -62,57 +62,6 @@ func (s Stats) TotalCost() Cost {
 	return s.baseCost.Add(s.premiumCost)
 }
 
-// BlockProgress returns the current block progress (used tokens, limit, percentage)
-func (s Stats) BlockProgress() (used int64, limit int, percentage float64) {
-	if !s.isBlockActive || s.blockTokenLimit == 0 {
-		return 0, 0, 0
-	}
-
-	used = s.premiumTokens.Limited() // Only premium tokens count toward limits
-	limit = s.blockTokenLimit
-	percentage = float64(used) / float64(limit) * 100
-
-	if percentage > 100 {
-		percentage = 100
-	}
-
-	return used, limit, percentage
-}
-
-// BlockTimeRemaining returns time remaining until next block
-func (s Stats) BlockTimeRemaining() time.Duration {
-	if !s.isBlockActive {
-		return 0
-	}
-
-	now := time.Now().UTC()
-	if now.After(s.blockEndTime) {
-		return 0
-	}
-
-	return s.blockEndTime.Sub(now)
-}
-
-// IsInActiveBlock returns true if block tracking is active
-func (s Stats) IsInActiveBlock() bool {
-	return s.isBlockActive
-}
-
-// BlockStartTime returns the current block start time
-func (s Stats) BlockStartTime() time.Time {
-	return s.blockStartTime
-}
-
-// BlockEndTime returns the current block end time
-func (s Stats) BlockEndTime() time.Time {
-	return s.blockEndTime
-}
-
-// BlockTokenLimit returns the token limit for the current block
-func (s Stats) BlockTokenLimit() int {
-	return s.blockTokenLimit
-}
-
 // NewStats creates a new Stats instance with the given values
 func NewStats(baseRequests, premiumRequests int, baseTokens, premiumTokens Token, baseCost, premiumCost Cost, blockTokenLimit int, blockStartTime, blockEndTime time.Time) Stats {
 	return Stats{

@@ -157,8 +157,8 @@ func TestOTLPReceiver_LogsServiceExport(t *testing.T) {
 				validTimestamp,
 				"claude-3-sonnet-20240229",
 				1000, 500, 100, 50, // tokens
-				2.50,  // cost
-				1500,  // duration
+				2.50, // cost
+				1500, // duration
 			),
 			expectedSavedCount: 1,
 			validateSaved: func(t *testing.T, saved entity.APIRequest) {
@@ -381,7 +381,7 @@ func TestOTLPReceiver_IgnoredServices(t *testing.T) {
 			test: func(t *testing.T, receiver *Receiver) {
 				traceService := receiver.GetTraceServiceServer()
 				req := &tracesv1.ExportTraceServiceRequest{}
-				
+
 				ctx := context.Background()
 				resp, err := traceService.Export(ctx, req)
 				if err != nil {
@@ -397,7 +397,7 @@ func TestOTLPReceiver_IgnoredServices(t *testing.T) {
 			test: func(t *testing.T, receiver *Receiver) {
 				metricsService := receiver.GetMetricsServiceServer()
 				req := &metricsv1.ExportMetricsServiceRequest{}
-				
+
 				ctx := context.Background()
 				resp, err := metricsService.Export(ctx, req)
 				if err != nil {
@@ -415,7 +415,7 @@ func TestOTLPReceiver_IgnoredServices(t *testing.T) {
 				req := &tracesv1.ExportTraceServiceRequest{
 					ResourceSpans: []*tracesdata.ResourceSpans{},
 				}
-				
+
 				ctx := context.Background()
 				resp, err := traceService.Export(ctx, req)
 				if err != nil {
@@ -433,7 +433,7 @@ func TestOTLPReceiver_IgnoredServices(t *testing.T) {
 				req := &metricsv1.ExportMetricsServiceRequest{
 					ResourceMetrics: []*metricsdata.ResourceMetrics{},
 				}
-				
+
 				ctx := context.Background()
 				resp, err := metricsService.Export(ctx, req)
 				if err != nil {
@@ -450,7 +450,7 @@ func TestOTLPReceiver_IgnoredServices(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup receiver (no usecase needed for ignored services)
 			receiver := NewReceiver(nil, nil, nil)
-			
+
 			// Run the specific test
 			tt.test(t, receiver)
 		})

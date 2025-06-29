@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -27,12 +26,6 @@ func NewAPIRequest(sessionID string, timestamp time.Time, model string, tokens T
 	}
 }
 
-// ID returns the unique identifier for this request
-func (a APIRequest) ID() string {
-	// Use timestamp with session ID for uniqueness
-	return fmt.Sprintf("%s_%s", a.timestamp.Format(time.RFC3339Nano), a.sessionID)
-}
-
 // SessionID returns the session ID
 func (a APIRequest) SessionID() string {
 	return a.sessionID
@@ -56,11 +49,6 @@ func (a APIRequest) Tokens() Token {
 // Cost returns the cost of the request
 func (a APIRequest) Cost() Cost {
 	return a.cost
-}
-
-// Duration returns the request duration
-func (a APIRequest) Duration() time.Duration {
-	return a.duration
 }
 
 // DurationMS returns the request duration in milliseconds

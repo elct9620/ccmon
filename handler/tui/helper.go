@@ -150,10 +150,3 @@ func RenderProgressBar(percentage float64, width int) string {
 	style := lipgloss.NewStyle().Foreground(color)
 	return "[" + style.Render(bar) + "]"
 }
-
-// Array manipulation helpers
-func ReverseRequests(requests []interface{}) {
-	for i, j := 0, len(requests)-1; i < j; i, j = i+1, j-1 {
-		requests[i], requests[j] = requests[j], requests[i]
-	}
-}

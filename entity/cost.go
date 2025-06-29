@@ -19,8 +19,3 @@ func (c Cost) Amount() float64 {
 func (c Cost) Add(other Cost) Cost {
 	return Cost{amount: c.amount + other.amount}
 }
-
-// IsZero returns true if the cost is zero
-func (c Cost) IsZero() bool {
-	return c.amount == 0
-}

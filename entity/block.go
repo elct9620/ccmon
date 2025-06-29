@@ -62,11 +62,6 @@ func ParseBlockTime(timeStr string) (int, error) {
 	return hour, nil
 }
 
-// StartHour returns the start hour (0-23)
-func (b Block) StartHour() int {
-	return b.startHour
-}
-
 // CurrentBlock calculates the current 5-hour block period
 func (b Block) CurrentBlock(now time.Time) Period {
 	nowInTz := now.In(b.timezone)
@@ -93,18 +88,6 @@ func (b Block) CurrentBlock(now time.Time) Period {
 	blockEnd := today.Add(5 * time.Hour).UTC()
 
 	return NewPeriod(blockStart, blockEnd)
-}
-
-// NextBlockStart calculates when the next block starts
-func (b Block) NextBlockStart(now time.Time) time.Time {
-	currentBlock := b.CurrentBlock(now)
-	return currentBlock.EndAt()
-}
-
-// IsInBlock checks if the given time is within the current block
-func (b Block) IsInBlock(t time.Time, now time.Time) bool {
-	currentBlock := b.CurrentBlock(now)
-	return currentBlock.Contains(t)
 }
 
 // FormatBlockTime formats the block period for display

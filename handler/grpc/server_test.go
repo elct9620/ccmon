@@ -83,7 +83,7 @@ func setupTestServer(t *testing.T) (*grpc.Server, *bufconn.Listener, pb.QuerySer
 
 	// Set resolver to passthrough for bufconn
 	resolver.SetDefaultScheme("passthrough")
-	
+
 	// Create client connection
 	conn, err := grpc.NewClient("bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
@@ -115,7 +115,7 @@ func TestGRPCServer_QueryService_GetStats(t *testing.T) {
 
 	// Populate mock repository with test data
 	now := time.Now()
-	
+
 	// Add some base model requests
 	for i := 0; i < 10; i++ {
 		req := entity.NewAPIRequest(
@@ -127,7 +127,7 @@ func TestGRPCServer_QueryService_GetStats(t *testing.T) {
 		)
 		mockRepo.requests = append(mockRepo.requests, req)
 	}
-	
+
 	// Add some premium model requests
 	for i := 0; i < 5; i++ {
 		req := entity.NewAPIRequest(
@@ -168,7 +168,7 @@ func TestGRPCServer_QueryService_GetStats(t *testing.T) {
 		t.Errorf("Expected 5 premium requests, got %d", stats.PremiumRequests)
 	}
 
-	// Verify token data 
+	// Verify token data
 	// Base: 10 requests * (100+50+10+5) = 10 * 165 = 1650 tokens
 	// Premium: 5 requests * (200+100+20+10) = 5 * 330 = 1650 tokens
 	// Total: 1650 + 1650 = 3300 tokens

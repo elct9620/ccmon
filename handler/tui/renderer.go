@@ -21,7 +21,7 @@ func NewRenderer(tableComponent *components.TableComponent) *Renderer {
 }
 
 // View renders the entire UI
-func (r *Renderer) View(vm *ViewModel) string {
+func (r *Renderer) View(vm *ViewModel, width int) string {
 	if !vm.Ready() {
 		return "\n  Initializing..."
 	}
@@ -37,8 +37,8 @@ func (r *Renderer) View(vm *ViewModel) string {
 	b.WriteString(status + "\n\n")
 
 	// Statistics box
-	statsContent := r.renderStats(vm)
-	statsBox := BoxStyle.Width(vm.Width() - 4).Render(statsContent)
+	statsContent := r.renderStats(vm, width)
+	statsBox := BoxStyle.Width(width - 4).Render(statsContent)
 	b.WriteString(statsBox + "\n\n")
 
 	// Recent requests header
@@ -62,14 +62,14 @@ func (r *Renderer) View(vm *ViewModel) string {
 }
 
 // renderStats renders the statistics section
-func (r *Renderer) renderStats(vm *ViewModel) string {
+func (r *Renderer) renderStats(vm *ViewModel, width int) string {
 	var b strings.Builder
 
 	// Header
 	b.WriteString(HeaderStyle.Render("Usage Statistics") + "\n\n")
 
 	// Calculate available width for stats table (account for box padding)
-	availableWidth := vm.Width() - 6 // Leave margin for box borders and padding
+	availableWidth := width - 6 // Leave margin for box borders and padding
 	if availableWidth < 60 {
 		// Render compact stats for narrow terminals
 		return r.renderCompactStats(vm)
