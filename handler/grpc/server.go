@@ -1,16 +1,29 @@
-package receiver
+package grpc
 
 import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	dbpkg "github.com/elct9620/ccmon/db"
+	"github.com/elct9620/ccmon/handler/grpc/receiver"
+	logsv1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
+	metricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
+	tracesv1 "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	"google.golang.org/grpc"
 )
+
+// Database interface to avoid circular dependency
+type Database interface {
+	SaveAPIRequest(req dbpkg.APIRequest) error
+	GetAllRequests() ([]dbpkg.APIRequest, error)
+	Close() error
+}
 
 // RunServer runs the headless OTLP server mode
 func RunServer(address string, newDB func() (Database, error)) error {
@@ -23,8 +36,21 @@ func RunServer(address string, newDB func() (Database, error)) error {
 	}
 	defer db.Close()
 
-	// Create and start the OTLP receiver
-	receiver := NewReceiver(nil, nil, db) // No channel or TUI program needed
+	// Create the OTLP receiver
+	otlpReceiver := receiver.NewReceiver(nil, nil, db) // No channel or TUI program needed
+
+	// Set up gRPC server
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		return fmt.Errorf("failed to listen: %w", err)
+	}
+
+	grpcServer := grpc.NewServer()
+
+	// Register the OTLP services
+	tracesv1.RegisterTraceServiceServer(grpcServer, otlpReceiver.GetTraceServiceServer())
+	metricsv1.RegisterMetricsServiceServer(grpcServer, otlpReceiver.GetMetricsServiceServer())
+	logsv1.RegisterLogsServiceServer(grpcServer, otlpReceiver.GetLogsServiceServer())
 
 	// Create a context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
@@ -42,14 +68,17 @@ func RunServer(address string, newDB func() (Database, error)) error {
 	// Start request counter
 	go logRequestStats(ctx, db)
 
-	// Start the receiver
-	log.Printf("OTLP receiver listening on %s\n", address)
-	if err := receiver.Start(ctx, address); err != nil {
-		return fmt.Errorf("failed to start receiver: %w", err)
-	}
+	// Handle graceful shutdown
+	go func() {
+		<-ctx.Done()
+		grpcServer.GracefulStop()
+	}()
 
-	// Cleanup
-	receiver.Stop()
+	// Start the gRPC server
+	log.Printf("OTLP receiver listening on %s\n", address)
+	if err := grpcServer.Serve(lis); err != nil {
+		return fmt.Errorf("failed to start gRPC server: %w", err)
+	}
 	log.Println("Server stopped")
 	return nil
 }

@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/elct9620/ccmon/db"
-	"github.com/elct9620/ccmon/monitor"
-	"github.com/elct9620/ccmon/receiver"
+	grpcserver "github.com/elct9620/ccmon/handler/grpc"
+	"github.com/elct9620/ccmon/handler/tui"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 	}
 
 	if serverMode {
-		if err := receiver.RunServer(config.Server.Address, func() (receiver.Database, error) {
+		if err := grpcserver.RunServer(config.Server.Address, func() (grpcserver.Database, error) {
 			db, err := db.NewDatabase(config.Database.Path)
 			return db, err
 		}); err != nil {
@@ -33,7 +33,7 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		if err := monitor.RunMonitor(func() (monitor.Database, error) {
+		if err := tui.RunMonitor(func() (tui.Database, error) {
 			db, err := db.NewDatabaseReadOnly(config.Database.Path)
 			return db, err
 		}); err != nil {

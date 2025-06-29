@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,12 +14,10 @@ import (
 	tracesv1 "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	commonv1 "go.opentelemetry.io/proto/otlp/common/v1"
 	logsdata "go.opentelemetry.io/proto/otlp/logs/v1"
-	"google.golang.org/grpc"
 )
 
-// Receiver manages the OTLP gRPC server
+// Receiver handles OTLP message processing
 type Receiver struct {
-	server      *grpc.Server
 	requestChan chan db.APIRequest
 	program     *tea.Program
 	db          Database
@@ -42,34 +39,19 @@ func NewReceiver(requestChan chan db.APIRequest, program *tea.Program, database 
 	}
 }
 
-// Start starts the OTLP gRPC server
-func (r *Receiver) Start(ctx context.Context, address string) error {
-	lis, err := net.Listen("tcp", address)
-	if err != nil {
-		return fmt.Errorf("failed to listen: %w", err)
-	}
-
-	r.server = grpc.NewServer()
-
-	// Register the services
-	tracesv1.RegisterTraceServiceServer(r.server, &traceReceiver{})
-	metricsv1.RegisterMetricsServiceServer(r.server, &metricsReceiver{})
-	logsv1.RegisterLogsServiceServer(r.server, &logsReceiver{receiver: r})
-
-	// Handle graceful shutdown
-	go func() {
-		<-ctx.Done()
-		r.server.GracefulStop()
-	}()
-
-	return r.server.Serve(lis)
+// GetTraceServiceServer returns the trace service implementation
+func (r *Receiver) GetTraceServiceServer() tracesv1.TraceServiceServer {
+	return &traceReceiver{}
 }
 
-// Stop stops the gRPC server
-func (r *Receiver) Stop() {
-	if r.server != nil {
-		r.server.GracefulStop()
-	}
+// GetMetricsServiceServer returns the metrics service implementation
+func (r *Receiver) GetMetricsServiceServer() metricsv1.MetricsServiceServer {
+	return &metricsReceiver{}
+}
+
+// GetLogsServiceServer returns the logs service implementation
+func (r *Receiver) GetLogsServiceServer() logsv1.LogsServiceServer {
+	return &logsReceiver{receiver: r}
 }
 
 // traceReceiver handles trace exports (ignored)
