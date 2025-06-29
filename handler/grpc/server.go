@@ -58,7 +58,6 @@ func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, g
 		cancel()
 	}()
 
-
 	// Handle graceful shutdown
 	go func() {
 		<-ctx.Done()
@@ -73,4 +72,3 @@ func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, g
 	log.Println("Server stopped")
 	return nil
 }
-

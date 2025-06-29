@@ -45,14 +45,18 @@ func (r *GRPCAPIRequestRepository) Save(req entity.APIRequest) error {
 	return errors.New("save operation not supported in monitor mode (read-only repository)")
 }
 
-// FindByPeriod retrieves API requests filtered by time period via gRPC
-func (r *GRPCAPIRequestRepository) FindByPeriod(period entity.Period) ([]entity.APIRequest, error) {
+// FindByPeriodWithLimit retrieves API requests filtered by time period with limit and offset via gRPC
+// Use limit = 0 for no limit (fetch all records)
+// Use offset = 0 when no offset is needed
+func (r *GRPCAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
 	// Convert entity.Period to protobuf TimeFilter
 	timeFilter := convertPeriodToTimeFilter(period)
 
-	// Create gRPC request
+	// Create gRPC request with limit and offset
 	req := &pb.GetAPIRequestsRequest{
 		TimeFilter: timeFilter,
+		Limit:      int32(limit),
+		Offset:     int32(offset),
 	}
 
 	// Call gRPC service
@@ -75,8 +79,8 @@ func (r *GRPCAPIRequestRepository) FindByPeriod(period entity.Period) ([]entity.
 
 // FindAll retrieves all API requests via gRPC
 func (r *GRPCAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
-	// Use all-time period
-	return r.FindByPeriod(entity.NewAllTimePeriod())
+	// Use all-time period with no limit
+	return r.FindByPeriodWithLimit(entity.NewAllTimePeriod(), 0, 0)
 }
 
 // Close closes the gRPC connection

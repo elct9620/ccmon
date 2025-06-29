@@ -33,20 +33,22 @@ func (r *BoltDBAPIRequestRepository) Save(req entity.APIRequest) error {
 	return r.saveRequest(&dbReq)
 }
 
-// FindByPeriod retrieves API requests filtered by time period
-func (r *BoltDBAPIRequestRepository) FindByPeriod(period entity.Period) ([]entity.APIRequest, error) {
+// FindByPeriodWithLimit retrieves API requests filtered by time period with limit and offset
+// Use limit = 0 for no limit (fetch all records)
+// Use offset = 0 when no offset is needed
+func (r *BoltDBAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
 	var dbRequests []schema.APIRequest
 	var err error
 
 	if period.IsAllTime() {
-		// Get all requests
-		dbRequests, err = r.getAllRequests()
+		// Get all requests with limit/offset
+		dbRequests, err = r.getAllRequestsWithLimit(limit, offset)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		// Query time range
-		dbRequests, err = r.queryTimeRange(period.StartAt(), period.EndAt())
+		// Query time range with limit/offset
+		dbRequests, err = r.queryTimeRangeWithLimit(period.StartAt(), period.EndAt(), limit, offset)
 		if err != nil {
 			return nil, err
 		}
@@ -91,6 +93,12 @@ func (r *BoltDBAPIRequestRepository) saveRequest(req *schema.APIRequest) error {
 
 // queryTimeRange queries requests within a time range
 func (r *BoltDBAPIRequestRepository) queryTimeRange(start, end time.Time) ([]schema.APIRequest, error) {
+	return r.queryTimeRangeWithLimit(start, end, 0, 0)
+}
+
+// queryTimeRangeWithLimit queries requests within a time range with limit and offset
+// limit = 0 means no limit, offset = 0 means no offset
+func (r *BoltDBAPIRequestRepository) queryTimeRangeWithLimit(start, end time.Time, limit int, offset int) ([]schema.APIRequest, error) {
 	var requests []schema.APIRequest
 
 	err := r.db.View(func(tx *bbolt.Tx) error {
@@ -101,14 +109,57 @@ func (r *BoltDBAPIRequestRepository) queryTimeRange(start, end time.Time) ([]sch
 		startKey := []byte(start.Format(time.RFC3339Nano))
 		endKey := []byte(end.Format(time.RFC3339Nano) + "\xff") // \xff ensures we get all entries up to end time
 
-		// Seek to start time and iterate until end time
+		// If no limit specified, collect all records in range
+		if limit == 0 {
+			for k, v := c.Seek(startKey); k != nil && string(k) < string(endKey); k, v = c.Next() {
+				var req schema.APIRequest
+				if err := json.Unmarshal(v, &req); err != nil {
+					// Skip malformed entries
+					continue
+				}
+				requests = append(requests, req)
+			}
+			return nil
+		}
+
+		// With limit: first collect all matching records, then apply limit/offset
+		var allRequests []schema.APIRequest
 		for k, v := c.Seek(startKey); k != nil && string(k) < string(endKey); k, v = c.Next() {
 			var req schema.APIRequest
 			if err := json.Unmarshal(v, &req); err != nil {
 				// Skip malformed entries
 				continue
 			}
-			requests = append(requests, req)
+			allRequests = append(allRequests, req)
+		}
+
+		// Apply offset and limit (get latest entries if no offset)
+		totalFound := len(allRequests)
+		if totalFound == 0 {
+			return nil
+		}
+
+		startIdx := 0
+		if offset > 0 {
+			// With offset, calculate from the end
+			startIdx = totalFound - offset - limit
+			if startIdx < 0 {
+				startIdx = 0
+			}
+		} else {
+			// No offset, get latest entries
+			if totalFound > limit {
+				startIdx = totalFound - limit
+			}
+		}
+
+		endIdx := startIdx + limit
+		if endIdx > totalFound {
+			endIdx = totalFound
+		}
+
+		if startIdx < totalFound {
+			requests = allRequests[startIdx:endIdx]
 		}
 
 		return nil
@@ -119,28 +170,53 @@ func (r *BoltDBAPIRequestRepository) queryTimeRange(start, end time.Time) ([]sch
 
 // getAllRequests returns all requests (limited to last 10000 to prevent memory issues)
 func (r *BoltDBAPIRequestRepository) getAllRequests() ([]schema.APIRequest, error) {
+	return r.getAllRequestsWithLimit(10000, 0)
+}
+
+// getAllRequestsWithLimit returns requests with limit and offset
+// limit = 0 means no limit, offset = 0 means no offset
+func (r *BoltDBAPIRequestRepository) getAllRequestsWithLimit(limit int, offset int) ([]schema.APIRequest, error) {
 	var requests []schema.APIRequest
 
 	err := r.db.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte(requestsBucket))
 		c := bucket.Cursor()
 
-		// Count total entries first
-		count := 0
-		for k, _ := c.First(); k != nil; k, _ = c.Next() {
-			count++
+		// If no limit specified, use default 10000 to prevent memory issues
+		if limit == 0 {
+			limit = 10000
 		}
 
-		// If more than 10000, skip to last 10000
-		skip := 0
-		if count > 10000 {
-			skip = count - 10000
+		// Count total entries first if we need to apply offset
+		totalCount := 0
+		if offset > 0 {
+			for k, _ := c.First(); k != nil; k, _ = c.Next() {
+				totalCount++
+			}
 		}
 
-		// Iterate through all keys
+		// Calculate where to start
+		skipCount := 0
+		if offset > 0 && totalCount > offset {
+			skipCount = totalCount - offset - limit
+			if skipCount < 0 {
+				skipCount = 0
+			}
+		} else if offset == 0 {
+			// No offset, get latest entries by skipping older ones
+			for k, _ := c.First(); k != nil; k, _ = c.Next() {
+				totalCount++
+			}
+			if totalCount > limit {
+				skipCount = totalCount - limit
+			}
+		}
+
+		// Iterate and collect requested records
 		i := 0
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			if i < skip {
+		collected := 0
+		for k, v := c.First(); k != nil && collected < limit; k, v = c.Next() {
+			if i < skipCount {
 				i++
 				continue
 			}
@@ -148,9 +224,11 @@ func (r *BoltDBAPIRequestRepository) getAllRequests() ([]schema.APIRequest, erro
 			var req schema.APIRequest
 			if err := json.Unmarshal(v, &req); err != nil {
 				// Skip malformed entries
+				i++
 				continue
 			}
 			requests = append(requests, req)
+			collected++
 			i++
 		}
 

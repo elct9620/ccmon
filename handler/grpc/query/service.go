@@ -61,31 +61,20 @@ func (s *Service) GetAPIRequests(ctx context.Context, req *pb.GetAPIRequestsRequ
 	// Convert proto time filter to entity.Period
 	period := convertTimeFilterToPeriod(req.TimeFilter)
 
-	// Get requests via usecase
-	params := usecase.GetFilteredApiRequestsParams{Period: period}
+	// Get requests via usecase with limit and offset
+	params := usecase.GetFilteredApiRequestsParams{
+		Period: period,
+		Limit:  int(req.Limit),
+		Offset: int(req.Offset),
+	}
 	requests, err := s.getFilteredQuery.Execute(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get requests: %w", err)
 	}
 
-	// Apply pagination if specified
+	// Note: TotalCount is now the count of returned records since pagination
+	// is handled at repository level. For true total count, we'd need a separate query.
 	totalCount := len(requests)
-	if req.Offset > 0 || req.Limit > 0 {
-		start := int(req.Offset)
-		if start > len(requests) {
-			start = len(requests)
-		}
-
-		end := len(requests)
-		if req.Limit > 0 {
-			end = start + int(req.Limit)
-			if end > len(requests) {
-				end = len(requests)
-			}
-		}
-
-		requests = requests[start:end]
-	}
 
 	// Convert to protobuf messages
 	pbRequests := make([]*pb.APIRequest, len(requests))

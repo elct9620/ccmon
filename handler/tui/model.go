@@ -22,6 +22,14 @@ const (
 	FilterMonth
 )
 
+// SortOrder represents the sorting order for requests
+type SortOrder int
+
+const (
+	SortDescending SortOrder = iota // Latest first (default)
+	SortAscending                   // Oldest first
+)
+
 // Model represents the state of our TUI monitor application
 type Model struct {
 	requests         []entity.APIRequest
@@ -32,6 +40,7 @@ type Model struct {
 	stats            entity.Stats
 	getFilteredQuery *usecase.GetFilteredApiRequestsQuery
 	timeFilter       TimeFilter
+	sortOrder        SortOrder
 }
 
 // NewModel creates a new Model with initial state
@@ -63,6 +72,7 @@ func NewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery) Model {
 		table:            t,
 		getFilteredQuery: getFilteredQuery,
 		timeFilter:       FilterAll,
+		sortOrder:        SortDescending, // Default to latest first
 		stats:            entity.Stats{},
 	}
 }
@@ -112,6 +122,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.refreshStats
 		case "m":
 			m.timeFilter = FilterMonth
+			return m, m.refreshStats
+		case "o":
+			// Toggle sort order
+			if m.sortOrder == SortDescending {
+				m.sortOrder = SortAscending
+			} else {
+				m.sortOrder = SortDescending
+			}
 			return m, m.refreshStats
 		}
 
@@ -203,6 +221,18 @@ func (m Model) getTimeFilterString() string {
 	}
 }
 
+// getSortOrderString returns a string representation of the current sort order
+func (m Model) getSortOrderString() string {
+	switch m.sortOrder {
+	case SortDescending:
+		return "Latest First"
+	case SortAscending:
+		return "Oldest First"
+	default:
+		return "Latest First"
+	}
+}
+
 // getTimePeriod returns entity.Period for the current filter
 func (m Model) getTimePeriod() entity.Period {
 	switch m.timeFilter {
@@ -226,27 +256,52 @@ func (m Model) refreshStats() tea.Msg {
 
 // recalculateStats recalculates statistics via usecase
 func (m *Model) recalculateStats() {
-	// Query via usecase with entity.Period
 	period := m.getTimePeriod()
-	params := usecase.GetFilteredApiRequestsParams{Period: period}
-	requests, err := m.getFilteredQuery.Execute(context.Background(), params)
+
+	// Query for display requests (limit to 100 for TUI display)
+	displayParams := usecase.GetFilteredApiRequestsParams{
+		Period: period,
+		Limit:  100,
+		Offset: 0,
+	}
+	requests, err := m.getFilteredQuery.Execute(context.Background(), displayParams)
 	if err != nil {
 		// Handle error silently for now
 		return
 	}
+	m.requests = requests
 
-	// Update display requests (show latest 100)
-	if len(requests) > 100 {
-		m.requests = requests[len(requests)-100:]
-	} else {
-		m.requests = requests
+	// Apply sorting based on user preference
+	if m.sortOrder == SortDescending {
+		// Reverse to show latest first (since DB returns chronological order)
+		reverseRequests(m.requests)
 	}
+	// For SortAscending, keep the original order (oldest first)
 
-	// Calculate stats
-	m.stats = entity.CalculateStats(requests)
+	// Query for all requests to calculate accurate stats
+	statsParams := usecase.GetFilteredApiRequestsParams{
+		Period: period,
+		Limit:  0, // No limit for stats calculation
+		Offset: 0,
+	}
+	allRequests, err := m.getFilteredQuery.Execute(context.Background(), statsParams)
+	if err != nil {
+		// Handle error silently for now, use display requests for stats
+		m.stats = entity.CalculateStats(m.requests)
+	} else {
+		// Calculate stats with all requests for accuracy
+		m.stats = entity.CalculateStats(allRequests)
+	}
 
 	// Update table
 	m.updateTableRows()
+}
+
+// reverseRequests reverses the order of API requests slice
+func reverseRequests(requests []entity.APIRequest) {
+	for i, j := 0, len(requests)-1; i < j; i, j = i+1, j-1 {
+		requests[i], requests[j] = requests[j], requests[i]
+	}
 }
 
 // Message types

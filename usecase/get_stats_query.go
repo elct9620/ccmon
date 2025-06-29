@@ -25,8 +25,8 @@ type GetStatsParams struct {
 
 // Execute executes the get statistics query
 func (q *GetStatsQuery) Execute(ctx context.Context, params GetStatsParams) (entity.Stats, error) {
-	// Get requests filtered by period
-	requests, err := q.repository.FindByPeriod(params.Period)
+	// Get requests filtered by period (no limit for stats calculation)
+	requests, err := q.repository.FindByPeriodWithLimit(params.Period, 0, 0)
 	if err != nil {
 		return entity.Stats{}, err
 	}

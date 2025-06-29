@@ -21,9 +21,11 @@ func NewGetFilteredApiRequestsQuery(repository APIRequestRepository) *GetFiltere
 // GetFilteredApiRequestsParams contains the parameters for getting filtered API requests
 type GetFilteredApiRequestsParams struct {
 	Period entity.Period
+	Limit  int // Use 0 for no limit
+	Offset int // Use 0 for no offset
 }
 
 // Execute executes the get filtered API requests query
 func (q *GetFilteredApiRequestsQuery) Execute(ctx context.Context, params GetFilteredApiRequestsParams) ([]entity.APIRequest, error) {
-	return q.repository.FindByPeriod(params.Period)
+	return q.repository.FindByPeriodWithLimit(params.Period, params.Limit, params.Offset)
 }
