@@ -2,29 +2,29 @@ class Ccmon < Formula
   desc "TUI application for monitoring Claude Code API usage through OpenTelemetry"
   homepage "https://github.com/elct9620/ccmon"
   license "Apache-2.0"
-  version "0.2.1"
+  version "0.3.2"
 
   on_macos do
     on_intel do
       url "https://github.com/elct9620/ccmon/releases/download/v#{version}/ccmon_Darwin_x86_64.tar.gz"
-      sha256 "5c48f6e5730e2867e2f77dbe75c7e4bce773141133ddaf2de3dc659e037b68b1"
+      sha256 "9bda6c6b66637732a94a7ac508f1a67b6c90ec614121c54be2579cf7fd6a7620"
     end
 
     on_arm do
       url "https://github.com/elct9620/ccmon/releases/download/v#{version}/ccmon_Darwin_arm64.tar.gz"
-      sha256 "1f7097eef1eb355d6120f1866bfefe3231438d27cc3aa4a56ae0f34a7b1567c1"
+      sha256 "0ea9538f103ee08ba0c5b180a6d8c70651ffc9ce9880231d48043f83b8bcdd36"
     end
   end
 
   on_linux do
     on_intel do
       url "https://github.com/elct9620/ccmon/releases/download/v#{version}/ccmon_Linux_x86_64.tar.gz"
-      sha256 "4a6f0769dbabd884185df782638174e69eb483acc92239a4d0a42cb8680d4704"
+      sha256 "9a2bb247e33e6853ce1d42cde2ff7ce0cbb8c5339d3a923afceab51618ce3414"
     end
 
     on_arm do
       url "https://github.com/elct9620/ccmon/releases/download/v#{version}/ccmon_Linux_arm64.tar.gz"
-      sha256 "bd221efa2a055760153520926902bbf971a84853e3ae6c64a2f2fbff2230048e"
+      sha256 "994a3f3450e17e73cc27e983cf08895c9a35c5177f08303639a9634ae4b8a654"
     end
   end
 
