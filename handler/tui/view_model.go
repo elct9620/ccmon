@@ -385,7 +385,7 @@ func (vm *ViewModel) recalculateStats() {
 
 func (vm *ViewModel) recalculateUsage() {
 	// Fetch daily usage statistics (last 30 days)
-	usage, err := vm.getUsageQuery.ListByDay(context.Background(), 30)
+	usage, err := vm.getUsageQuery.ListByDay(context.Background(), 30, vm.timezone)
 	if err != nil {
 		// Handle error silently for now, usage will remain empty
 		vm.usage = entity.Usage{}

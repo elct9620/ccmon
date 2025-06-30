@@ -20,16 +20,22 @@ func NewGetUsageQuery(repository APIRequestRepository) *GetUsageQuery {
 }
 
 // ListByDay retrieves usage statistics grouped by daily periods
-func (q *GetUsageQuery) ListByDay(ctx context.Context, days int) (entity.Usage, error) {
-	now := time.Now().UTC()
+func (q *GetUsageQuery) ListByDay(ctx context.Context, days int, timezone *time.Location) (entity.Usage, error) {
+	// Use provided timezone, fallback to UTC if nil
+	if timezone == nil {
+		timezone = time.UTC
+	}
+
+	now := time.Now().In(timezone)
 	var dailyStats []entity.Stats
 
 	for i := 0; i < days; i++ {
-		// Calculate day period (from 00:00:00 to 23:59:59)
-		dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -i)
+		// Calculate day period in the user's timezone (from 00:00:00 to 23:59:59)
+		dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone).AddDate(0, 0, -i)
 		dayEnd := dayStart.Add(24*time.Hour - time.Nanosecond)
 
-		period := entity.NewPeriod(dayStart, dayEnd)
+		// Convert to UTC for database queries but maintain timezone-aware boundaries
+		period := entity.NewPeriod(dayStart.UTC(), dayEnd.UTC())
 
 		// Get requests for this day using the API request repository
 		requests, err := q.repository.FindByPeriodWithLimit(period, 0, 0) // No limit for stats calculation

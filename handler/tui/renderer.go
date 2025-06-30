@@ -346,7 +346,7 @@ func (r *Renderer) renderDailyUsageTable(vm *ViewModel, width int) string {
 	// Calculate available width for table
 	availableWidth := width - 6 // Account for box padding
 	if availableWidth < 60 {
-		return r.renderCompactDailyUsage(stats)
+		return r.renderCompactDailyUsage(stats, vm.Timezone())
 	}
 
 	// Table headers
@@ -402,7 +402,7 @@ func (r *Renderer) renderDailyUsageTable(vm *ViewModel, width int) string {
 }
 
 // renderCompactDailyUsage renders compact daily usage for narrow terminals
-func (r *Renderer) renderCompactDailyUsage(stats []entity.Stats) string {
+func (r *Renderer) renderCompactDailyUsage(stats []entity.Stats, timezone *time.Location) string {
 	var b strings.Builder
 
 	for _, stat := range stats {
@@ -411,7 +411,8 @@ func (r *Renderer) renderCompactDailyUsage(stats []entity.Stats) string {
 			continue
 		}
 
-		date := period.StartAt().Format("2006-01-02")
+		// Convert UTC time back to user's timezone for display
+		date := period.StartAt().In(timezone).Format("2006-01-02")
 		b.WriteString(StatStyle.Render(date))
 		b.WriteString(fmt.Sprintf(": %d/%d reqs, %s premium tokens, $%.6f\n",
 			stat.BaseRequests(),
