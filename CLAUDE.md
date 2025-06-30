@@ -429,3 +429,7 @@ func (p Period) IsAllTime() bool { return p.startAt.IsZero() }
 ## Testing Conventions
 
 - **ALWAYS use table-driven tests** for comprehensive test coverage and readability
+
+## Design Principles and Guidelines
+
+- **Always apply YAGNI principle**: Only implement features and complexity that are immediately necessary, avoiding premature optimization and unnecessary abstractions
