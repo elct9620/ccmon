@@ -281,10 +281,12 @@ ccmon supports Claude's 5-hour token limit blocks for monitoring API usage again
 - **Visual Progress Bar**: Color-coded bars (green → orange → red) showing usage percentage
 - **Token Counting**: Only premium tokens (Sonnet/Opus) count toward limits; Haiku tokens are free
 - **Time Remaining**: Shows countdown until next 5-hour block starts
+- **Automatic Block Advancement**: Blocks automatically advance every 5 hours without requiring restart
 - **Plan Integration**: Auto-detects limits based on `claude.plan` config (pro=7K, max=35K, max20=140K)
 - **Custom Limits**: Override with `claude.max_tokens` config for custom token limits
 - **Timezone Support**: Uses `monitor.timezone` config for accurate block calculations
 - **Keyboard Filter**: Press 'b' key to filter requests by current block timeframe
+- **Always Valid Blocks**: Shows current or upcoming block - no "too early" errors
 
 ### Display Format
 ```
@@ -306,7 +308,7 @@ Time remaining: 2h 15m
 - The gRPC server runs on port 4317 (standard OTLP port) providing both OTLP and Query services
 - Table height is dynamically adjusted based on terminal size in monitor mode
 - TUI supports sortable request list with 'o' key to toggle between latest-first and oldest-first
-- Block tracking mode shows progress bars for 5-hour token limit periods with 'b' key filtering
+- Block tracking mode shows progress bars for 5-hour token limit periods with 'b' key filtering and automatic advancement
 - Multiple monitors can connect to the same server via gRPC (no database conflicts)
 - Database limits stored requests to last 10,000 entries with efficient limiting support
 - Monitor and server can run on different machines by configuring monitor.server address
