@@ -306,7 +306,7 @@ Time remaining: 2h 15m
 - Monitor mode refreshes via gRPC queries every 5 seconds
 - Statistics are tracked separately for base/premium tiers and combined totals
 - The gRPC server runs on port 4317 (standard OTLP port) providing both OTLP and Query services
-- Table height is dynamically adjusted based on terminal size in monitor mode
+- Table height and column widths are dynamically adjusted based on terminal size in monitor mode
 - TUI supports sortable request list with 'o' key to toggle between latest-first and oldest-first
 - Block tracking mode shows progress bars for 5-hour token limit periods with 'b' key filtering and automatic advancement
 - Multiple monitors can connect to the same server via gRPC (no database conflicts)
