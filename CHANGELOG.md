@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/elct9620/ccmon/compare/v0.2.0...v0.2.1) (2025-06-30)
+
+
+### Bug Fixes
+
+* simplify time block logic with automatic advancement ([8ae4efc](https://github.com/elct9620/ccmon/commit/8ae4efcebce9b9fa19f846d7e2f2521e5443c1f1))
+
 ## [0.2.0](https://github.com/elct9620/ccmon/compare/v0.1.4...v0.2.0) (2025-06-29)
 
 
