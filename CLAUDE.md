@@ -309,7 +309,9 @@ Time remaining: 2h 15m
 - Statistics are tracked separately for base/premium tiers and combined totals
 - The gRPC server runs on port 4317 (standard OTLP port) providing both OTLP and Query services
 - Table height and column widths are dynamically adjusted based on terminal size in monitor mode
+- TUI supports tab navigation with Tab key to switch between "Current" and "Daily Usage" views
 - TUI supports sortable request list with 'o' key to toggle between latest-first and oldest-first
+- Daily usage tab shows last 30 days with detailed premium token breakdown (Input/Output/Cache)
 - Block tracking mode shows progress bars for 5-hour token limit periods with 'b' key filtering and automatic advancement
 - Multiple monitors can connect to the same server via gRPC (no database conflicts)
 - Database limits stored requests to last 10,000 entries with efficient limiting support
