@@ -17,6 +17,21 @@ Inspired by [ccusage](https://github.com/ryoppippi/ccusage), but uses OTLP to re
 
 ## Installation
 
+### Homebrew (macOS and Linux)
+
+```bash
+# Install stable release from pre-built binaries
+brew install elct9620/ccmon/ccmon
+
+# Install latest development version from source (requires Go and protobuf)
+brew install --head elct9620/ccmon/ccmon
+
+# Or add the tap first, then install
+brew tap elct9620/ccmon https://github.com/elct9620/ccmon
+brew install ccmon              # Stable release
+brew install --head ccmon       # Development version
+```
+
 ### Pre-built Binaries
 
 Download the latest release for your platform from the [releases page](https://github.com/elct9620/ccmon/releases).
