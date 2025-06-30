@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/elct9620/ccmon/compare/v0.3.1...v0.3.2) (2025-06-30)
+
+
+### Bug Fixes
+
+* add pull-requests permission for Homebrew PR creation ([de210a1](https://github.com/elct9620/ccmon/commit/de210a151e3d9eea14eb11e2e50a885a033ce6e0))
+
 ## [0.3.1](https://github.com/elct9620/ccmon/compare/v0.3.0...v0.3.1) (2025-06-30)
 
 
