@@ -28,9 +28,26 @@ ccmon has two distinct operating modes:
    ./ccmon --block 11pm # Track usage from 11pm start blocks
    ```
 
+## Development Requirements
+
+### Protocol Buffers Toolchain
+- **Required protoc version**: v28.0 or higher
+- **Required protoc-gen-go**: v1.28.1 (pinned for consistency)
+- **Required protoc-gen-go-grpc**: v1.2.0 (pinned for consistency)
+- **Installation**: 
+  - protoc: Download from [GitHub Releases](https://github.com/protocolbuffers/protobuf/releases)
+  - Go plugins: `go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1`
+  - gRPC plugin: `go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0`
+- **Version check**: Run `make check-protoc` to verify complete toolchain
+
+**Important**: Using different protoc/plugin versions between development and CI can cause inconsistent generated files that may break Homebrew formula updates. The release workflow now validates proto files and prevents problematic commits.
+
 ## Build and Development Commands
 
 ```bash
+# Check protoc version compatibility
+make check-protoc
+
 # Build the application (includes protobuf generation)
 make build
 

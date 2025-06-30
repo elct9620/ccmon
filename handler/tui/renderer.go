@@ -314,11 +314,11 @@ func (r *Renderer) renderDailyTab(vm *ViewModel, width int) string {
 	// Daily usage header
 	dailyHeader := HeaderStyle.Render("Daily Usage Statistics (Last 30 Days)")
 	b.WriteString(dailyHeader + "\n")
-	
+
 	// Subtitle explaining premium token focus
 	subtitle := HelpStyle.Render("Premium Token Breakdown (Base tokens are free and not shown)")
 	b.WriteString(subtitle + "\n")
-	
+
 	// Legend explaining column meanings
 	legend := HelpStyle.Render("Requests: Base/Premium • Tokens: Premium only (Sonnet/Opus)")
 	b.WriteString(legend + "\n\n")
