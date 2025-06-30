@@ -16,32 +16,14 @@ func NewPeriod(startAt, endAt time.Time) Period {
 	}
 }
 
-// NewPeriodFromDuration creates a Period from current time minus duration
-func NewPeriodFromDuration(duration time.Duration) Period {
-	now := time.Now().UTC()
-	return Period{
-		startAt: now.Add(-duration),
-		endAt:   now,
-	}
-}
-
-// NewPeriodFromDurationWithTimezone creates a Period from current time minus duration in specified timezone
-func NewPeriodFromDurationWithTimezone(duration time.Duration, timezone *time.Location) Period {
-	now := time.Now().In(timezone)
-	startAt := now.Add(-duration).UTC()
-	endAt := now.UTC()
-	return Period{
-		startAt: startAt,
-		endAt:   endAt,
-	}
+// NewPeriodFromDuration creates a Period from given time minus duration
+func NewPeriodFromDuration(now time.Time, duration time.Duration) Period {
+	return NewPeriod(now.Add(-duration), now)
 }
 
 // NewAllTimePeriod creates a Period representing all time (zero start time)
-func NewAllTimePeriod() Period {
-	return Period{
-		startAt: time.Time{}, // Zero time represents "all time"
-		endAt:   time.Now().UTC(),
-	}
+func NewAllTimePeriod(now time.Time) Period {
+	return NewPeriod(time.Time{}, now)
 }
 
 // StartAt returns the start time of the period

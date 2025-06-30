@@ -92,7 +92,7 @@ func (s *Service) GetAPIRequests(ctx context.Context, req *pb.GetAPIRequestsRequ
 func convertTimestampsToPeriod(startTime, endTime *timestamppb.Timestamp) entity.Period {
 	// Handle nil timestamps - use all time period
 	if startTime == nil && endTime == nil {
-		return entity.NewAllTimePeriod()
+		return entity.NewAllTimePeriod(time.Now().UTC())
 	}
 
 	var start, end time.Time

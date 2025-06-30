@@ -83,7 +83,7 @@ func (r *GRPCAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, l
 // FindAll retrieves all API requests via gRPC
 func (r *GRPCAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
 	// Use all-time period with no limit
-	return r.FindByPeriodWithLimit(entity.NewAllTimePeriod(), 0, 0)
+	return r.FindByPeriodWithLimit(entity.NewAllTimePeriod(time.Now().UTC()), 0, 0)
 }
 
 // Close closes the gRPC connection

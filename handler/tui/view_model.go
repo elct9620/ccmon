@@ -248,20 +248,20 @@ func (vm *ViewModel) GetSortOrderString() string {
 func (vm *ViewModel) getTimePeriod() entity.Period {
 	switch vm.timeFilter {
 	case FilterHour:
-		return entity.NewPeriodFromDurationWithTimezone(time.Hour, vm.timezone)
+		return entity.NewPeriodFromDuration(time.Now().UTC(), time.Hour)
 	case FilterDay:
-		return entity.NewPeriodFromDurationWithTimezone(24*time.Hour, vm.timezone)
+		return entity.NewPeriodFromDuration(time.Now().UTC(), 24*time.Hour)
 	case FilterWeek:
-		return entity.NewPeriodFromDurationWithTimezone(7*24*time.Hour, vm.timezone)
+		return entity.NewPeriodFromDuration(time.Now().UTC(), 7*24*time.Hour)
 	case FilterMonth:
-		return entity.NewPeriodFromDurationWithTimezone(30*24*time.Hour, vm.timezone)
+		return entity.NewPeriodFromDuration(time.Now().UTC(), 30*24*time.Hour)
 	case FilterBlock:
 		if vm.block != nil {
 			return vm.block.Period()
 		}
-		return entity.NewAllTimePeriod()
+		return entity.NewAllTimePeriod(time.Now().UTC())
 	default:
-		return entity.NewAllTimePeriod()
+		return entity.NewAllTimePeriod(time.Now().UTC())
 	}
 }
 

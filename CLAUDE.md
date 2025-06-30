@@ -404,13 +404,12 @@ func NewPeriod(startAt, endAt time.Time) Period {
     return Period{startAt: startAt, endAt: endAt}
 }
 
-func NewPeriodFromDuration(duration time.Duration) Period {
-    now := time.Now()
+func NewPeriodFromDuration(now time.Time, duration time.Duration) Period {
     return Period{startAt: now.Add(-duration), endAt: now}
 }
 
-func NewAllTimePeriod() Period {
-    return Period{startAt: time.Time{}, endAt: time.Now()}
+func NewAllTimePeriod(now time.Time) Period {
+    return Period{startAt: time.Time{}, endAt: now}
 }
 
 func (p Period) StartAt() time.Time { return p.startAt }
