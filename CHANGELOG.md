@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/elct9620/ccmon/compare/v0.2.1...v0.3.0) (2025-06-30)
+
+
+### Features
+
+* homebrew formula ([#10](https://github.com/elct9620/ccmon/issues/10)) ([950546a](https://github.com/elct9620/ccmon/commit/950546af66e8665710d4f10703bb3dae57e0ab13))
+* implement auto-width table columns for better model name display ([9ba25bd](https://github.com/elct9620/ccmon/commit/9ba25bdb974017505f95d92ff53df97aba1945d1))
+
 ## [0.2.1](https://github.com/elct9620/ccmon/compare/v0.2.0...v0.2.1) (2025-06-30)
 
 
