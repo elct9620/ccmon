@@ -448,7 +448,18 @@ func (p Period) IsAllTime() bool { return p.startAt.IsZero() }
 
 ## Testing Conventions
 
+### TUI Testing with teatest
+- **ALWAYS use `teatest` for TUI integration tests** instead of unit testing individual methods
+- **Focus on real user interactions**: Test keyboard navigation, rendering, and user workflows
+- **Use consistent patterns**: All TUI tests follow `teatest.NewTestModel()` approach
+- **Parallel execution**: Use `t.Parallel()` in all table-driven tests for performance
+- **Optimized timeouts**: Keep `WaitFor` timeouts ≤500ms for responsive testing
+- **Multiple terminal sizes**: Test 120x40, 80x25, and 60x20 terminal sizes
+- **Single WaitFor pattern**: Avoid double `WaitFor` calls that can cause race conditions
+
+### General Testing
 - **ALWAYS use table-driven tests** for comprehensive test coverage and readability
+- **Test files naming**: Use `*_test.go` for unit tests, separate files per component for focus
 
 ## Design Principles and Guidelines
 
