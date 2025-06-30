@@ -88,6 +88,7 @@ func TestParseBlockTime(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := parseBlockTime(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseBlockTime() error = %v, wantErr %v", err, tt.wantErr)
@@ -179,6 +180,7 @@ func TestCalculateCurrentBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			block := calculateCurrentBlock(tt.startHour, loc, tt.now, tt.tokenLimit)
 
 			if !block.StartAt().Equal(tt.wantStart) {
@@ -232,6 +234,7 @@ func TestCalculateCurrentBlock_TimezoneHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			block := calculateCurrentBlock(tt.startHour, tt.timezone, tt.nowUTC, 7000)
 
 			// Convert block start time to the test timezone for verification

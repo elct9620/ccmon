@@ -193,6 +193,7 @@ func (m *RequestsTableModel) resizeTableColumns() {
 	var columns []table.Column
 	if m.width < 80 {
 		// Compact layout for narrow terminals - shorter titles
+		// Calculate widths for 7 columns by merging cache+total
 		columns = []table.Column{
 			{Title: "Time", Width: widths[0]},
 			{Title: "Model", Width: widths[1]},
@@ -202,8 +203,10 @@ func (m *RequestsTableModel) resizeTableColumns() {
 			{Title: "Cost", Width: widths[6]},
 			{Title: "Dur", Width: widths[7]},
 		}
-		// For compact mode, merge cache and total columns
-		m.setCompactColumns(columns)
+		// Update rows first to match column count
+		m.updateTableRows()
+		// Then set the columns
+		m.table.SetColumns(columns)
 	} else {
 		// Normal layout - full column titles
 		columns = []table.Column{
@@ -216,27 +219,13 @@ func (m *RequestsTableModel) resizeTableColumns() {
 			{Title: "Cost ($)", Width: widths[6]},
 			{Title: "Duration", Width: widths[7]},
 		}
+		// Update rows first to match column count
+		m.updateTableRows()
+		// Then set the columns
 		m.table.SetColumns(columns)
 	}
-
-	// Update table rows to match new column layout
-	m.updateTableRows()
 }
 
-// setCompactColumns sets compact column layout
-func (m *RequestsTableModel) setCompactColumns(columns []table.Column) {
-	// Set the compact columns (6 columns instead of 8)
-	compactColumns := []table.Column{
-		columns[0], // Time
-		columns[1], // Model
-		columns[2], // Input
-		columns[3], // Output
-		columns[4], // Combined Total
-		columns[5], // Cost
-		columns[6], // Duration
-	}
-	m.table.SetColumns(compactColumns)
-}
 
 // adjustTableHeight calculates and sets appropriate table height
 func (m *RequestsTableModel) adjustTableHeight() {

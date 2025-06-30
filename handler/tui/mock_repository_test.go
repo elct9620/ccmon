@@ -4,8 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/usecase"
+	"github.com/muesli/termenv"
 )
 
 // MockAPIRequestRepository implements the APIRequestRepository interface for testing
@@ -186,8 +188,47 @@ func CreateTestBlock() *entity.Block {
 	return &block
 }
 
+// CreateTestUsage creates test usage data for testing
+func CreateTestUsage() entity.Usage {
+	// Create daily stats for last few days
+	now := time.Now().UTC()
+	stats := []entity.Stats{}
+	
+	for i := 0; i < 5; i++ {
+		date := now.AddDate(0, 0, -i)
+		period := entity.NewPeriod(
+			time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC),
+			time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 0, time.UTC),
+		)
+		
+		baseTokens := entity.NewToken(int64(1000*(i+1)), int64(500*(i+1)), 0, 0)
+		premiumTokens := entity.NewToken(int64(2000*(i+1)), int64(1000*(i+1)), int64(100*(i+1)), int64(50*(i+1)))
+		baseCost := entity.NewCost(0.001 * float64(i+1))
+		premiumCost := entity.NewCost(0.010 * float64(i+1))
+		
+		stat := entity.NewStats(i+1, i+2, baseTokens, premiumTokens, baseCost, premiumCost, period)
+		stats = append(stats, stat)
+	}
+	
+	return entity.NewUsage(stats)
+}
+
 // CreateTestUsageQuery creates a test usage query for testing
 func CreateTestUsageQuery() *usecase.GetUsageQuery {
 	mockRepo := NewMockAPIRequestRepository()
 	return usecase.NewGetUsageQuery(mockRepo)
+}
+
+// setupTestEnvironment configures the environment for testing in CI/GitHub Actions
+func setupTestEnvironment() {
+	// Set color profile to ASCII for GitHub Actions compatibility
+	lipgloss.SetColorProfile(termenv.Ascii)
+}
+
+// Helper function for min
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

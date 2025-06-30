@@ -6,19 +6,12 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/handler/tui"
 	"github.com/elct9620/ccmon/usecase"
-	"github.com/muesli/termenv"
 )
 
-// setupTestEnvironment configures the environment for testing in CI/GitHub Actions
-func setupTestEnvironment() {
-	// Set color profile to ASCII for GitHub Actions compatibility
-	lipgloss.SetColorProfile(termenv.Ascii)
-}
 
 // TestProgram_BasicOutput tests basic program output generation
 func TestProgram_BasicOutput(t *testing.T) {
@@ -143,6 +136,7 @@ func TestViewModel_KeyboardInteractions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Create mock repository and queries
 			mockRepo := NewMockAPIRequestRepository()
 			mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
@@ -191,6 +185,7 @@ func TestViewModel_LayoutResponsiveness(t *testing.T) {
 
 	for _, size := range windowSizes {
 		t.Run(size.name, func(t *testing.T) {
+			t.Parallel()
 			// Send window size message
 			vm.Update(tea.WindowSizeMsg{Width: size.width, Height: size.height})
 
@@ -245,6 +240,7 @@ func TestViewModel_DataFlow(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			mockRepo := NewMockAPIRequestRepository()
 			mockRepo.SetMockData(tc.requests, tc.stats)
 
@@ -257,12 +253,7 @@ func TestViewModel_DataFlow(t *testing.T) {
 			// Initialize the view
 			vm.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
-			// Trigger data refresh by sending a refresh message
-			// The ViewModel needs to be explicitly told to refresh its data
-			// Looking at view_model.go, we need to send a refreshStatsMsg to trigger recalculateStats()
-			// Since refreshStatsMsg is defined as an empty struct in view_model.go, we can create one
-
-			// First approach: send a key message that triggers refresh (like "a" for all-time filter)
+			// Trigger data refresh by sending a key message that triggers refresh (like "a" for all-time filter)
 			// This will call refreshStats() which returns refreshStatsMsg{} as a command
 			keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}
 			model, cmd := vm.Update(keyMsg)
@@ -571,6 +562,7 @@ func TestViewModel_FilterStateCoverage(t *testing.T) {
 
 	for _, filter := range filters {
 		t.Run("Filter_"+filter.key, func(t *testing.T) {
+			t.Parallel()
 			keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(filter.key)}
 			vm.Update(keyMsg)
 
@@ -701,6 +693,7 @@ func TestProgram_KeyboardInteractions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Setup test data
 			mockRepo := NewMockAPIRequestRepository()
 			mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
