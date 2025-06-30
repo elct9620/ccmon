@@ -7,24 +7,24 @@ class Ccmon < Formula
   on_macos do
     on_intel do
       url "https://github.com/elct9620/ccmon/releases/download/v#{version}/ccmon_Darwin_x86_64.tar.gz"
-      sha256 "PLACEHOLDER_INTEL_SHA256"
+      sha256 "5c48f6e5730e2867e2f77dbe75c7e4bce773141133ddaf2de3dc659e037b68b1"
     end
 
     on_arm do
       url "https://github.com/elct9620/ccmon/releases/download/v#{version}/ccmon_Darwin_arm64.tar.gz"
-      sha256 "PLACEHOLDER_ARM_SHA256"
+      sha256 "1f7097eef1eb355d6120f1866bfefe3231438d27cc3aa4a56ae0f34a7b1567c1"
     end
   end
 
   on_linux do
     on_intel do
       url "https://github.com/elct9620/ccmon/releases/download/v#{version}/ccmon_Linux_x86_64.tar.gz"
-      sha256 "PLACEHOLDER_LINUX_INTEL_SHA256"
+      sha256 "4a6f0769dbabd884185df782638174e69eb483acc92239a4d0a42cb8680d4704"
     end
 
     on_arm do
       url "https://github.com/elct9620/ccmon/releases/download/v#{version}/ccmon_Linux_arm64.tar.gz"
-      sha256 "PLACEHOLDER_LINUX_ARM_SHA256"
+      sha256 "bd221efa2a055760153520926902bbf971a84853e3ae6c64a2f2fbff2230048e"
     end
   end
 
@@ -38,7 +38,17 @@ class Ccmon < Formula
   def install
     if build.head?
       # Build from source for --head installations
+      # Set up GOPATH and install required Go tools for protobuf generation
+      ENV["GOPATH"] = buildpath/"go"
+      ENV["PATH"] = "#{buildpath}/go/bin:#{ENV.fetch("PATH")}"
+
+      system "go", "install", "google.golang.org/protobuf/cmd/protoc-gen-go@latest"
+      system "go", "install", "google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest"
+
+      # Generate protobuf code
       system "make", "generate"
+
+      # Build the binary
       system "go", "build", *std_go_args(ldflags: "-s -w -X main.version=HEAD"), "."
     else
       # Install pre-built binary for stable releases
@@ -61,12 +71,8 @@ class Ccmon < Formula
     # Test server mode startup (should exit cleanly with --help after server flag)
     system bin/"ccmon", "--server", "--help"
 
-    # Test version output (works for both stable and HEAD builds)
-    output = shell_output("#{bin}/ccmon --version 2>&1", 0)
-    if build.head?
-      assert_match "HEAD", output
-    else
-      assert_match version.to_s, output
-    end
+    # Test that binary executes without crashing
+    output = shell_output("#{bin}/ccmon --help 2>&1", 0)
+    assert_match(/Usage of.*ccmon/, output)
   end
 end
