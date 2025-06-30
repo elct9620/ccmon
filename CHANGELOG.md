@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/elct9620/ccmon/compare/v0.3.0...v0.3.1) (2025-06-30)
+
+
+### Bug Fixes
+
+* replace direct Homebrew push with pull request workflow ([ce8cde8](https://github.com/elct9620/ccmon/commit/ce8cde82e6cd8b2847b947061955c240be361544))
+
 ## [0.3.0](https://github.com/elct9620/ccmon/compare/v0.2.1...v0.3.0) (2025-06-30)
 
 
