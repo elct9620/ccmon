@@ -1,0 +1,132 @@
+package tui
+
+import (
+	"strings"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/elct9620/ccmon/entity"
+)
+
+// OverviewTabModel handles the current/overview tab that shows stats and requests table
+type OverviewTabModel struct {
+	statsModel         *StatsModel
+	requestsTableModel *RequestsTableModel
+	width              int
+	height             int
+}
+
+// NewOverviewTabModel creates a new overview tab model
+func NewOverviewTabModel(timezone *time.Location, block *entity.Block) *OverviewTabModel {
+	return &OverviewTabModel{
+		statsModel:         NewStatsModel(timezone, block),
+		requestsTableModel: NewRequestsTableModel(timezone),
+		width:              120,
+		height:             30,
+	}
+}
+
+// Init initializes the overview tab model
+func (m *OverviewTabModel) Init() tea.Cmd {
+	return tea.Batch(
+		m.statsModel.Init(),
+		m.requestsTableModel.Init(),
+	)
+}
+
+// Update handles messages and updates the model
+func (m *OverviewTabModel) Update(msg tea.Msg) (ComponentModel, tea.Cmd) {
+	var cmds []tea.Cmd
+
+	switch msg := msg.(type) {
+	case ResizeMsg:
+		m.SetSize(msg.Width, msg.Height)
+
+	case StatsUpdateMsg:
+		// Forward stats update to stats model
+		_, cmd := m.statsModel.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+
+	case RequestsUpdateMsg:
+		// Forward requests update to table model
+		_, cmd := m.requestsTableModel.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+
+	case tea.KeyMsg:
+		// Handle keyboard input - mainly for table navigation
+		switch msg.String() {
+		case "esc":
+			// Toggle table focus
+			if m.requestsTableModel.Focused() {
+				m.requestsTableModel.Blur()
+			} else {
+				m.requestsTableModel.Focus()
+			}
+		default:
+			// Forward other key messages to table model
+			_, cmd := m.requestsTableModel.Update(msg)
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+	}
+
+	return m, tea.Batch(cmds...)
+}
+
+// View renders the overview tab
+func (m *OverviewTabModel) View() string {
+	var b strings.Builder
+
+	// Statistics box
+	statsContent := m.statsModel.View()
+	statsBox := BoxStyle.Width(m.width - 4).Render(statsContent)
+	b.WriteString(statsBox + "\n\n")
+
+	// Recent requests header
+	requestsHeader := HeaderStyle.Render("Recent API Requests")
+	b.WriteString(requestsHeader + "\n")
+
+	// Table
+	tableView := m.requestsTableModel.View()
+	b.WriteString(tableView + "\n")
+
+	return b.String()
+}
+
+// SetSize updates the size of the overview tab and its components
+func (m *OverviewTabModel) SetSize(width, height int) {
+	m.width = width
+	m.height = height
+
+	// Update sub-component sizes
+	m.statsModel.SetSize(width, height)
+	m.requestsTableModel.SetSize(width, height)
+}
+
+// UpdateStats updates the statistics data
+func (m *OverviewTabModel) UpdateStats(stats, blockStats entity.Stats, block *entity.Block) {
+	msg := StatsUpdateMsg{
+		Stats:      stats,
+		BlockStats: blockStats,
+		Block:      block,
+	}
+	m.statsModel.Update(msg)
+}
+
+// UpdateRequests updates the requests data
+func (m *OverviewTabModel) UpdateRequests(requests []entity.APIRequest) {
+	msg := RequestsUpdateMsg{
+		Requests: requests,
+	}
+	m.requestsTableModel.Update(msg)
+}
+
+// GetRequestsTable returns the requests table model for external access
+func (m *OverviewTabModel) GetRequestsTable() *RequestsTableModel {
+	return m.requestsTableModel
+}

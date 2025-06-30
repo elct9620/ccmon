@@ -2,13 +2,11 @@ package tui
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/entity"
-	"github.com/elct9620/ccmon/handler/tui/components"
 	"github.com/elct9620/ccmon/usecase"
 )
 
@@ -40,82 +38,52 @@ const (
 	TabDaily              // Daily usage view
 )
 
-// ViewModel represents the state of our TUI monitor application
+// ViewModel represents the refactored state of our TUI monitor application using component models
 type ViewModel struct {
-	requests            []entity.APIRequest
-	table               table.Model
-	width               int
-	height              int
-	ready               bool
-	stats               entity.Stats // Stats for the current filter (displayed in statistics table)
-	blockStats          entity.Stats // Stats for the current block (used for progress bar)
+	// Tab models
+	overviewTab   *OverviewTabModel
+	dailyUsageTab *DailyUsageTabModel
+
+	// Application state
+	currentTab      Tab
+	width           int
+	height          int
+	ready           bool
+	timeFilter      TimeFilter
+	sortOrder       SortOrder
+	timezone        *time.Location
+	block           *entity.Block
+	refreshInterval time.Duration
+
+	// Use cases for data access
 	getFilteredQuery    *usecase.GetFilteredApiRequestsQuery
 	calculateStatsQuery *usecase.CalculateStatsQuery
-	getUsageQuery       *usecase.GetUsageQuery // Query for daily usage statistics
-	currentTab          Tab                    // Currently active tab
-	usage               entity.Usage           // Daily usage data for daily tab
-	timeFilter          TimeFilter
-	sortOrder           SortOrder
-	timezone            *time.Location
-	block               *entity.Block // nil if no block configured
-	refreshInterval     time.Duration // refresh interval for auto-refresh
-	renderer            *Renderer     // renderer for the view
+	getUsageQuery       *usecase.GetUsageQuery
 }
 
-// NewViewModel creates a new ViewModel with initial state
+// NewViewModel creates a new refactored ViewModel with component models
 func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, getUsageQuery *usecase.GetUsageQuery, timezone *time.Location, block *entity.Block, refreshInterval time.Duration) *ViewModel {
-	// Start with basic columns, will be resized on first window size message
-	initialWidths := CalculateTableColumnWidths(120) // Assume medium width initially
-	columns := []table.Column{
-		{Title: "Time", Width: initialWidths[0]},
-		{Title: "Model", Width: initialWidths[1]},
-		{Title: "Input", Width: initialWidths[2]},
-		{Title: "Output", Width: initialWidths[3]},
-		{Title: "Cache", Width: initialWidths[4]},
-		{Title: "Total", Width: initialWidths[5]},
-		{Title: "Cost ($)", Width: initialWidths[6]},
-		{Title: "Duration", Width: initialWidths[7]},
-	}
-
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithFocused(true),
-		table.WithHeight(10),
-	)
-
-	s := table.DefaultStyles()
-	s.Header = s.Header.Bold(true)
-	s.Selected = s.Selected.Bold(false)
-	t.SetStyles(s)
-
-	vm := &ViewModel{
-		requests:            []entity.APIRequest{},
-		table:               t,
-		getFilteredQuery:    getFilteredQuery,
-		calculateStatsQuery: calculateStatsQuery,
-		getUsageQuery:       getUsageQuery,
-		currentTab:          TabCurrent, // Start with current tab
-		usage:               entity.Usage{},
+	return &ViewModel{
+		overviewTab:         NewOverviewTabModel(timezone, block),
+		dailyUsageTab:       NewDailyUsageTabModel(timezone),
+		currentTab:          TabCurrent,
 		timeFilter:          FilterAll,
-		sortOrder:           SortDescending, // Default to latest first
-		stats:               entity.Stats{},
-		blockStats:          entity.Stats{},
+		sortOrder:           SortDescending,
 		timezone:            timezone,
 		block:               block,
 		refreshInterval:     refreshInterval,
+		getFilteredQuery:    getFilteredQuery,
+		calculateStatsQuery: calculateStatsQuery,
+		getUsageQuery:       getUsageQuery,
 	}
-
-	// Create components and renderer
-	tableComponent := components.NewTableComponent(t)
-	vm.renderer = NewRenderer(tableComponent)
-
-	return vm
 }
 
 // Init is the Bubble Tea initialization function
 func (vm *ViewModel) Init() tea.Cmd {
 	return tea.Batch(
 		tea.EnterAltScreen,
+		vm.overviewTab.Init(),
+		vm.dailyUsageTab.Init(),
 		vm.refreshStats, // Load initial data from database
 		vm.tick(),       // Start periodic refresh
 	)
@@ -123,19 +91,13 @@ func (vm *ViewModel) Init() tea.Cmd {
 
 // Update handles messages and updates the model
 func (vm *ViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return vm, tea.Quit
-		case "esc":
-			if vm.table.Focused() {
-				vm.table.Blur()
-			} else {
-				vm.table.Focus()
-			}
 		case "a":
 			vm.timeFilter = FilterAll
 			return vm, vm.refreshStats
@@ -156,7 +118,6 @@ func (vm *ViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				vm.timeFilter = FilterBlock
 				return vm, vm.refreshStats
 			}
-			// If no block configured, ignore the key press
 		case "o":
 			// Toggle sort order
 			if vm.sortOrder == SortDescending {
@@ -174,16 +135,32 @@ func (vm *ViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				vm.currentTab = TabCurrent
 				return vm, vm.refreshStats
 			}
+		default:
+			// Forward key messages to active tab
+			if vm.currentTab == TabCurrent {
+				_, cmd := vm.overviewTab.Update(msg)
+				if cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+			}
 		}
 
 	case tea.WindowSizeMsg:
 		vm.width = msg.Width
 		vm.height = msg.Height
 		vm.ready = true
-		// Resize table columns based on available width
-		vm.resizeTableColumns()
-		// Calculate dynamic table height based on content
-		vm.adjustTableHeight()
+
+		// Update tab sizes
+		resizeMsg := ResizeMsg{Width: msg.Width, Height: msg.Height}
+		_, cmd1 := vm.overviewTab.Update(resizeMsg)
+		_, cmd2 := vm.dailyUsageTab.Update(resizeMsg)
+
+		if cmd1 != nil {
+			cmds = append(cmds, cmd1)
+		}
+		if cmd2 != nil {
+			cmds = append(cmds, cmd2)
+		}
 
 	case tickMsg:
 		// Periodic refresh - refresh based on current tab
@@ -205,52 +182,74 @@ func (vm *ViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	vm.table, cmd = vm.table.Update(msg)
-	return vm, cmd
+	return vm, tea.Batch(cmds...)
 }
 
-// Getters for accessing view model state
-func (vm *ViewModel) Requests() []entity.APIRequest {
-	return vm.requests
-}
-
-func (vm *ViewModel) Table() table.Model {
-	return vm.table
-}
-
-func (vm *ViewModel) Ready() bool {
-	return vm.ready
-}
-
-func (vm *ViewModel) Stats() entity.Stats {
-	return vm.stats
-}
-
-func (vm *ViewModel) BlockStats() entity.Stats {
-	return vm.blockStats
-}
-
-func (vm *ViewModel) Block() *entity.Block {
-	return vm.block
-}
-
-func (vm *ViewModel) TokenLimit() int {
-	if vm.block != nil {
-		return vm.block.TokenLimit()
+// View renders the UI by delegating to the appropriate tab model
+func (vm *ViewModel) View() string {
+	if !vm.ready {
+		return "\n  Initializing..."
 	}
-	return 0
+
+	// Common header
+	content := TitleStyle.Render("🖥️  Claude Code Monitor") + "\n"
+	content += vm.renderTabNavigation() + "\n"
+
+	// Tab-specific content
+	switch vm.currentTab {
+	case TabCurrent:
+		// Status line for current tab
+		content += StatusStyle.Render("Monitor Mode | Filter: "+vm.GetTimeFilterString()+" | Sort: "+vm.GetSortOrderString()) + "\n\n"
+		content += vm.overviewTab.View()
+	case TabDaily:
+		content += "\n" + vm.dailyUsageTab.View()
+	}
+
+	// Help text
+	content += vm.renderHelpText()
+
+	return content
 }
 
-func (vm *ViewModel) Timezone() *time.Location {
-	return vm.timezone
+// renderTabNavigation renders the tab navigation bar
+func (vm *ViewModel) renderTabNavigation() string {
+	currentTabStyle := StatStyle.Bold(true)
+	inactiveTabStyle := HelpStyle
+
+	var content string
+	if vm.currentTab == TabCurrent {
+		content += currentTabStyle.Render("[Current]")
+	} else {
+		content += inactiveTabStyle.Render(" Current ")
+	}
+
+	content += "  "
+
+	if vm.currentTab == TabDaily {
+		content += currentTabStyle.Render("[Daily Usage]")
+	} else {
+		content += inactiveTabStyle.Render(" Daily Usage ")
+	}
+
+	return content
 }
 
-func (vm *ViewModel) CurrentTab() Tab {
-	return vm.currentTab
-}
+// renderHelpText renders the help text based on current tab
+func (vm *ViewModel) renderHelpText() string {
+	var helpText string
 
-func (vm *ViewModel) Usage() entity.Usage {
-	return vm.usage
+	switch vm.currentTab {
+	case TabCurrent:
+		helpText = "\n  ↑/↓: Navigate • Time: h=hour d=day w=week m=month a=all"
+		if vm.block != nil {
+			helpText += " b=block"
+		}
+		helpText += " • o=sort • Tab: Switch tabs • q: Quit"
+	case TabDaily:
+		helpText = "\n  ↑/↓: Navigate • Tab: Switch tabs • q: Quit"
+	}
+
+	return HelpStyle.Render(helpText)
 }
 
 // Business logic methods
@@ -282,17 +281,6 @@ func (vm *ViewModel) GetSortOrderString() string {
 		return "Oldest First"
 	default:
 		return "Latest First"
-	}
-}
-
-func (vm *ViewModel) GetCurrentTabName() string {
-	switch vm.currentTab {
-	case TabCurrent:
-		return "Current"
-	case TabDaily:
-		return "Daily Usage"
-	default:
-		return "Current"
 	}
 }
 
@@ -335,27 +323,25 @@ func (vm *ViewModel) recalculateStats() {
 	}
 	requests, err := vm.getFilteredQuery.Execute(context.Background(), displayParams)
 	if err != nil {
-		// Handle error silently for now
 		return
 	}
-	vm.requests = requests
 
 	// Apply sorting based on user preference
 	if vm.sortOrder == SortDescending {
 		// Reverse to show latest first (since DB returns chronological order)
-		vm.reverseRequests()
+		vm.reverseRequests(requests)
 	}
-	// For SortAscending, keep the original order (oldest first)
+
+	// Update requests in overview tab
+	vm.overviewTab.UpdateRequests(requests)
 
 	// Calculate filtered stats for display (always based on current filter)
+	var stats entity.Stats
 	if vm.calculateStatsQuery != nil {
 		statsParams := usecase.CalculateStatsParams{Period: period}
-		stats, err := vm.calculateStatsQuery.Execute(context.Background(), statsParams)
-		if err != nil {
-			// Handle error silently for now, stats will remain empty
-			vm.stats = entity.Stats{}
-		} else {
-			vm.stats = stats
+		calculatedStats, err := vm.calculateStatsQuery.Execute(context.Background(), statsParams)
+		if err == nil {
+			stats = calculatedStats
 		}
 	}
 
@@ -366,177 +352,36 @@ func (vm *ViewModel) recalculateStats() {
 	}
 
 	// Calculate block stats for progress bar (only when block tracking is enabled)
+	var blockStats entity.Stats
 	if vm.block != nil && vm.calculateStatsQuery != nil {
 		blockStatsParams := usecase.CalculateStatsParams{
 			Period: vm.block.Period(),
 		}
-		blockStats, err := vm.calculateStatsQuery.Execute(context.Background(), blockStatsParams)
-		if err != nil {
-			// Keep previous block stats or use empty stats
-			vm.blockStats = entity.Stats{}
-		} else {
-			vm.blockStats = blockStats
+		calculatedBlockStats, err := vm.calculateStatsQuery.Execute(context.Background(), blockStatsParams)
+		if err == nil {
+			blockStats = calculatedBlockStats
 		}
 	}
 
-	// Update table
-	vm.updateTableRows()
+	// Update stats in overview tab
+	vm.overviewTab.UpdateStats(stats, blockStats, vm.block)
 }
 
 func (vm *ViewModel) recalculateUsage() {
 	// Fetch daily usage statistics (last 30 days)
 	usage, err := vm.getUsageQuery.ListByDay(context.Background(), 30, vm.timezone)
 	if err != nil {
-		// Handle error silently for now, usage will remain empty
-		vm.usage = entity.Usage{}
-		return
+		usage = entity.Usage{}
 	}
-	vm.usage = usage
+
+	// Update usage in daily tab
+	vm.dailyUsageTab.UpdateUsage(usage)
 }
 
-func (vm *ViewModel) reverseRequests() {
-	for i, j := 0, len(vm.requests)-1; i < j; i, j = i+1, j-1 {
-		vm.requests[i], vm.requests[j] = vm.requests[j], vm.requests[i]
+func (vm *ViewModel) reverseRequests(requests []entity.APIRequest) {
+	for i, j := 0, len(requests)-1; i < j; i, j = i+1, j-1 {
+		requests[i], requests[j] = requests[j], requests[i]
 	}
-}
-
-func (vm *ViewModel) updateTableRows() {
-	rows := make([]table.Row, 0, len(vm.requests))
-	for _, req := range vm.requests {
-		// Format timestamp in configured timezone
-		timestamp := req.Timestamp().In(vm.timezone).Format("15:04:05 2006-01-02")
-
-		if vm.width < 80 {
-			// Compact mode: combine cache and total tokens
-			cacheAndTotal := fmt.Sprintf("%s/%s",
-				FormatNumber(req.Tokens().Cache()),
-				FormatNumber(req.Tokens().Total()))
-
-			rows = append(rows, table.Row{
-				timestamp,
-				req.Model().String(), // Don't truncate - let auto-width handle it
-				FormatNumber(req.Tokens().Input()),
-				FormatNumber(req.Tokens().Output()),
-				cacheAndTotal,
-				FormatCost(req.Cost().Amount()),
-				FormatDuration(req.DurationMS()),
-			})
-		} else {
-			// Normal mode: separate columns
-			rows = append(rows, table.Row{
-				timestamp,
-				req.Model().String(), // Don't truncate - let auto-width handle it
-				FormatNumber(req.Tokens().Input()),
-				FormatNumber(req.Tokens().Output()),
-				FormatNumber(req.Tokens().Cache()),
-				FormatNumber(req.Tokens().Total()),
-				FormatCost(req.Cost().Amount()),
-				FormatDuration(req.DurationMS()),
-			})
-		}
-	}
-	vm.table.SetRows(rows)
-}
-
-func (vm *ViewModel) resizeTableColumns() {
-	// Calculate auto-width columns based on available terminal width
-	widths := CalculateTableColumnWidths(vm.width)
-
-	// Define column titles based on available width
-	var columns []table.Column
-	if vm.width < 80 {
-		// Compact layout for narrow terminals - shorter titles
-		columns = []table.Column{
-			{Title: "Time", Width: widths[0]},
-			{Title: "Model", Width: widths[1]},
-			{Title: "In", Width: widths[2]},
-			{Title: "Out", Width: widths[3]},
-			{Title: "Tot", Width: widths[4] + widths[5]}, // Combine Cache+Total for space
-			{Title: "Cost", Width: widths[6]},
-			{Title: "Dur", Width: widths[7]},
-		}
-		// For compact mode, merge cache and total columns
-		vm.setCompactColumns(columns)
-	} else {
-		// Normal layout - full column titles
-		columns = []table.Column{
-			{Title: "Time", Width: widths[0]},
-			{Title: "Model", Width: widths[1]},
-			{Title: "Input", Width: widths[2]},
-			{Title: "Output", Width: widths[3]},
-			{Title: "Cache", Width: widths[4]},
-			{Title: "Total", Width: widths[5]},
-			{Title: "Cost ($)", Width: widths[6]},
-			{Title: "Duration", Width: widths[7]},
-		}
-		vm.table.SetColumns(columns)
-	}
-
-	// Update table rows to match new column layout
-	vm.updateTableRows()
-}
-
-func (vm *ViewModel) setCompactColumns(columns []table.Column) {
-	// Set the compact columns (6 columns instead of 8)
-	compactColumns := []table.Column{
-		columns[0], // Time
-		columns[1], // Model
-		columns[2], // Input
-		columns[3], // Output
-		columns[4], // Combined Total
-		columns[5], // Cost
-		columns[6], // Duration
-	}
-	vm.table.SetColumns(compactColumns)
-}
-
-func (vm *ViewModel) adjustTableHeight() {
-	// Be more conservative with height calculations to prevent overflow
-	// Components breakdown:
-	// - Title: 2 lines (title + newline)
-	// - Status: 2 lines (status + newline)
-	// - Stats box: varies (8-12 lines with borders and content)
-	// - Table header: 1 line
-	// - Help text: 2 lines (newline + help)
-	// - Safety margin: 2 lines
-
-	fixedHeight := 9 // Title, status, table header, help, margins
-
-	// Calculate stats section height more accurately
-	statsHeight := 10 // Conservative estimate for stats box with borders
-
-	if vm.block != nil && vm.block.HasLimit() {
-		statsHeight += 4 // Progress bar section
-	} else if vm.block == nil {
-		statsHeight += 2 // Help message
-	}
-
-	// For compact stats, reduce height
-	if vm.width < 60 {
-		statsHeight = 8 // Compact stats are shorter
-	}
-
-	// Calculate remaining height for table with safety margin
-	tableHeight := vm.height - fixedHeight - statsHeight - 2 // Extra 2 lines safety margin
-
-	// Ensure reasonable minimum and maximum
-	if tableHeight < 3 {
-		tableHeight = 3
-	} else if tableHeight > 20 {
-		tableHeight = 20 // Cap maximum table height
-	}
-
-	vm.table.SetHeight(tableHeight)
-}
-
-// Message types
-type tickMsg time.Time
-type refreshStatsMsg struct{}
-type refreshUsageMsg struct{}
-
-// View renders the UI using the renderer
-func (vm *ViewModel) View() string {
-	return vm.renderer.View(vm, vm.width)
 }
 
 // tick returns a command that sends a tick message using the configured refresh interval
@@ -545,3 +390,57 @@ func (vm *ViewModel) tick() tea.Cmd {
 		return tickMsg(t)
 	})
 }
+
+// Getter methods for compatibility with existing renderers
+func (vm *ViewModel) Ready() bool {
+	return vm.ready
+}
+
+func (vm *ViewModel) CurrentTab() Tab {
+	return vm.currentTab
+}
+
+func (vm *ViewModel) Usage() entity.Usage {
+	// Return usage from daily tab model
+	return vm.dailyUsageTab.usage
+}
+
+func (vm *ViewModel) Timezone() *time.Location {
+	return vm.timezone
+}
+
+func (vm *ViewModel) Block() *entity.Block {
+	return vm.block
+}
+
+func (vm *ViewModel) Stats() entity.Stats {
+	// Return stats from overview tab stats model
+	return vm.overviewTab.statsModel.stats
+}
+
+func (vm *ViewModel) BlockStats() entity.Stats {
+	// Return block stats from overview tab stats model
+	return vm.overviewTab.statsModel.blockStats
+}
+
+func (vm *ViewModel) Requests() []entity.APIRequest {
+	// Return requests from overview tab requests table model
+	return vm.overviewTab.requestsTableModel.requests
+}
+
+func (vm *ViewModel) Table() table.Model {
+	// Return table from overview tab requests table model
+	return vm.overviewTab.requestsTableModel.table
+}
+
+func (vm *ViewModel) TokenLimit() int {
+	if vm.block != nil {
+		return vm.block.TokenLimit()
+	}
+	return 0
+}
+
+// Message types
+type tickMsg time.Time
+type refreshStatsMsg struct{}
+type refreshUsageMsg struct{}
