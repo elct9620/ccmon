@@ -21,7 +21,6 @@ const (
 	FilterBlock // Current block timeframe
 )
 
-
 // Tab represents the available tabs in the UI
 type Tab int
 
@@ -326,9 +325,6 @@ func (vm *ViewModel) refreshStats() tea.Msg {
 func (vm *ViewModel) refreshUsage() tea.Msg {
 	return refreshUsageMsg{}
 }
-
-
-
 
 // tick returns a command that sends a tick message using the configured refresh interval
 func (vm *ViewModel) tick() tea.Cmd {

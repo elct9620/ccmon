@@ -23,12 +23,12 @@ type RequestsTableModel struct {
 	// Data ownership
 	table    table.Model
 	requests []entity.APIRequest
-	
+
 	// Configuration
 	timezone *time.Location
 	width    int
 	height   int
-	
+
 	// Business logic dependencies
 	getFilteredQuery *usecase.GetFilteredApiRequestsQuery
 }
@@ -225,7 +225,6 @@ func (m *RequestsTableModel) resizeTableColumns() {
 		m.table.SetColumns(columns)
 	}
 }
-
 
 // adjustTableHeight calculates and sets appropriate table height
 func (m *RequestsTableModel) adjustTableHeight() {

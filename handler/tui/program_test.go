@@ -12,7 +12,6 @@ import (
 	"github.com/elct9620/ccmon/usecase"
 )
 
-
 // TestProgram_BasicOutput tests basic program output generation
 func TestProgram_BasicOutput(t *testing.T) {
 	setupTestEnvironment()
@@ -266,11 +265,11 @@ func TestViewModel_DataFlow(t *testing.T) {
 					// This will trigger both stats and requests refresh in the new architecture
 					model, _ := vm.Update(refreshMsg)
 					vm = model.(*tui.ViewModel)
-					
+
 					// In the new architecture, we need to simulate the async command execution
-					// The refresh will trigger async data loading, let's simulate that by 
+					// The refresh will trigger async data loading, let's simulate that by
 					// manually executing the component refresh operations
-					
+
 					// Simulate stats data loading
 					statsMsg := tui.StatsDataMsg{
 						Stats:      tc.stats,
@@ -278,8 +277,8 @@ func TestViewModel_DataFlow(t *testing.T) {
 						Block:      nil,
 					}
 					vm.Update(statsMsg)
-					
-					// Simulate requests data loading  
+
+					// Simulate requests data loading
 					requestsMsg := tui.RequestsDataMsg{
 						Requests: tc.requests,
 					}

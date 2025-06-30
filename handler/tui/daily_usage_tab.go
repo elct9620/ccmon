@@ -15,12 +15,12 @@ import (
 type DailyUsageTabModel struct {
 	// Data ownership
 	usage entity.Usage
-	
+
 	// Configuration
 	timezone *time.Location
 	width    int
 	height   int
-	
+
 	// Business logic dependencies
 	getUsageQuery *usecase.GetUsageQuery
 }

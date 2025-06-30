@@ -17,11 +17,11 @@ type StatsModel struct {
 	stats      entity.Stats
 	blockStats entity.Stats
 	block      *entity.Block
-	
+
 	// Configuration
-	timezone   *time.Location
-	width      int
-	
+	timezone *time.Location
+	width    int
+
 	// Business logic dependencies
 	calculateStatsQuery *usecase.CalculateStatsQuery
 }
@@ -304,7 +304,7 @@ func (m *StatsModel) Stats() entity.Stats {
 	return m.stats
 }
 
-// BlockStats returns the current block stats (for compatibility) 
+// BlockStats returns the current block stats (for compatibility)
 func (m *StatsModel) BlockStats() entity.Stats {
 	return m.blockStats
 }
