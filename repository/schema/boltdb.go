@@ -15,19 +15,3 @@ type APIRequest struct {
 	CostUSD             float64
 	DurationMS          int64
 }
-
-// TimeFilter represents available time filter options
-type TimeFilter int
-
-const (
-	FilterAll TimeFilter = iota
-	FilterHour
-	FilterDay
-	FilterWeek
-	FilterMonth
-)
-
-// Filter represents the filter criteria for API requests
-type Filter struct {
-	TimeFilter TimeFilter
-}
