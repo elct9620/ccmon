@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
-	"github.com/elct9620/ccmon/entity"
 	grpcserver "github.com/elct9620/ccmon/handler/grpc"
 	"github.com/elct9620/ccmon/handler/tui"
 	"github.com/elct9620/ccmon/repository"
@@ -79,51 +77,17 @@ func main() {
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo)
 
-		// Load timezone for monitor mode
-		timezone, err := time.LoadLocation(config.Monitor.Timezone)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to load timezone %s: %v\n", config.Monitor.Timezone, err)
-			os.Exit(1)
+		// Convert config to TUI-specific struct
+		monitorConfig := tui.MonitorConfig{
+			Server:          config.Monitor.Server,
+			Timezone:        config.Monitor.Timezone,
+			RefreshInterval: config.Monitor.RefreshInterval,
+			TokenLimit:      config.Claude.GetTokenLimit(),
+			BlockTime:       blockTime,
 		}
 
-		// Parse refresh interval
-		refreshInterval, err := time.ParseDuration(config.Monitor.RefreshInterval)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Invalid refresh interval format %s: %v\n", config.Monitor.RefreshInterval, err)
-			os.Exit(1)
-		}
-
-		// Validate refresh interval bounds
-		if refreshInterval < time.Second {
-			fmt.Fprintf(os.Stderr, "Refresh interval too short (%v), minimum is 1 second\n", refreshInterval)
-			os.Exit(1)
-		}
-		if refreshInterval > 5*time.Minute {
-			fmt.Fprintf(os.Stderr, "Refresh interval too long (%v), maximum is 5 minutes\n", refreshInterval)
-			os.Exit(1)
-		}
-
-		// Parse block configuration if provided
-		var block *entity.Block
-		if blockTime != "" {
-			startHour, err := entity.ParseBlockTime(blockTime)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Invalid block time format %s: %v\n", blockTime, err)
-				os.Exit(1)
-			}
-
-			tokenLimit := config.Claude.GetTokenLimit()
-			if tokenLimit == 0 {
-				fmt.Fprintf(os.Stderr, "Warning: No token limit configured. Set claude.plan or claude.max_tokens in config.\n")
-			}
-
-			// Create current block with token limit based on user's start hour
-			blockEntity := entity.NewCurrentBlockWithLimit(startHour, timezone, time.Now(), tokenLimit)
-			block = &blockEntity
-		}
-
-		// Run monitor with usecases, timezone, block config, and refresh interval
-		if err := tui.RunMonitor(getFilteredQuery, calculateStatsQuery, timezone, block, refreshInterval); err != nil {
+		// Run monitor with usecases and config - TUI handler owns block logic
+		if err := tui.RunMonitor(getFilteredQuery, calculateStatsQuery, monitorConfig); err != nil {
 			fmt.Fprintf(os.Stderr, "Monitor error: %v\n", err)
 			os.Exit(1)
 		}
