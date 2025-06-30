@@ -105,7 +105,6 @@ func main() {
 
 		// Parse block configuration if provided
 		var block *entity.Block
-		var tokenLimit int
 		if blockTime != "" {
 			startHour, err := entity.ParseBlockTime(blockTime)
 			if err != nil {
@@ -113,18 +112,18 @@ func main() {
 				os.Exit(1)
 			}
 
-			// Create current block based on user's start hour
-			blockEntity := entity.NewCurrentBlock(startHour, timezone, time.Now())
-			block = &blockEntity
-			tokenLimit = config.Claude.GetTokenLimit()
-
+			tokenLimit := config.Claude.GetTokenLimit()
 			if tokenLimit == 0 {
 				fmt.Fprintf(os.Stderr, "Warning: No token limit configured. Set claude.plan or claude.max_tokens in config.\n")
 			}
+
+			// Create current block with token limit based on user's start hour
+			blockEntity := entity.NewCurrentBlockWithLimit(startHour, timezone, time.Now(), tokenLimit)
+			block = &blockEntity
 		}
 
 		// Run monitor with usecases, timezone, block config, and refresh interval
-		if err := tui.RunMonitor(getFilteredQuery, calculateStatsQuery, timezone, block, tokenLimit, refreshInterval); err != nil {
+		if err := tui.RunMonitor(getFilteredQuery, calculateStatsQuery, timezone, block, refreshInterval); err != nil {
 			fmt.Fprintf(os.Stderr, "Monitor error: %v\n", err)
 			os.Exit(1)
 		}

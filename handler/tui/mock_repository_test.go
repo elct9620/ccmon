@@ -130,7 +130,7 @@ func (m *MockCalculateStatsQuery) Execute(ctx context.Context, params usecase.Ca
 		}
 	}
 
-	// Create and return stats with block information
+	// Create and return stats
 	return entity.NewStats(
 		baseRequests,
 		premiumRequests,
@@ -138,9 +138,6 @@ func (m *MockCalculateStatsQuery) Execute(ctx context.Context, params usecase.Ca
 		premiumTokens,
 		baseCost,
 		premiumCost,
-		params.BlockTokenLimit,
-		params.BlockStartTime,
-		params.BlockEndTime,
 	), nil
 }
 
@@ -166,7 +163,7 @@ func CreateTestRequestsSet() []entity.APIRequest {
 
 // CreateEmptyStats creates empty stats for testing
 func CreateEmptyStats() entity.Stats {
-	return entity.NewStats(0, 0, entity.Token{}, entity.Token{}, entity.Cost{}, entity.Cost{}, 0, time.Time{}, time.Time{})
+	return entity.NewStats(0, 0, entity.Token{}, entity.Token{}, entity.Cost{}, entity.Cost{})
 }
 
 // CreateTestStats creates test stats with sample data
@@ -176,14 +173,14 @@ func CreateTestStats() entity.Stats {
 	baseCost := entity.NewCost(0.0015)
 	premiumCost := entity.NewCost(0.025)
 
-	return entity.NewStats(2, 2, baseTokens, premiumTokens, baseCost, premiumCost, 0, time.Time{}, time.Time{})
+	return entity.NewStats(2, 2, baseTokens, premiumTokens, baseCost, premiumCost)
 }
 
 // CreateTestBlock creates a test block for testing block tracking
 func CreateTestBlock() *entity.Block {
-	// Create a block starting at 5am today in UTC
+	// Create a block starting at 5am today in UTC with 7000 token limit
 	now := time.Now().UTC()
 	start := time.Date(now.Year(), now.Month(), now.Day(), 5, 0, 0, 0, time.UTC)
-	block := entity.NewBlock(start)
+	block := entity.NewBlockWithLimit(start, 7000)
 	return &block
 }

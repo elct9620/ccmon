@@ -155,8 +155,8 @@ func (r *Renderer) renderStats(vm *ViewModel, width int) string {
 		}
 	}
 
-	// Add progress bar section if block is configured
-	if vm.Block() != nil && vm.TokenLimit() > 0 {
+	// Add progress bar section if block is configured with limit
+	if vm.Block() != nil && vm.Block().HasLimit() {
 		b.WriteString("\n\n")
 		b.WriteString(r.renderBlockProgress(vm))
 	} else if vm.Block() == nil {
@@ -200,8 +200,8 @@ func (r *Renderer) renderCompactStats(vm *ViewModel) string {
 		FormatTokenCount(stats.PremiumTokens().Total()),
 		stats.PremiumCost().Amount()))
 
-	// Add progress bar section if block is configured
-	if vm.Block() != nil && vm.TokenLimit() > 0 {
+	// Add progress bar section if block is configured with limit
+	if vm.Block() != nil && vm.Block().HasLimit() {
 		b.WriteString("\n\n")
 		b.WriteString(r.renderBlockProgress(vm))
 	} else if vm.Block() == nil {
@@ -219,11 +219,8 @@ func (r *Renderer) renderBlockProgress(vm *ViewModel) string {
 
 	blockStats := vm.BlockStats()
 
-	// Calculate progress directly from block stats and token limit
-	// Only premium tokens count toward limits (Haiku is free)
-	used := blockStats.PremiumTokens().Limited()
-	limit := int64(vm.TokenLimit())
-	percentage := float64(used) / float64(limit) * 100
+	// Calculate progress using Block entity method
+	percentage := vm.Block().CalculateProgress(blockStats.PremiumTokens())
 
 	if percentage > 100 {
 		percentage = 100
@@ -248,6 +245,8 @@ func (r *Renderer) renderBlockProgress(vm *ViewModel) string {
 	progressBar := RenderProgressBar(percentage, 40)
 	b.WriteString(progressBar)
 	b.WriteString(" ")
+	used := blockStats.PremiumTokens().Limited()
+	limit := int64(vm.Block().TokenLimit())
 	b.WriteString(StatStyle.Render(fmt.Sprintf("%.1f%% (%s/%s tokens)", percentage, FormatTokenCount(used), FormatTokenCount(limit))))
 	b.WriteString("\n")
 

@@ -47,13 +47,12 @@ type ViewModel struct {
 	sortOrder           SortOrder
 	timezone            *time.Location
 	block               *entity.Block // nil if no block configured
-	tokenLimit          int           // token limit for current block
 	refreshInterval     time.Duration // refresh interval for auto-refresh
 	renderer            *Renderer     // renderer for the view
 }
 
 // NewViewModel creates a new ViewModel with initial state
-func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int, refreshInterval time.Duration) *ViewModel {
+func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, timezone *time.Location, block *entity.Block, refreshInterval time.Duration) *ViewModel {
 	// Start with basic columns, will be resized on first window size message
 	initialWidths := CalculateTableColumnWidths(120) // Assume medium width initially
 	columns := []table.Column{
@@ -89,7 +88,6 @@ func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calcula
 		blockStats:          entity.Stats{},
 		timezone:            timezone,
 		block:               block,
-		tokenLimit:          tokenLimit,
 		refreshInterval:     refreshInterval,
 	}
 
@@ -205,7 +203,10 @@ func (vm *ViewModel) Block() *entity.Block {
 }
 
 func (vm *ViewModel) TokenLimit() int {
-	return vm.tokenLimit
+	if vm.block != nil {
+		return vm.block.TokenLimit()
+	}
+	return 0
 }
 
 func (vm *ViewModel) Timezone() *time.Location {
@@ -312,10 +313,7 @@ func (vm *ViewModel) recalculateStats() {
 	// Calculate block stats for progress bar (only when block tracking is enabled)
 	if vm.block != nil && vm.calculateStatsQuery != nil {
 		blockStatsParams := usecase.CalculateStatsParams{
-			Period:          vm.block.Period(),
-			BlockTokenLimit: vm.tokenLimit,
-			BlockStartTime:  vm.block.StartAt(),
-			BlockEndTime:    vm.block.EndAt(),
+			Period: vm.block.Period(),
 		}
 		blockStats, err := vm.calculateStatsQuery.Execute(context.Background(), blockStatsParams)
 		if err != nil {
@@ -441,7 +439,7 @@ func (vm *ViewModel) adjustTableHeight() {
 	// Calculate stats section height more accurately
 	statsHeight := 10 // Conservative estimate for stats box with borders
 
-	if vm.block != nil && vm.tokenLimit > 0 {
+	if vm.block != nil && vm.block.HasLimit() {
 		statsHeight += 4 // Progress bar section
 	} else if vm.block == nil {
 		statsHeight += 2 // Help message

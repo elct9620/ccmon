@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"time"
 
 	"github.com/elct9620/ccmon/entity"
 )
@@ -22,10 +21,6 @@ func NewCalculateStatsQuery(repository APIRequestRepository) *CalculateStatsQuer
 // CalculateStatsParams contains the parameters for calculating statistics
 type CalculateStatsParams struct {
 	Period entity.Period
-	// Optional block information for block tracking
-	BlockTokenLimit int
-	BlockStartTime  time.Time
-	BlockEndTime    time.Time
 }
 
 // Execute executes the calculate statistics query
@@ -53,7 +48,7 @@ func (q *CalculateStatsQuery) Execute(ctx context.Context, params CalculateStats
 		}
 	}
 
-	// Create and return stats with block information
+	// Create and return stats
 	return entity.NewStats(
 		baseRequests,
 		premiumRequests,
@@ -61,8 +56,5 @@ func (q *CalculateStatsQuery) Execute(ctx context.Context, params CalculateStats
 		premiumTokens,
 		baseCost,
 		premiumCost,
-		params.BlockTokenLimit,
-		params.BlockStartTime,
-		params.BlockEndTime,
 	), nil
 }

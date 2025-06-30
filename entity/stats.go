@@ -1,7 +1,5 @@
 package entity
 
-import "time"
-
 // Stats represents aggregated statistics for API requests
 type Stats struct {
 	baseRequests    int
@@ -10,11 +8,6 @@ type Stats struct {
 	premiumTokens   Token
 	baseCost        Cost
 	premiumCost     Cost
-	// Block-related fields
-	blockTokenLimit int
-	blockStartTime  time.Time
-	blockEndTime    time.Time
-	isBlockActive   bool
 }
 
 // BaseRequests returns the number of base model requests
@@ -63,7 +56,7 @@ func (s Stats) TotalCost() Cost {
 }
 
 // NewStats creates a new Stats instance with the given values
-func NewStats(baseRequests, premiumRequests int, baseTokens, premiumTokens Token, baseCost, premiumCost Cost, blockTokenLimit int, blockStartTime, blockEndTime time.Time) Stats {
+func NewStats(baseRequests, premiumRequests int, baseTokens, premiumTokens Token, baseCost, premiumCost Cost) Stats {
 	return Stats{
 		baseRequests:    baseRequests,
 		premiumRequests: premiumRequests,
@@ -71,9 +64,5 @@ func NewStats(baseRequests, premiumRequests int, baseTokens, premiumTokens Token
 		premiumTokens:   premiumTokens,
 		baseCost:        baseCost,
 		premiumCost:     premiumCost,
-		blockTokenLimit: blockTokenLimit,
-		blockStartTime:  blockStartTime,
-		blockEndTime:    blockEndTime,
-		isBlockActive:   blockTokenLimit > 0 && !blockStartTime.IsZero(),
 	}
 }
