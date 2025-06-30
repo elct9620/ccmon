@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -54,15 +55,16 @@ type ViewModel struct {
 // NewViewModel creates a new ViewModel with initial state
 func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, timezone *time.Location, block *entity.Block, tokenLimit int, refreshInterval time.Duration) *ViewModel {
 	// Start with basic columns, will be resized on first window size message
+	initialWidths := CalculateTableColumnWidths(120) // Assume medium width initially
 	columns := []table.Column{
-		{Title: "Time", Width: 16},
-		{Title: "Model", Width: 20},
-		{Title: "Input", Width: 6},
-		{Title: "Output", Width: 6},
-		{Title: "Cache", Width: 6},
-		{Title: "Total", Width: 6},
-		{Title: "Cost ($)", Width: 8},
-		{Title: "Duration", Width: 8},
+		{Title: "Time", Width: initialWidths[0]},
+		{Title: "Model", Width: initialWidths[1]},
+		{Title: "Input", Width: initialWidths[2]},
+		{Title: "Output", Width: initialWidths[3]},
+		{Title: "Cache", Width: initialWidths[4]},
+		{Title: "Total", Width: initialWidths[5]},
+		{Title: "Cost ($)", Width: initialWidths[6]},
+		{Title: "Duration", Width: initialWidths[7]},
 	}
 
 	t := table.New(
@@ -339,63 +341,89 @@ func (vm *ViewModel) updateTableRows() {
 	for _, req := range vm.requests {
 		// Format timestamp in configured timezone
 		timestamp := req.Timestamp().In(vm.timezone).Format("15:04:05 2006-01-02")
-		rows = append(rows, table.Row{
-			timestamp,
-			TruncateString(req.Model().String(), 25),
-			FormatNumber(req.Tokens().Input()),
-			FormatNumber(req.Tokens().Output()),
-			FormatNumber(req.Tokens().Cache()),
-			FormatNumber(req.Tokens().Total()),
-			FormatCost(req.Cost().Amount()),
-			FormatDuration(req.DurationMS()),
-		})
+
+		if vm.width < 80 {
+			// Compact mode: combine cache and total tokens
+			cacheAndTotal := fmt.Sprintf("%s/%s",
+				FormatNumber(req.Tokens().Cache()),
+				FormatNumber(req.Tokens().Total()))
+
+			rows = append(rows, table.Row{
+				timestamp,
+				req.Model().String(), // Don't truncate - let auto-width handle it
+				FormatNumber(req.Tokens().Input()),
+				FormatNumber(req.Tokens().Output()),
+				cacheAndTotal,
+				FormatCost(req.Cost().Amount()),
+				FormatDuration(req.DurationMS()),
+			})
+		} else {
+			// Normal mode: separate columns
+			rows = append(rows, table.Row{
+				timestamp,
+				req.Model().String(), // Don't truncate - let auto-width handle it
+				FormatNumber(req.Tokens().Input()),
+				FormatNumber(req.Tokens().Output()),
+				FormatNumber(req.Tokens().Cache()),
+				FormatNumber(req.Tokens().Total()),
+				FormatCost(req.Cost().Amount()),
+				FormatDuration(req.DurationMS()),
+			})
+		}
 	}
 	vm.table.SetRows(rows)
 }
 
 func (vm *ViewModel) resizeTableColumns() {
+	// Calculate auto-width columns based on available terminal width
+	widths := CalculateTableColumnWidths(vm.width)
+
+	// Define column titles based on available width
+	var columns []table.Column
 	if vm.width < 80 {
-		// Compact layout for narrow terminals
-		columns := []table.Column{
-			{Title: "Time", Width: 11},  // HH:MM:SS
-			{Title: "Model", Width: 10}, // Shortened
-			{Title: "In", Width: 4},     // Input tokens
-			{Title: "Out", Width: 4},    // Output tokens
-			{Title: "Tot", Width: 6},    // Total tokens
-			{Title: "Cost", Width: 8},   // Cost
-			{Title: "Dur", Width: 6},    // Duration
+		// Compact layout for narrow terminals - shorter titles
+		columns = []table.Column{
+			{Title: "Time", Width: widths[0]},
+			{Title: "Model", Width: widths[1]},
+			{Title: "In", Width: widths[2]},
+			{Title: "Out", Width: widths[3]},
+			{Title: "Tot", Width: widths[4] + widths[5]}, // Combine Cache+Total for space
+			{Title: "Cost", Width: widths[6]},
+			{Title: "Dur", Width: widths[7]},
 		}
-		vm.table.SetColumns(columns)
-	} else if vm.width < 120 {
-		// Medium layout for normal terminals
-		columns := []table.Column{
-			{Title: "Time", Width: 16},
-			{Title: "Model", Width: 18},
-			{Title: "Input", Width: 6},
-			{Title: "Output", Width: 6},
-			{Title: "Cache", Width: 6},
-			{Title: "Total", Width: 8},
-			{Title: "Cost ($)", Width: 8},
-			{Title: "Duration", Width: 8},
-		}
-		vm.table.SetColumns(columns)
+		// For compact mode, merge cache and total columns
+		vm.setCompactColumns(columns)
 	} else {
-		// Full layout for wide terminals
-		columns := []table.Column{
-			{Title: "Time", Width: 20},
-			{Title: "Model", Width: 25},
-			{Title: "Input", Width: 8},
-			{Title: "Output", Width: 8},
-			{Title: "Cache", Width: 8},
-			{Title: "Total", Width: 8},
-			{Title: "Cost ($)", Width: 10},
-			{Title: "Duration", Width: 10},
+		// Normal layout - full column titles
+		columns = []table.Column{
+			{Title: "Time", Width: widths[0]},
+			{Title: "Model", Width: widths[1]},
+			{Title: "Input", Width: widths[2]},
+			{Title: "Output", Width: widths[3]},
+			{Title: "Cache", Width: widths[4]},
+			{Title: "Total", Width: widths[5]},
+			{Title: "Cost ($)", Width: widths[6]},
+			{Title: "Duration", Width: widths[7]},
 		}
 		vm.table.SetColumns(columns)
 	}
 
 	// Update table rows to match new column layout
 	vm.updateTableRows()
+}
+
+func (vm *ViewModel) setCompactColumns(columns []table.Column) {
+	// Set the compact columns (6 columns instead of 8)
+	compactColumns := []table.Column{
+		columns[0], // Time
+		columns[1], // Model
+		columns[2], // Input
+		columns[3], // Output
+		columns[4], // Combined Total
+		columns[5], // Cost
+		columns[6], // Duration
+	}
+	vm.table.SetColumns(compactColumns)
 }
 
 func (vm *ViewModel) adjustTableHeight() {

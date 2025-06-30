@@ -439,6 +439,30 @@ func TestHelperFunctions(t *testing.T) {
 		}
 	})
 
+	t.Run("CalculateTableColumnWidths", func(t *testing.T) {
+		// Test different terminal widths
+		testCases := []struct {
+			width    int
+			expected int // expected number of columns
+		}{
+			{80, 8},  // Should return 8 column widths
+			{120, 8}, // Should return 8 column widths
+			{200, 8}, // Should return 8 column widths
+		}
+
+		for _, tc := range testCases {
+			widths := tui.CalculateTableColumnWidths(tc.width)
+			if len(widths) != tc.expected {
+				t.Errorf("Width %d: expected %d column widths, got %d", tc.width, tc.expected, len(widths))
+			}
+
+			// Verify model column gets more space (index 1)
+			if len(widths) >= 2 && widths[1] < 20 {
+				t.Errorf("Width %d: model column too narrow: %d", tc.width, widths[1])
+			}
+		}
+	})
+
 	t.Run("RenderProgressBar", func(t *testing.T) {
 		testCases := []float64{0.0, 25.0, 75.0, 95.0, 100.0, 110.0}
 		for _, percentage := range testCases {

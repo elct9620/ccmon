@@ -130,6 +130,40 @@ func CalculateStatsColumnWidths(availableWidth int) []int {
 	return minWidths
 }
 
+func CalculateTableColumnWidths(availableWidth int) []int {
+	// Base minimum widths for each column
+	// Time, Model, Input, Output, Cache, Total, Cost, Duration
+	minWidths := []int{16, 20, 6, 6, 6, 6, 8, 8}
+
+	// Account for borders, padding, and separators (approximately 2 chars per column)
+	overhead := len(minWidths) * 2
+	usableWidth := availableWidth - overhead
+	if usableWidth < 0 {
+		usableWidth = availableWidth
+	}
+
+	// Calculate total minimum width
+	totalMinWidth := 0
+	for _, w := range minWidths {
+		totalMinWidth += w
+	}
+
+	// If we have extra space, distribute it proportionally
+	if usableWidth > totalMinWidth {
+		extraSpace := usableWidth - totalMinWidth
+		// Distribute extra space: favor Model column most, then Time
+		// Model gets 50% of extra space, Time gets 20%, others get smaller amounts
+		distribution := []float64{0.2, 0.5, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05}
+
+		for i := range minWidths {
+			extra := int(float64(extraSpace) * distribution[i])
+			minWidths[i] += extra
+		}
+	}
+
+	return minWidths
+}
+
 // Progress bar rendering
 func RenderProgressBar(percentage float64, width int) string {
 	filled := int(percentage / 100 * float64(width))
