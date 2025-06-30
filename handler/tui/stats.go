@@ -1,31 +1,40 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/usecase"
 )
 
-// StatsModel handles the rendering of usage statistics
+// StatsModel handles the rendering of usage statistics and owns its data
 type StatsModel struct {
+	// Data ownership
 	stats      entity.Stats
 	blockStats entity.Stats
 	block      *entity.Block
+	
+	// Configuration
 	timezone   *time.Location
 	width      int
+	
+	// Business logic dependencies
+	calculateStatsQuery *usecase.CalculateStatsQuery
 }
 
-// NewStatsModel creates a new statistics model
-func NewStatsModel(timezone *time.Location, block *entity.Block) *StatsModel {
+// NewStatsModel creates a new statistics model with usecase dependency
+func NewStatsModel(calculateStatsQuery *usecase.CalculateStatsQuery, timezone *time.Location, block *entity.Block) *StatsModel {
 	return &StatsModel{
-		stats:      entity.Stats{},
-		blockStats: entity.Stats{},
-		block:      block,
-		timezone:   timezone,
-		width:      120, // Default width
+		stats:               entity.Stats{},
+		blockStats:          entity.Stats{},
+		block:               block,
+		timezone:            timezone,
+		width:               120, // Default width
+		calculateStatsQuery: calculateStatsQuery,
 	}
 }
 
@@ -39,7 +48,9 @@ func (m *StatsModel) Update(msg tea.Msg) (ComponentModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ResizeMsg:
 		m.width = msg.Width
-	case StatsUpdateMsg:
+	case StatsRefreshMsg:
+		return m, m.refreshStats(msg.Period)
+	case StatsDataMsg:
 		m.stats = msg.Stats
 		m.blockStats = msg.BlockStats
 		if msg.Block != nil {
@@ -247,8 +258,68 @@ func (m *StatsModel) SetSize(width, height int) {
 	m.width = width
 }
 
-// StatsUpdateMsg is sent when statistics data is updated
-type StatsUpdateMsg struct {
+// refreshStats handles data fetching for the stats model
+func (m *StatsModel) refreshStats(period entity.Period) tea.Cmd {
+	return tea.Cmd(func() tea.Msg {
+		if m.calculateStatsQuery == nil {
+			return StatsDataMsg{Stats: entity.Stats{}, BlockStats: entity.Stats{}, Block: m.block}
+		}
+
+		// Calculate filtered stats for display
+		statsParams := usecase.CalculateStatsParams{Period: period}
+		stats, err := m.calculateStatsQuery.Execute(context.Background(), statsParams)
+		if err != nil {
+			stats = entity.Stats{}
+		}
+
+		// Update block to current time (may advance to next block automatically)
+		var currentBlock *entity.Block
+		if m.block != nil {
+			nextBlock := m.block.NextBlock(time.Now())
+			currentBlock = &nextBlock
+		}
+
+		// Calculate block stats for progress bar (only when block tracking is enabled)
+		var blockStats entity.Stats
+		if currentBlock != nil && m.calculateStatsQuery != nil {
+			blockStatsParams := usecase.CalculateStatsParams{
+				Period: currentBlock.Period(),
+			}
+			calculatedBlockStats, err := m.calculateStatsQuery.Execute(context.Background(), blockStatsParams)
+			if err == nil {
+				blockStats = calculatedBlockStats
+			}
+		}
+
+		return StatsDataMsg{
+			Stats:      stats,
+			BlockStats: blockStats,
+			Block:      currentBlock,
+		}
+	})
+}
+
+// Stats returns the current stats (for compatibility)
+func (m *StatsModel) Stats() entity.Stats {
+	return m.stats
+}
+
+// BlockStats returns the current block stats (for compatibility) 
+func (m *StatsModel) BlockStats() entity.Stats {
+	return m.blockStats
+}
+
+// Block returns the current block (for compatibility)
+func (m *StatsModel) Block() *entity.Block {
+	return m.block
+}
+
+// Message types for StatsModel
+type StatsRefreshMsg struct {
+	Period entity.Period
+}
+
+type StatsDataMsg struct {
 	Stats      entity.Stats
 	BlockStats entity.Stats
 	Block      *entity.Block

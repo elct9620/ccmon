@@ -1,29 +1,38 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/usecase"
 )
 
-// DailyUsageTabModel handles the daily usage tab that shows usage statistics over time
+// DailyUsageTabModel handles the daily usage tab that shows usage statistics over time and owns its data
 type DailyUsageTabModel struct {
-	usage    entity.Usage
+	// Data ownership
+	usage entity.Usage
+	
+	// Configuration
 	timezone *time.Location
 	width    int
 	height   int
+	
+	// Business logic dependencies
+	getUsageQuery *usecase.GetUsageQuery
 }
 
-// NewDailyUsageTabModel creates a new daily usage tab model
-func NewDailyUsageTabModel(timezone *time.Location) *DailyUsageTabModel {
+// NewDailyUsageTabModel creates a new daily usage tab model with usecase dependency
+func NewDailyUsageTabModel(getUsageQuery *usecase.GetUsageQuery, timezone *time.Location) *DailyUsageTabModel {
 	return &DailyUsageTabModel{
-		usage:    entity.Usage{},
-		timezone: timezone,
-		width:    120,
-		height:   30,
+		usage:         entity.Usage{},
+		timezone:      timezone,
+		width:         120,
+		height:        30,
+		getUsageQuery: getUsageQuery,
 	}
 }
 
@@ -37,7 +46,9 @@ func (m *DailyUsageTabModel) Update(msg tea.Msg) (ComponentModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ResizeMsg:
 		m.SetSize(msg.Width, msg.Height)
-	case UsageUpdateMsg:
+	case UsageRefreshMsg:
+		return m, m.refreshUsage()
+	case UsageDataMsg:
 		m.usage = msg.Usage
 	}
 	return m, nil
@@ -193,7 +204,31 @@ func (m *DailyUsageTabModel) calculateDailyTableWidths(availableWidth int) []int
 	return []int{dateWidth, requestsWidth, inputWidth, outputWidth, readCacheWidth, creationCacheWidth, totalWidth, costWidth}
 }
 
-// UsageUpdateMsg is sent when usage data is updated
-type UsageUpdateMsg struct {
+// refreshUsage handles data fetching for the daily usage model
+func (m *DailyUsageTabModel) refreshUsage() tea.Cmd {
+	return tea.Cmd(func() tea.Msg {
+		if m.getUsageQuery == nil {
+			return UsageDataMsg{Usage: entity.Usage{}}
+		}
+
+		// Fetch daily usage statistics (last 30 days)
+		usage, err := m.getUsageQuery.ListByDay(context.Background(), 30, m.timezone)
+		if err != nil {
+			usage = entity.Usage{}
+		}
+
+		return UsageDataMsg{Usage: usage}
+	})
+}
+
+// Usage returns the current usage (for compatibility)
+func (m *DailyUsageTabModel) Usage() entity.Usage {
+	return m.usage
+}
+
+// Message types for DailyUsageTabModel
+type UsageRefreshMsg struct{}
+
+type UsageDataMsg struct {
 	Usage entity.Usage
 }

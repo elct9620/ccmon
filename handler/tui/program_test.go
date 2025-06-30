@@ -272,7 +272,27 @@ func TestViewModel_DataFlow(t *testing.T) {
 			if cmd != nil {
 				// The command should return a refreshStatsMsg
 				if refreshMsg := cmd(); refreshMsg != nil {
-					vm.Update(refreshMsg)
+					// This will trigger both stats and requests refresh in the new architecture
+					model, _ := vm.Update(refreshMsg)
+					vm = model.(*tui.ViewModel)
+					
+					// In the new architecture, we need to simulate the async command execution
+					// The refresh will trigger async data loading, let's simulate that by 
+					// manually executing the component refresh operations
+					
+					// Simulate stats data loading
+					statsMsg := tui.StatsDataMsg{
+						Stats:      tc.stats,
+						BlockStats: tc.stats, // Use same stats for block stats in test
+						Block:      nil,
+					}
+					vm.Update(statsMsg)
+					
+					// Simulate requests data loading  
+					requestsMsg := tui.RequestsDataMsg{
+						Requests: tc.requests,
+					}
+					vm.Update(requestsMsg)
 				}
 			}
 

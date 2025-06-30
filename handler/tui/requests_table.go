@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/usecase"
 )
 
 var (
@@ -16,17 +18,23 @@ var (
 		Foreground(lipgloss.Color("241"))
 )
 
-// RequestsTableModel handles the requests table display and interaction
+// RequestsTableModel handles the requests table display and interaction and owns its data
 type RequestsTableModel struct {
+	// Data ownership
 	table    table.Model
 	requests []entity.APIRequest
+	
+	// Configuration
 	timezone *time.Location
 	width    int
 	height   int
+	
+	// Business logic dependencies
+	getFilteredQuery *usecase.GetFilteredApiRequestsQuery
 }
 
-// NewRequestsTableModel creates a new requests table model
-func NewRequestsTableModel(timezone *time.Location) *RequestsTableModel {
+// NewRequestsTableModel creates a new requests table model with usecase dependency
+func NewRequestsTableModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, timezone *time.Location) *RequestsTableModel {
 	// Start with basic columns, will be resized when size is set
 	initialWidths := CalculateTableColumnWidths(120) // Assume medium width initially
 	columns := []table.Column{
@@ -52,11 +60,12 @@ func NewRequestsTableModel(timezone *time.Location) *RequestsTableModel {
 	t.SetStyles(s)
 
 	return &RequestsTableModel{
-		table:    t,
-		requests: []entity.APIRequest{},
-		timezone: timezone,
-		width:    120,
-		height:   10,
+		table:            t,
+		requests:         []entity.APIRequest{},
+		timezone:         timezone,
+		width:            120,
+		height:           10,
+		getFilteredQuery: getFilteredQuery,
 	}
 }
 
@@ -72,7 +81,9 @@ func (m *RequestsTableModel) Update(msg tea.Msg) (ComponentModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ResizeMsg:
 		m.SetSize(msg.Width, msg.Height)
-	case RequestsUpdateMsg:
+	case RequestsRefreshMsg:
+		return m, m.refreshRequests(msg.Period, msg.SortOrder)
+	case RequestsDataMsg:
 		m.requests = msg.Requests
 		m.updateTableRows()
 	case tea.KeyMsg:
@@ -264,7 +275,52 @@ func (m *RequestsTableModel) adjustTableHeight() {
 	m.table.SetHeight(tableHeight)
 }
 
-// RequestsUpdateMsg is sent when requests data is updated
-type RequestsUpdateMsg struct {
+// refreshRequests handles data fetching for the requests table model
+func (m *RequestsTableModel) refreshRequests(period entity.Period, sortOrder SortOrder) tea.Cmd {
+	return tea.Cmd(func() tea.Msg {
+		if m.getFilteredQuery == nil {
+			return RequestsDataMsg{Requests: []entity.APIRequest{}}
+		}
+
+		// Query for display requests (limit to 100 for TUI display)
+		displayParams := usecase.GetFilteredApiRequestsParams{
+			Period: period,
+			Limit:  100,
+			Offset: 0,
+		}
+		requests, err := m.getFilteredQuery.Execute(context.Background(), displayParams)
+		if err != nil {
+			return RequestsDataMsg{Requests: []entity.APIRequest{}}
+		}
+
+		// Apply sorting based on user preference
+		if sortOrder == SortDescending {
+			// Reverse to show latest first (since DB returns chronological order)
+			m.reverseRequests(requests)
+		}
+
+		return RequestsDataMsg{Requests: requests}
+	})
+}
+
+// reverseRequests reverses the order of requests slice
+func (m *RequestsTableModel) reverseRequests(requests []entity.APIRequest) {
+	for i, j := 0, len(requests)-1; i < j; i, j = i+1, j-1 {
+		requests[i], requests[j] = requests[j], requests[i]
+	}
+}
+
+// Requests returns the current requests (for compatibility)
+func (m *RequestsTableModel) Requests() []entity.APIRequest {
+	return m.requests
+}
+
+// Message types for RequestsTableModel
+type RequestsRefreshMsg struct {
+	Period    entity.Period
+	SortOrder SortOrder
+}
+
+type RequestsDataMsg struct {
 	Requests []entity.APIRequest
 }

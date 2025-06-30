@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -22,13 +21,6 @@ const (
 	FilterBlock // Current block timeframe
 )
 
-// SortOrder represents the sorting order for requests
-type SortOrder int
-
-const (
-	SortDescending SortOrder = iota // Latest first (default)
-	SortAscending                   // Oldest first
-)
 
 // Tab represents the available tabs in the UI
 type Tab int
@@ -52,29 +44,19 @@ type ViewModel struct {
 	timeFilter      TimeFilter
 	sortOrder       SortOrder
 	timezone        *time.Location
-	block           *entity.Block
 	refreshInterval time.Duration
-
-	// Use cases for data access
-	getFilteredQuery    *usecase.GetFilteredApiRequestsQuery
-	calculateStatsQuery *usecase.CalculateStatsQuery
-	getUsageQuery       *usecase.GetUsageQuery
 }
 
 // NewViewModel creates a new refactored ViewModel with component models
 func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, getUsageQuery *usecase.GetUsageQuery, timezone *time.Location, block *entity.Block, refreshInterval time.Duration) *ViewModel {
 	return &ViewModel{
-		overviewTab:         NewOverviewTabModel(timezone, block),
-		dailyUsageTab:       NewDailyUsageTabModel(timezone),
-		currentTab:          TabCurrent,
-		timeFilter:          FilterAll,
-		sortOrder:           SortDescending,
-		timezone:            timezone,
-		block:               block,
-		refreshInterval:     refreshInterval,
-		getFilteredQuery:    getFilteredQuery,
-		calculateStatsQuery: calculateStatsQuery,
-		getUsageQuery:       getUsageQuery,
+		overviewTab:     NewOverviewTabModel(calculateStatsQuery, getFilteredQuery, timezone, block),
+		dailyUsageTab:   NewDailyUsageTabModel(getUsageQuery, timezone),
+		currentTab:      TabCurrent,
+		timeFilter:      FilterAll,
+		sortOrder:       SortDescending,
+		timezone:        timezone,
+		refreshInterval: refreshInterval,
 	}
 }
 
@@ -114,7 +96,7 @@ func (vm *ViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			vm.timeFilter = FilterMonth
 			return vm, vm.refreshStats
 		case "b":
-			if vm.block != nil {
+			if vm.Block() != nil {
 				vm.timeFilter = FilterBlock
 				return vm, vm.refreshStats
 			}
@@ -171,14 +153,47 @@ func (vm *ViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case refreshStatsMsg:
-		// Recalculate stats via usecase
-		if vm.getFilteredQuery != nil {
-			vm.recalculateStats()
+		// Send refresh messages to overview tab with current period
+		if vm.currentTab == TabCurrent {
+			period := vm.getTimePeriod()
+			// Refresh both stats and requests
+			statsCmd := vm.overviewTab.RefreshStats(period)
+			requestsCmd := vm.overviewTab.RefreshRequests(period, vm.sortOrder)
+			if statsCmd != nil {
+				cmds = append(cmds, statsCmd)
+			}
+			if requestsCmd != nil {
+				cmds = append(cmds, requestsCmd)
+			}
 		}
 	case refreshUsageMsg:
-		// Refresh usage data for daily tab
-		if vm.getUsageQuery != nil {
-			vm.recalculateUsage()
+		// Send refresh message to daily usage tab
+		if vm.currentTab == TabDaily {
+			_, cmd := vm.dailyUsageTab.Update(UsageRefreshMsg{})
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+
+	case StatsDataMsg:
+		// Forward stats data to overview tab
+		_, cmd := vm.overviewTab.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+
+	case RequestsDataMsg:
+		// Forward requests data to overview tab
+		_, cmd := vm.overviewTab.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+
+	case UsageDataMsg:
+		// Forward usage data to daily usage tab
+		_, cmd := vm.dailyUsageTab.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
 		}
 	}
 
@@ -241,7 +256,7 @@ func (vm *ViewModel) renderHelpText() string {
 	switch vm.currentTab {
 	case TabCurrent:
 		helpText = "\n  ↑/↓: Navigate • Time: h=hour d=day w=week m=month a=all"
-		if vm.block != nil {
+		if vm.Block() != nil {
 			helpText += " b=block"
 		}
 		helpText += " • o=sort • Tab: Switch tabs • q: Quit"
@@ -264,8 +279,8 @@ func (vm *ViewModel) GetTimeFilterString() string {
 	case FilterMonth:
 		return "Last 30 Days"
 	case FilterBlock:
-		if vm.block != nil {
-			return "Current Block (" + vm.block.FormatBlockTime(vm.timezone) + ")"
+		if vm.Block() != nil {
+			return "Current Block (" + vm.Block().FormatBlockTime(vm.timezone) + ")"
 		}
 		return "Block (not configured)"
 	default:
@@ -295,8 +310,8 @@ func (vm *ViewModel) getTimePeriod() entity.Period {
 	case FilterMonth:
 		return entity.NewPeriodFromDuration(time.Now().UTC(), 30*24*time.Hour)
 	case FilterBlock:
-		if vm.block != nil {
-			return vm.block.Period()
+		if vm.Block() != nil {
+			return vm.Block().Period()
 		}
 		return entity.NewAllTimePeriod(time.Now().UTC())
 	default:
@@ -312,77 +327,8 @@ func (vm *ViewModel) refreshUsage() tea.Msg {
 	return refreshUsageMsg{}
 }
 
-func (vm *ViewModel) recalculateStats() {
-	period := vm.getTimePeriod()
 
-	// Query for display requests (limit to 100 for TUI display)
-	displayParams := usecase.GetFilteredApiRequestsParams{
-		Period: period,
-		Limit:  100,
-		Offset: 0,
-	}
-	requests, err := vm.getFilteredQuery.Execute(context.Background(), displayParams)
-	if err != nil {
-		return
-	}
 
-	// Apply sorting based on user preference
-	if vm.sortOrder == SortDescending {
-		// Reverse to show latest first (since DB returns chronological order)
-		vm.reverseRequests(requests)
-	}
-
-	// Update requests in overview tab
-	vm.overviewTab.UpdateRequests(requests)
-
-	// Calculate filtered stats for display (always based on current filter)
-	var stats entity.Stats
-	if vm.calculateStatsQuery != nil {
-		statsParams := usecase.CalculateStatsParams{Period: period}
-		calculatedStats, err := vm.calculateStatsQuery.Execute(context.Background(), statsParams)
-		if err == nil {
-			stats = calculatedStats
-		}
-	}
-
-	// Update block to current time (may advance to next block automatically)
-	if vm.block != nil {
-		currentBlock := vm.block.NextBlock(time.Now())
-		vm.block = &currentBlock
-	}
-
-	// Calculate block stats for progress bar (only when block tracking is enabled)
-	var blockStats entity.Stats
-	if vm.block != nil && vm.calculateStatsQuery != nil {
-		blockStatsParams := usecase.CalculateStatsParams{
-			Period: vm.block.Period(),
-		}
-		calculatedBlockStats, err := vm.calculateStatsQuery.Execute(context.Background(), blockStatsParams)
-		if err == nil {
-			blockStats = calculatedBlockStats
-		}
-	}
-
-	// Update stats in overview tab
-	vm.overviewTab.UpdateStats(stats, blockStats, vm.block)
-}
-
-func (vm *ViewModel) recalculateUsage() {
-	// Fetch daily usage statistics (last 30 days)
-	usage, err := vm.getUsageQuery.ListByDay(context.Background(), 30, vm.timezone)
-	if err != nil {
-		usage = entity.Usage{}
-	}
-
-	// Update usage in daily tab
-	vm.dailyUsageTab.UpdateUsage(usage)
-}
-
-func (vm *ViewModel) reverseRequests(requests []entity.APIRequest) {
-	for i, j := 0, len(requests)-1; i < j; i, j = i+1, j-1 {
-		requests[i], requests[j] = requests[j], requests[i]
-	}
-}
 
 // tick returns a command that sends a tick message using the configured refresh interval
 func (vm *ViewModel) tick() tea.Cmd {
@@ -402,7 +348,7 @@ func (vm *ViewModel) CurrentTab() Tab {
 
 func (vm *ViewModel) Usage() entity.Usage {
 	// Return usage from daily tab model
-	return vm.dailyUsageTab.usage
+	return vm.dailyUsageTab.Usage()
 }
 
 func (vm *ViewModel) Timezone() *time.Location {
@@ -410,22 +356,23 @@ func (vm *ViewModel) Timezone() *time.Location {
 }
 
 func (vm *ViewModel) Block() *entity.Block {
-	return vm.block
+	// Return block from overview tab stats model (it manages block state now)
+	return vm.overviewTab.statsModel.Block()
 }
 
 func (vm *ViewModel) Stats() entity.Stats {
 	// Return stats from overview tab stats model
-	return vm.overviewTab.statsModel.stats
+	return vm.overviewTab.statsModel.Stats()
 }
 
 func (vm *ViewModel) BlockStats() entity.Stats {
 	// Return block stats from overview tab stats model
-	return vm.overviewTab.statsModel.blockStats
+	return vm.overviewTab.statsModel.BlockStats()
 }
 
 func (vm *ViewModel) Requests() []entity.APIRequest {
 	// Return requests from overview tab requests table model
-	return vm.overviewTab.requestsTableModel.requests
+	return vm.overviewTab.requestsTableModel.Requests()
 }
 
 func (vm *ViewModel) Table() table.Model {
@@ -434,8 +381,8 @@ func (vm *ViewModel) Table() table.Model {
 }
 
 func (vm *ViewModel) TokenLimit() int {
-	if vm.block != nil {
-		return vm.block.TokenLimit()
+	if vm.Block() != nil {
+		return vm.Block().TokenLimit()
 	}
 	return 0
 }

@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/usecase"
 )
 
 // OverviewTabModel handles the current/overview tab that shows stats and requests table
@@ -17,10 +18,10 @@ type OverviewTabModel struct {
 }
 
 // NewOverviewTabModel creates a new overview tab model
-func NewOverviewTabModel(timezone *time.Location, block *entity.Block) *OverviewTabModel {
+func NewOverviewTabModel(calculateStatsQuery *usecase.CalculateStatsQuery, getFilteredQuery *usecase.GetFilteredApiRequestsQuery, timezone *time.Location, block *entity.Block) *OverviewTabModel {
 	return &OverviewTabModel{
-		statsModel:         NewStatsModel(timezone, block),
-		requestsTableModel: NewRequestsTableModel(timezone),
+		statsModel:         NewStatsModel(calculateStatsQuery, timezone, block),
+		requestsTableModel: NewRequestsTableModel(getFilteredQuery, timezone),
 		width:              120,
 		height:             30,
 	}
@@ -42,15 +43,29 @@ func (m *OverviewTabModel) Update(msg tea.Msg) (ComponentModel, tea.Cmd) {
 	case ResizeMsg:
 		m.SetSize(msg.Width, msg.Height)
 
-	case StatsUpdateMsg:
-		// Forward stats update to stats model
+	case StatsRefreshMsg:
+		// Forward stats refresh to stats model
 		_, cmd := m.statsModel.Update(msg)
 		if cmd != nil {
 			cmds = append(cmds, cmd)
 		}
 
-	case RequestsUpdateMsg:
-		// Forward requests update to table model
+	case StatsDataMsg:
+		// Forward stats data to stats model
+		_, cmd := m.statsModel.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+
+	case RequestsRefreshMsg:
+		// Forward requests refresh to table model
+		_, cmd := m.requestsTableModel.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+
+	case RequestsDataMsg:
+		// Forward requests data to table model
 		_, cmd := m.requestsTableModel.Update(msg)
 		if cmd != nil {
 			cmds = append(cmds, cmd)
@@ -108,22 +123,18 @@ func (m *OverviewTabModel) SetSize(width, height int) {
 	m.requestsTableModel.SetSize(width, height)
 }
 
-// UpdateStats updates the statistics data
-func (m *OverviewTabModel) UpdateStats(stats, blockStats entity.Stats, block *entity.Block) {
-	msg := StatsUpdateMsg{
-		Stats:      stats,
-		BlockStats: blockStats,
-		Block:      block,
-	}
-	m.statsModel.Update(msg)
+// RefreshStats triggers a stats refresh with the given period
+func (m *OverviewTabModel) RefreshStats(period entity.Period) tea.Cmd {
+	msg := StatsRefreshMsg{Period: period}
+	_, cmd := m.statsModel.Update(msg)
+	return cmd
 }
 
-// UpdateRequests updates the requests data
-func (m *OverviewTabModel) UpdateRequests(requests []entity.APIRequest) {
-	msg := RequestsUpdateMsg{
-		Requests: requests,
-	}
-	m.requestsTableModel.Update(msg)
+// RefreshRequests triggers a requests refresh with the given period and sort order
+func (m *OverviewTabModel) RefreshRequests(period entity.Period, sortOrder SortOrder) tea.Cmd {
+	msg := RequestsRefreshMsg{Period: period, SortOrder: sortOrder}
+	_, cmd := m.requestsTableModel.Update(msg)
+	return cmd
 }
 
 // GetRequestsTable returns the requests table model for external access

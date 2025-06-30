@@ -22,6 +22,14 @@ type TabModel interface {
 	SetSize(width, height int)
 }
 
+// SortOrder represents the sorting order for requests
+type SortOrder int
+
+const (
+	SortDescending SortOrder = iota // Latest first (default)
+	SortAscending                   // Oldest first
+)
+
 // Message types for component communication
 type RefreshMsg struct{}
 type ResizeMsg struct {
