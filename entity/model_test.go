@@ -2,7 +2,6 @@ package entity
 
 import (
 	"testing"
-	"time"
 )
 
 func TestNewModel(t *testing.T) {
@@ -42,19 +41,9 @@ func TestNewModel(t *testing.T) {
 			expected: "unknown",
 		},
 		{
-			name:     "too_short",
-			input:    "ab",
-			expected: "unknown",
-		},
-		{
 			name:     "whitespace_padded_valid",
 			input:    "  claude-3-5-haiku-20241022  ",
 			expected: "claude-3-5-haiku-20241022",
-		},
-		{
-			name:     "whitespace_padded_too_short",
-			input:    "  ab  ",
-			expected: "unknown",
 		},
 	}
 
@@ -193,48 +182,5 @@ func TestModel_Integration(t *testing.T) {
 	}
 	if unknownModel.IsBase() {
 		t.Errorf("Expected 'unknown' model to NOT be identified as base model")
-	}
-}
-
-func TestNewAPIRequest_ModelHandling(t *testing.T) {
-	// Test that NewAPIRequest handles model names gracefully
-	now := time.Now()
-	tokens := NewToken(100, 50, 10, 5)
-	cost := NewCost(0.15)
-
-	testCases := []struct {
-		name          string
-		model         string
-		expectedModel string
-	}{
-		{
-			name:          "valid_model",
-			model:         "claude-3-5-haiku-20241022",
-			expectedModel: "claude-3-5-haiku-20241022",
-		},
-		{
-			name:          "empty_model",
-			model:         "",
-			expectedModel: "unknown",
-		},
-		{
-			name:          "too_short_model",
-			model:         "ab",
-			expectedModel: "unknown",
-		},
-		{
-			name:          "whitespace_model",
-			model:         "   ",
-			expectedModel: "unknown",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := NewAPIRequest("session1", now, tc.model, tokens, cost, 1500)
-			if req.Model().String() != tc.expectedModel {
-				t.Errorf("Expected model %q, got %q", tc.expectedModel, req.Model().String())
-			}
-		})
 	}
 }

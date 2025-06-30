@@ -13,11 +13,6 @@ func NewModel(modelName string) Model {
 		return Model("unknown")
 	}
 
-	// Return "unknown" for model names that are too short
-	if len(trimmed) < 3 {
-		return Model("unknown")
-	}
-
 	return Model(trimmed)
 }
 
