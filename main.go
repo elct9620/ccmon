@@ -113,7 +113,8 @@ func main() {
 				os.Exit(1)
 			}
 
-			blockEntity := entity.NewBlock(startHour, timezone)
+			// Create current block based on user's start hour
+			blockEntity := entity.NewCurrentBlock(startHour, timezone, time.Now())
 			block = &blockEntity
 			tokenLimit = config.Claude.GetTokenLimit()
 

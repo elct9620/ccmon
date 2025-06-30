@@ -206,6 +206,10 @@ func (vm *ViewModel) TokenLimit() int {
 	return vm.tokenLimit
 }
 
+func (vm *ViewModel) Timezone() *time.Location {
+	return vm.timezone
+}
+
 // Business logic methods
 func (vm *ViewModel) GetTimeFilterString() string {
 	switch vm.timeFilter {
@@ -219,7 +223,7 @@ func (vm *ViewModel) GetTimeFilterString() string {
 		return "Last 30 Days"
 	case FilterBlock:
 		if vm.block != nil {
-			return "Current Block (" + vm.block.FormatBlockTime(time.Now()) + ")"
+			return "Current Block (" + vm.block.FormatBlockTime(vm.timezone) + ")"
 		}
 		return "Block (not configured)"
 	default:
@@ -250,7 +254,7 @@ func (vm *ViewModel) getTimePeriod() entity.Period {
 		return entity.NewPeriodFromDurationWithTimezone(30*24*time.Hour, vm.timezone)
 	case FilterBlock:
 		if vm.block != nil {
-			return vm.block.CurrentBlock(time.Now())
+			return vm.block.Period()
 		}
 		return entity.NewAllTimePeriod()
 	default:
@@ -297,14 +301,19 @@ func (vm *ViewModel) recalculateStats() {
 		}
 	}
 
+	// Update block to current time (may advance to next block automatically)
+	if vm.block != nil {
+		currentBlock := vm.block.NextBlock(time.Now())
+		vm.block = &currentBlock
+	}
+
 	// Calculate block stats for progress bar (only when block tracking is enabled)
 	if vm.block != nil && vm.calculateStatsQuery != nil {
-		currentBlock := vm.block.CurrentBlock(time.Now())
 		blockStatsParams := usecase.CalculateStatsParams{
-			Period:          currentBlock,
+			Period:          vm.block.Period(),
 			BlockTokenLimit: vm.tokenLimit,
-			BlockStartTime:  currentBlock.StartAt(),
-			BlockEndTime:    currentBlock.EndAt(),
+			BlockStartTime:  vm.block.StartAt(),
+			BlockEndTime:    vm.block.EndAt(),
 		}
 		blockStats, err := vm.calculateStatsQuery.Execute(context.Background(), blockStatsParams)
 		if err != nil {

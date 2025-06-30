@@ -7,17 +7,19 @@ import (
 	"time"
 )
 
-// Block represents a 5-hour token limit block for Claude
+// TimeBlockDuration represents the duration of each Claude token limit block
+const TimeBlockDuration = 5 * time.Hour
+
+// Block represents a specific 5-hour token limit block for Claude
+// This is a value object representing a concrete time period
 type Block struct {
-	startHour int            // 0-23, hour when block starts
-	timezone  *time.Location // timezone for block calculations
+	startAt time.Time // Concrete timestamp when this block starts
 }
 
-// NewBlock creates a new Block from hour and timezone
-func NewBlock(startHour int, timezone *time.Location) Block {
+// NewBlock creates a new Block from a concrete start timestamp
+func NewBlock(startAt time.Time) Block {
 	return Block{
-		startHour: startHour,
-		timezone:  timezone,
+		startAt: startAt,
 	}
 }
 
@@ -62,39 +64,79 @@ func ParseBlockTime(timeStr string) (int, error) {
 	return hour, nil
 }
 
-// CurrentBlock calculates the current 5-hour block period
-func (b Block) CurrentBlock(now time.Time) Period {
-	nowInTz := now.In(b.timezone)
-
-	// Find which 5-hour block we're in
-	currentHour := nowInTz.Hour()
-
-	// Calculate how many 5-hour blocks have passed since start hour
-	hoursSinceStart := (currentHour - b.startHour + 24) % 24
-	blockIndex := hoursSinceStart / 5
-
-	// Calculate start hour of current block
-	blockStartHour := (b.startHour + blockIndex*5) % 24
-
-	// Create start and end times for current block
-	today := time.Date(nowInTz.Year(), nowInTz.Month(), nowInTz.Day(), blockStartHour, 0, 0, 0, b.timezone)
-
-	// If current time is before the calculated start, we're in yesterday's block
-	if nowInTz.Before(today) {
-		today = today.AddDate(0, 0, -1)
-	}
-
-	blockStart := today.UTC()
-	blockEnd := today.Add(5 * time.Hour).UTC()
-
-	return NewPeriod(blockStart, blockEnd)
+// StartAt returns the start time of this block
+func (b Block) StartAt() time.Time {
+	return b.startAt
 }
 
-// FormatBlockTime formats the block period for display
-func (b Block) FormatBlockTime(now time.Time) string {
-	currentBlock := b.CurrentBlock(now)
-	startLocal := currentBlock.StartAt().In(b.timezone)
-	endLocal := currentBlock.EndAt().In(b.timezone)
+// EndAt returns the end time of this block
+func (b Block) EndAt() time.Time {
+	return b.startAt.Add(TimeBlockDuration)
+}
+
+// Period returns the time period represented by this block
+func (b Block) Period() Period {
+	return NewPeriod(b.startAt, b.EndAt())
+}
+
+// NextBlock returns the appropriate block for the given time.
+// If the current time is still within this block, returns self.
+// If the current time is beyond this block, returns the next appropriate block.
+func (b Block) NextBlock(now time.Time) Block {
+	// If current time is still within this block, return self
+	if now.Before(b.EndAt()) {
+		return b
+	}
+
+	// Calculate which block the current time falls into
+	delta := now.Sub(b.startAt)
+	blockIndex := int(delta / TimeBlockDuration)
+
+	// Create new block at the appropriate position
+	newStart := b.startAt.Add(time.Duration(blockIndex) * TimeBlockDuration)
+	return NewBlock(newStart)
+}
+
+// NewCurrentBlock creates a Block representing the current 5-hour period
+// based on user's specified start hour and timezone.
+// Always returns a valid block - either the current block or the next upcoming block.
+func NewCurrentBlock(userStartHour int, timezone *time.Location, now time.Time) Block {
+	nowInTz := now.In(timezone)
+
+	// Create reference timestamp at start hour today
+	referenceTime := time.Date(nowInTz.Year(), nowInTz.Month(), nowInTz.Day(),
+		userStartHour, 0, 0, 0, timezone)
+
+	// Calculate time difference from reference
+	delta := nowInTz.Sub(referenceTime)
+
+	// If we're before the start time today, check if we're within a reasonable range
+	if delta < 0 {
+		// If we're before today's start hour, check if yesterday's sequence makes more sense
+		// This handles cases like current time 1am with 11pm start hour
+		if delta < -12*time.Hour {
+			// Use yesterday's reference instead
+			referenceTime = referenceTime.AddDate(0, 0, -1)
+			delta = nowInTz.Sub(referenceTime)
+		}
+
+		// If still negative, we're before the start time - show the upcoming block
+		if delta < 0 {
+			return NewBlock(referenceTime.UTC())
+		}
+	}
+
+	// Calculate which 5-hour block we're in based on the delta
+	blockIndex := int(delta / TimeBlockDuration)
+	blockStart := referenceTime.Add(time.Duration(blockIndex) * TimeBlockDuration)
+
+	return NewBlock(blockStart.UTC())
+}
+
+// FormatBlockTime formats the block period for display in the given timezone
+func (b Block) FormatBlockTime(timezone *time.Location) string {
+	startLocal := b.startAt.In(timezone)
+	endLocal := b.EndAt().In(timezone)
 
 	startStr := formatHour(startLocal.Hour())
 	endStr := formatHour(endLocal.Hour())

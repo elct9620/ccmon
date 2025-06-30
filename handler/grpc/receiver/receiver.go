@@ -81,9 +81,9 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 				if body, ok := logRecord.Body.Value.(*commonv1.AnyValue_StringValue); ok && body.StringValue == "claude_code.api_request" {
 					apiReq := r.parseAPIRequest(logRecord)
 					if apiReq != nil {
-						log.Printf("Received API request: session=%s, model=%s, tokens=%d, cost=$%.4f", 
+						log.Printf("Received API request: session=%s, model=%s, tokens=%d, cost=$%.4f",
 							apiReq.SessionID(), apiReq.Model(), apiReq.Tokens().Total(), apiReq.Cost().Amount())
-						
+
 						// Save via usecase command
 						if r.receiver.appendCommand != nil {
 							params := usecase.AppendApiRequestParams{

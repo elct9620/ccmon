@@ -181,8 +181,9 @@ func CreateTestStats() entity.Stats {
 
 // CreateTestBlock creates a test block for testing block tracking
 func CreateTestBlock() *entity.Block {
-	// Create a block starting at 5am in UTC
-	startHour := 5
-	block := entity.NewBlock(startHour, time.UTC)
+	// Create a block starting at 5am today in UTC
+	now := time.Now().UTC()
+	start := time.Date(now.Year(), now.Month(), now.Day(), 5, 0, 0, 0, time.UTC)
+	block := entity.NewBlock(start)
 	return &block
 }

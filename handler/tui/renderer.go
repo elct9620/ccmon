@@ -230,17 +230,16 @@ func (r *Renderer) renderBlockProgress(vm *ViewModel) string {
 	}
 
 	// Calculate time remaining until next block
-	currentBlock := vm.Block().CurrentBlock(time.Now())
 	now := time.Now().UTC()
 	var timeRemaining time.Duration
-	if now.Before(currentBlock.EndAt()) {
-		timeRemaining = currentBlock.EndAt().Sub(now)
+	if now.Before(vm.Block().EndAt()) {
+		timeRemaining = vm.Block().EndAt().Sub(now)
 	}
 
 	// Block header
 	blockTime := ""
 	if vm.Block() != nil {
-		blockTime = vm.Block().FormatBlockTime(time.Now())
+		blockTime = vm.Block().FormatBlockTime(vm.Timezone())
 	}
 	b.WriteString(HeaderStyle.Render(fmt.Sprintf("Block Progress (%s)", blockTime)))
 	b.WriteString("\n\n")
