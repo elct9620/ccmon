@@ -342,7 +342,7 @@ func (r *Renderer) renderDailyUsageTable(vm *ViewModel, width int) string {
 	}
 
 	// Table headers
-	headers := []string{"Date", "Requests", "Tokens", "Cost ($)"}
+	headers := []string{"Date", "Requests", "Input", "Output", "Read Cache", "Creation Cache", "Total", "Premium Cost ($)"}
 	colWidths := r.calculateDailyTableWidths(availableWidth)
 
 	// Render header row
@@ -372,11 +372,15 @@ func (r *Renderer) renderDailyUsageTable(vm *ViewModel, width int) string {
 		}
 
 		date := period.StartAt().In(vm.Timezone()).Format("2006-01-02")
-		requests := fmt.Sprintf("%d", stat.TotalRequests())
-		tokens := FormatTokenCount(stat.TotalTokens().Total())
-		cost := fmt.Sprintf("%.6f", stat.TotalCost().Amount())
+		requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
+		input := FormatTokenCount(stat.PremiumTokens().Input())
+		output := FormatTokenCount(stat.PremiumTokens().Output())
+		readCache := FormatTokenCount(stat.PremiumTokens().CacheRead())
+		creationCache := FormatTokenCount(stat.PremiumTokens().CacheCreation())
+		total := FormatTokenCount(stat.PremiumTokens().Total())
+		cost := fmt.Sprintf("%.6f", stat.PremiumCost().Amount())
 
-		row := []string{date, requests, tokens, cost}
+		row := []string{date, requests, input, output, readCache, creationCache, total, cost}
 		for i, cell := range row {
 			b.WriteString(PadRight(cell, colWidths[i]))
 			if i < len(row)-1 {
@@ -401,10 +405,11 @@ func (r *Renderer) renderCompactDailyUsage(stats []entity.Stats) string {
 
 		date := period.StartAt().Format("2006-01-02")
 		b.WriteString(StatStyle.Render(date))
-		b.WriteString(fmt.Sprintf(": %d reqs, %s tokens, $%.6f\n",
-			stat.TotalRequests(),
-			FormatTokenCount(stat.TotalTokens().Total()),
-			stat.TotalCost().Amount()))
+		b.WriteString(fmt.Sprintf(": %d/%d reqs, %s premium tokens, $%.6f\n",
+			stat.BaseRequests(),
+			stat.PremiumRequests(),
+			FormatTokenCount(stat.PremiumTokens().Total()),
+			stat.PremiumCost().Amount()))
 	}
 
 	return b.String()
@@ -412,21 +417,25 @@ func (r *Renderer) renderCompactDailyUsage(stats []entity.Stats) string {
 
 // calculateDailyTableWidths calculates column widths for daily usage table
 func (r *Renderer) calculateDailyTableWidths(availableWidth int) []int {
-	// Account for spaces between columns (3 spaces for 4 columns)
-	spaceBetweenColumns := 3
+	// Account for spaces between columns (7 spaces for 8 columns)
+	spaceBetweenColumns := 7
 	usableWidth := availableWidth - spaceBetweenColumns
 
-	// Date: 12 (2025-06-30 + padding), Requests: 10, Tokens: 14, Cost: remaining
-	dateWidth := 12
+	// Date: 10 (2025-06-30), Requests: 10 (999/999), Input: 8, Output: 8, Read Cache: 10, Creation Cache: 12, Total: 8, Premium Cost: remaining
+	dateWidth := 10
 	requestsWidth := 10
-	tokensWidth := 14
-	costWidth := usableWidth - dateWidth - requestsWidth - tokensWidth
+	inputWidth := 8
+	outputWidth := 8
+	readCacheWidth := 10
+	creationCacheWidth := 12
+	totalWidth := 8
+	costWidth := usableWidth - dateWidth - requestsWidth - inputWidth - outputWidth - readCacheWidth - creationCacheWidth - totalWidth
 
 	if costWidth < 12 {
 		costWidth = 12
 	}
 
-	return []int{dateWidth, requestsWidth, tokensWidth, costWidth}
+	return []int{dateWidth, requestsWidth, inputWidth, outputWidth, readCacheWidth, creationCacheWidth, totalWidth, costWidth}
 }
 
 // renderHelpText renders the help text based on current tab
