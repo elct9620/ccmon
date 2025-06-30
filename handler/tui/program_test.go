@@ -116,9 +116,9 @@ func TestViewModel_KeyboardInteractions(t *testing.T) {
 			},
 		},
 		{
-			name:       "Block filter with block enabled",
-			key:        "b",
-			block:      CreateTestBlock(),
+			name:  "Block filter with block enabled",
+			key:   "b",
+			block: CreateTestBlock(),
 			expectedFunc: func(t *testing.T, vm *tui.ViewModel) {
 				if vm.GetTimeFilterString() != "Current Block (5am - 10am)" {
 					t.Logf("Block filter result: %q", vm.GetTimeFilterString())

@@ -21,6 +21,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Helper function for creating API requests in tests
+func mustCreateAPIRequest(sessionID string, timestamp time.Time, model string, tokens entity.Token, cost entity.Cost, durationMS int64) entity.APIRequest {
+	return entity.NewAPIRequest(sessionID, timestamp, model, tokens, cost, durationMS)
+}
+
 // Mock implementations for testing
 type mockAPIRequestRepository struct {
 	requests []entity.APIRequest
@@ -118,7 +123,7 @@ func TestGRPCServer_QueryService_GetStats(t *testing.T) {
 
 	// Add some base model requests
 	for i := 0; i < 10; i++ {
-		req := entity.NewAPIRequest(
+		req := mustCreateAPIRequest(
 			"session1", now.Add(-time.Duration(i)*time.Hour),
 			"claude-3-haiku-20240307", // base model
 			entity.NewToken(100, 50, 10, 5),
@@ -130,7 +135,7 @@ func TestGRPCServer_QueryService_GetStats(t *testing.T) {
 
 	// Add some premium model requests
 	for i := 0; i < 5; i++ {
-		req := entity.NewAPIRequest(
+		req := mustCreateAPIRequest(
 			"session2", now.Add(-time.Duration(i)*time.Hour),
 			"claude-3-sonnet-20240229", // premium model
 			entity.NewToken(200, 100, 20, 10),
@@ -190,14 +195,14 @@ func TestGRPCServer_QueryService_GetAPIRequests(t *testing.T) {
 	// Set up mock data in repository
 	now := time.Now()
 	expectedRequests := []entity.APIRequest{
-		entity.NewAPIRequest(
+		mustCreateAPIRequest(
 			"session1", now,
 			"claude-3-sonnet-20240229",
 			entity.NewToken(100, 50, 10, 5),
 			entity.NewCost(0.50),
 			1500,
 		),
-		entity.NewAPIRequest(
+		mustCreateAPIRequest(
 			"session2", now.Add(-time.Hour),
 			"claude-3-haiku-20240307",
 			entity.NewToken(200, 100, 20, 10),

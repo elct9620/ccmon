@@ -12,6 +12,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Helper function for creating API requests in tests
+func mustCreateAPIRequest(sessionID string, timestamp time.Time, model string, tokens entity.Token, cost entity.Cost, durationMS int64) entity.APIRequest {
+	return entity.NewAPIRequest(sessionID, timestamp, model, tokens, cost, durationMS)
+}
+
 // Mock repository for testing
 type mockAPIRequestRepository struct {
 	requests []entity.APIRequest
@@ -71,21 +76,21 @@ func TestQueryService_GetStats(t *testing.T) {
 		{
 			name: "mixed_requests_all_time",
 			requests: []entity.APIRequest{
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"session1", baseTime,
 					"claude-3-haiku-20240307", // base model
 					entity.NewToken(100, 50, 10, 5),
 					entity.NewCost(0.15),
 					1000,
 				),
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"session2", baseTime.Add(time.Hour),
 					"claude-3-sonnet-20240229", // premium model
 					entity.NewToken(200, 100, 20, 10),
 					entity.NewCost(0.70),
 					1500,
 				),
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"session3", baseTime.Add(2*time.Hour),
 					"claude-3-opus-20240229", // premium model
 					entity.NewToken(300, 150, 30, 15),
@@ -131,21 +136,21 @@ func TestQueryService_GetStats(t *testing.T) {
 		{
 			name: "time_filtered_requests",
 			requests: []entity.APIRequest{
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"old", baseTime.Add(-2*time.Hour), // Outside range
 					"claude-3-sonnet-20240229",
 					entity.NewToken(100, 50, 10, 5),
 					entity.NewCost(0.50),
 					1000,
 				),
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"current", baseTime,
 					"claude-3-sonnet-20240229",
 					entity.NewToken(200, 100, 20, 10),
 					entity.NewCost(1.00),
 					1500,
 				),
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"future", baseTime.Add(2*time.Hour), // Outside range
 					"claude-3-sonnet-20240229",
 					entity.NewToken(300, 150, 30, 15),
@@ -193,14 +198,14 @@ func TestQueryService_GetStats(t *testing.T) {
 		{
 			name: "only_base_models",
 			requests: []entity.APIRequest{
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"haiku1", baseTime,
 					"claude-3-haiku-20240307",
 					entity.NewToken(100, 50, 10, 5),
 					entity.NewCost(0.10),
 					800,
 				),
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"haiku2", baseTime.Add(time.Hour),
 					"claude-3-haiku-20240307",
 					entity.NewToken(150, 75, 15, 8),
@@ -231,14 +236,14 @@ func TestQueryService_GetStats(t *testing.T) {
 		{
 			name: "only_premium_models",
 			requests: []entity.APIRequest{
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"sonnet", baseTime,
 					"claude-3-sonnet-20240229",
 					entity.NewToken(200, 100, 20, 10),
 					entity.NewCost(1.00),
 					1500,
 				),
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"opus", baseTime.Add(time.Hour),
 					"claude-3-opus-20240229",
 					entity.NewToken(400, 200, 40, 20),
@@ -330,14 +335,14 @@ func TestQueryService_GetAPIRequests(t *testing.T) {
 		{
 			name: "all_requests_no_pagination",
 			requests: []entity.APIRequest{
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"session1", baseTime,
 					"claude-3-sonnet-20240229",
 					entity.NewToken(100, 50, 10, 5),
 					entity.NewCost(0.50),
 					1000,
 				),
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"session2", baseTime.Add(time.Hour),
 					"claude-3-haiku-20240307",
 					entity.NewToken(200, 100, 20, 10),
@@ -370,7 +375,7 @@ func TestQueryService_GetAPIRequests(t *testing.T) {
 			requests: func() []entity.APIRequest {
 				var reqs []entity.APIRequest
 				for i := 0; i < 5; i++ {
-					reqs = append(reqs, entity.NewAPIRequest(
+					reqs = append(reqs, mustCreateAPIRequest(
 						fmt.Sprintf("session%d", i),
 						baseTime.Add(time.Duration(i)*time.Hour),
 						"claude-3-sonnet-20240229",
@@ -400,7 +405,7 @@ func TestQueryService_GetAPIRequests(t *testing.T) {
 			requests: func() []entity.APIRequest {
 				var reqs []entity.APIRequest
 				for i := 0; i < 5; i++ {
-					reqs = append(reqs, entity.NewAPIRequest(
+					reqs = append(reqs, mustCreateAPIRequest(
 						fmt.Sprintf("session%d", i),
 						baseTime.Add(time.Duration(i)*time.Hour),
 						"claude-3-sonnet-20240229",
@@ -428,21 +433,21 @@ func TestQueryService_GetAPIRequests(t *testing.T) {
 		{
 			name: "time_filtering",
 			requests: []entity.APIRequest{
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"old", baseTime.Add(-2*time.Hour),
 					"claude-3-sonnet-20240229",
 					entity.NewToken(100, 50, 10, 5),
 					entity.NewCost(0.50),
 					1000,
 				),
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"current", baseTime,
 					"claude-3-sonnet-20240229",
 					entity.NewToken(200, 100, 20, 10),
 					entity.NewCost(1.00),
 					1500,
 				),
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"future", baseTime.Add(2*time.Hour),
 					"claude-3-sonnet-20240229",
 					entity.NewToken(300, 150, 30, 15),
@@ -480,7 +485,7 @@ func TestQueryService_GetAPIRequests(t *testing.T) {
 		{
 			name: "offset_beyond_results",
 			requests: []entity.APIRequest{
-				entity.NewAPIRequest(
+				mustCreateAPIRequest(
 					"session1", baseTime,
 					"claude-3-sonnet-20240229",
 					entity.NewToken(100, 50, 10, 5),

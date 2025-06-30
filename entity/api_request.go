@@ -16,10 +16,13 @@ type APIRequest struct {
 
 // NewAPIRequest creates a new APIRequest entity
 func NewAPIRequest(sessionID string, timestamp time.Time, model string, tokens Token, cost Cost, durationMS int64) APIRequest {
+	// Create the model (will return "unknown" for invalid inputs)
+	validatedModel := NewModel(model)
+
 	return APIRequest{
 		sessionID: sessionID,
 		timestamp: timestamp,
-		model:     Model(model),
+		model:     validatedModel,
 		tokens:    tokens,
 		cost:      cost,
 		duration:  time.Duration(durationMS) * time.Millisecond,

@@ -100,15 +100,15 @@ func (b Block) CalculateProgress(premiumTokens Token) float64 {
 	if !b.HasLimit() {
 		return 0.0
 	}
-	
+
 	// Only premium tokens count toward limits (Haiku is free)
 	used := premiumTokens.Limited()
 	limit := int64(b.tokenLimit)
-	
+
 	if limit == 0 {
 		return 0.0
 	}
-	
+
 	percentage := float64(used) / float64(limit) * 100
 	return percentage
 }
@@ -118,7 +118,7 @@ func (b Block) IsLimitExceeded(premiumTokens Token) bool {
 	if !b.HasLimit() {
 		return false
 	}
-	
+
 	used := premiumTokens.Limited()
 	return used > int64(b.tokenLimit)
 }
