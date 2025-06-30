@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/handler/tui/components"
 )
 
@@ -32,29 +33,30 @@ func (r *Renderer) View(vm *ViewModel, width int) string {
 	title := TitleStyle.Render("🖥️  Claude Code Monitor")
 	b.WriteString(title + "\n")
 
-	// Status line
-	status := StatusStyle.Render(fmt.Sprintf("Monitor Mode | Filter: %s | Sort: %s | Press 'q' to quit", vm.GetTimeFilterString(), vm.GetSortOrderString()))
-	b.WriteString(status + "\n\n")
+	// Tab navigation
+	tabNav := r.renderTabNavigation(vm, width)
+	b.WriteString(tabNav + "\n")
 
-	// Statistics box
-	statsContent := r.renderStats(vm, width)
-	statsBox := BoxStyle.Width(width - 4).Render(statsContent)
-	b.WriteString(statsBox + "\n\n")
+	// Status line (only for current tab)
+	if vm.CurrentTab() == TabCurrent {
+		status := StatusStyle.Render(fmt.Sprintf("Monitor Mode | Filter: %s | Sort: %s", vm.GetTimeFilterString(), vm.GetSortOrderString()))
+		b.WriteString(status + "\n\n")
+	} else {
+		b.WriteString("\n")
+	}
 
-	// Recent requests header
-	requestsHeader := HeaderStyle.Render("Recent API Requests")
-	b.WriteString(requestsHeader + "\n")
-
-	// Table
-	tableView := r.tableComponent.RenderTable(vm.Requests(), vm.Table())
-	b.WriteString(tableView)
+	// Content based on current tab
+	switch vm.CurrentTab() {
+	case TabCurrent:
+		content := r.renderCurrentTab(vm, width)
+		b.WriteString(content)
+	case TabDaily:
+		content := r.renderDailyTab(vm, width)
+		b.WriteString(content)
+	}
 
 	// Help text at bottom
-	helpText := "\n  ↑/↓: Navigate • Time: h=hour d=day w=week m=month a=all"
-	if vm.Block() != nil {
-		helpText += " b=block"
-	}
-	helpText += " • o=sort • q: Quit"
+	helpText := r.renderHelpText(vm)
 	help := HelpStyle.Render(helpText)
 	b.WriteString(help)
 
@@ -258,4 +260,189 @@ func (r *Renderer) renderBlockProgress(vm *ViewModel) string {
 	}
 
 	return b.String()
+}
+
+// renderTabNavigation renders the tab navigation bar
+func (r *Renderer) renderTabNavigation(vm *ViewModel, width int) string {
+	var b strings.Builder
+
+	// Tab buttons
+	currentTabStyle := StatStyle.Bold(true)
+	inactiveTabStyle := HelpStyle
+
+	if vm.CurrentTab() == TabCurrent {
+		b.WriteString(currentTabStyle.Render("[Current]"))
+	} else {
+		b.WriteString(inactiveTabStyle.Render(" Current "))
+	}
+
+	b.WriteString("  ")
+
+	if vm.CurrentTab() == TabDaily {
+		b.WriteString(currentTabStyle.Render("[Daily Usage]"))
+	} else {
+		b.WriteString(inactiveTabStyle.Render(" Daily Usage "))
+	}
+
+	return b.String()
+}
+
+// renderCurrentTab renders the current tab content
+func (r *Renderer) renderCurrentTab(vm *ViewModel, width int) string {
+	var b strings.Builder
+
+	// Statistics box
+	statsContent := r.renderStats(vm, width)
+	statsBox := BoxStyle.Width(width - 4).Render(statsContent)
+	b.WriteString(statsBox + "\n\n")
+
+	// Recent requests header
+	requestsHeader := HeaderStyle.Render("Recent API Requests")
+	b.WriteString(requestsHeader + "\n")
+
+	// Table
+	tableView := r.tableComponent.RenderTable(vm.Requests(), vm.Table())
+	b.WriteString(tableView + "\n")
+
+	return b.String()
+}
+
+// renderDailyTab renders the daily usage tab content
+func (r *Renderer) renderDailyTab(vm *ViewModel, width int) string {
+	var b strings.Builder
+
+	// Daily usage header
+	dailyHeader := HeaderStyle.Render("Daily Usage Statistics (Last 30 Days)")
+	b.WriteString(dailyHeader + "\n\n")
+
+	// Daily usage table
+	dailyContent := r.renderDailyUsageTable(vm, width)
+	dailyBox := BoxStyle.Width(width - 4).Render(dailyContent)
+	b.WriteString(dailyBox + "\n")
+
+	return b.String()
+}
+
+// renderDailyUsageTable renders the daily usage statistics as a table
+func (r *Renderer) renderDailyUsageTable(vm *ViewModel, width int) string {
+	var b strings.Builder
+
+	usage := vm.Usage()
+	stats := usage.GetStats()
+
+	if len(stats) == 0 {
+		b.WriteString(HelpStyle.Render("No usage data available"))
+		return b.String()
+	}
+
+	// Calculate available width for table
+	availableWidth := width - 6 // Account for box padding
+	if availableWidth < 60 {
+		return r.renderCompactDailyUsage(stats)
+	}
+
+	// Table headers
+	headers := []string{"Date", "Requests", "Tokens", "Cost ($)"}
+	colWidths := r.calculateDailyTableWidths(availableWidth)
+
+	// Render header row
+	for i, header := range headers {
+		cell := TableHeaderStyle.Render(PadRight(header, colWidths[i]))
+		b.WriteString(cell)
+		if i < len(headers)-1 {
+			b.WriteString(" ") // Add space between columns
+		}
+	}
+	b.WriteString("\n")
+
+	// Separator line
+	for i, width := range colWidths {
+		b.WriteString(strings.Repeat("─", width))
+		if i < len(colWidths)-1 {
+			b.WriteString(" ") // Add space between separator lines
+		}
+	}
+	b.WriteString("\n")
+
+	// Data rows
+	for _, stat := range stats {
+		period := stat.Period()
+		if period.IsAllTime() {
+			continue // Skip all-time periods
+		}
+
+		date := period.StartAt().In(vm.Timezone()).Format("2006-01-02")
+		requests := fmt.Sprintf("%d", stat.TotalRequests())
+		tokens := FormatTokenCount(stat.TotalTokens().Total())
+		cost := fmt.Sprintf("%.6f", stat.TotalCost().Amount())
+
+		row := []string{date, requests, tokens, cost}
+		for i, cell := range row {
+			b.WriteString(PadRight(cell, colWidths[i]))
+			if i < len(row)-1 {
+				b.WriteString(" ") // Add space between columns
+			}
+		}
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
+// renderCompactDailyUsage renders compact daily usage for narrow terminals
+func (r *Renderer) renderCompactDailyUsage(stats []entity.Stats) string {
+	var b strings.Builder
+
+	for _, stat := range stats {
+		period := stat.Period()
+		if period.IsAllTime() {
+			continue
+		}
+
+		date := period.StartAt().Format("2006-01-02")
+		b.WriteString(StatStyle.Render(date))
+		b.WriteString(fmt.Sprintf(": %d reqs, %s tokens, $%.6f\n",
+			stat.TotalRequests(),
+			FormatTokenCount(stat.TotalTokens().Total()),
+			stat.TotalCost().Amount()))
+	}
+
+	return b.String()
+}
+
+// calculateDailyTableWidths calculates column widths for daily usage table
+func (r *Renderer) calculateDailyTableWidths(availableWidth int) []int {
+	// Account for spaces between columns (3 spaces for 4 columns)
+	spaceBetweenColumns := 3
+	usableWidth := availableWidth - spaceBetweenColumns
+
+	// Date: 12 (2025-06-30 + padding), Requests: 10, Tokens: 14, Cost: remaining
+	dateWidth := 12
+	requestsWidth := 10
+	tokensWidth := 14
+	costWidth := usableWidth - dateWidth - requestsWidth - tokensWidth
+
+	if costWidth < 12 {
+		costWidth = 12
+	}
+
+	return []int{dateWidth, requestsWidth, tokensWidth, costWidth}
+}
+
+// renderHelpText renders the help text based on current tab
+func (r *Renderer) renderHelpText(vm *ViewModel) string {
+	var helpText string
+
+	switch vm.CurrentTab() {
+	case TabCurrent:
+		helpText = "\n  ↑/↓: Navigate • Time: h=hour d=day w=week m=month a=all"
+		if vm.Block() != nil {
+			helpText += " b=block"
+		}
+		helpText += " • o=sort • Tab: Switch tabs • q: Quit"
+	case TabDaily:
+		helpText = "\n  ↑/↓: Navigate • Tab: Switch tabs • q: Quit"
+	}
+
+	return helpText
 }

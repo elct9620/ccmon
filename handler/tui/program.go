@@ -19,7 +19,7 @@ type MonitorConfig struct {
 }
 
 // RunMonitor runs the TUI monitor mode with usecases and config
-func RunMonitor(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, monitorConfig MonitorConfig) error {
+func RunMonitor(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, getUsageQuery *usecase.GetUsageQuery, monitorConfig MonitorConfig) error {
 	// Load timezone for monitor mode
 	timezone, err := time.LoadLocation(monitorConfig.Timezone)
 	if err != nil {
@@ -58,7 +58,7 @@ func RunMonitor(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculate
 	}
 
 	// Create the view model (which now implements tea.Model directly)
-	model := NewViewModel(getFilteredQuery, calculateStatsQuery, timezone, block, refreshInterval)
+	model := NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, timezone, block, refreshInterval)
 
 	// Create and run the Bubble Tea program
 	p := tea.NewProgram(model, tea.WithAltScreen())

@@ -56,5 +56,6 @@ func (q *CalculateStatsQuery) Execute(ctx context.Context, params CalculateStats
 		premiumTokens,
 		baseCost,
 		premiumCost,
+		params.Period,
 	), nil
 }

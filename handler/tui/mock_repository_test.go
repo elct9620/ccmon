@@ -138,6 +138,7 @@ func (m *MockCalculateStatsQuery) Execute(ctx context.Context, params usecase.Ca
 		premiumTokens,
 		baseCost,
 		premiumCost,
+		params.Period,
 	), nil
 }
 
@@ -163,7 +164,7 @@ func CreateTestRequestsSet() []entity.APIRequest {
 
 // CreateEmptyStats creates empty stats for testing
 func CreateEmptyStats() entity.Stats {
-	return entity.NewStats(0, 0, entity.Token{}, entity.Token{}, entity.Cost{}, entity.Cost{})
+	return entity.NewStats(0, 0, entity.Token{}, entity.Token{}, entity.Cost{}, entity.Cost{}, entity.NewAllTimePeriod(time.Now()))
 }
 
 // CreateTestStats creates test stats with sample data
@@ -173,7 +174,7 @@ func CreateTestStats() entity.Stats {
 	baseCost := entity.NewCost(0.0015)
 	premiumCost := entity.NewCost(0.025)
 
-	return entity.NewStats(2, 2, baseTokens, premiumTokens, baseCost, premiumCost)
+	return entity.NewStats(2, 2, baseTokens, premiumTokens, baseCost, premiumCost, entity.NewAllTimePeriod(time.Now()))
 }
 
 // CreateTestBlock creates a test block for testing block tracking
@@ -183,4 +184,10 @@ func CreateTestBlock() *entity.Block {
 	start := time.Date(now.Year(), now.Month(), now.Day(), 5, 0, 0, 0, time.UTC)
 	block := entity.NewBlockWithLimit(start, 7000)
 	return &block
+}
+
+// CreateTestUsageQuery creates a test usage query for testing
+func CreateTestUsageQuery() *usecase.GetUsageQuery {
+	mockRepo := NewMockAPIRequestRepository()
+	return usecase.NewGetUsageQuery(mockRepo)
 }

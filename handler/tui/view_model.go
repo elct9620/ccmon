@@ -32,6 +32,14 @@ const (
 	SortAscending                   // Oldest first
 )
 
+// Tab represents the available tabs in the UI
+type Tab int
+
+const (
+	TabCurrent Tab = iota // Current view (requests and stats)
+	TabDaily              // Daily usage view
+)
+
 // ViewModel represents the state of our TUI monitor application
 type ViewModel struct {
 	requests            []entity.APIRequest
@@ -43,6 +51,9 @@ type ViewModel struct {
 	blockStats          entity.Stats // Stats for the current block (used for progress bar)
 	getFilteredQuery    *usecase.GetFilteredApiRequestsQuery
 	calculateStatsQuery *usecase.CalculateStatsQuery
+	getUsageQuery       *usecase.GetUsageQuery // Query for daily usage statistics
+	currentTab          Tab                    // Currently active tab
+	usage               entity.Usage           // Daily usage data for daily tab
 	timeFilter          TimeFilter
 	sortOrder           SortOrder
 	timezone            *time.Location
@@ -52,7 +63,7 @@ type ViewModel struct {
 }
 
 // NewViewModel creates a new ViewModel with initial state
-func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, timezone *time.Location, block *entity.Block, refreshInterval time.Duration) *ViewModel {
+func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, getUsageQuery *usecase.GetUsageQuery, timezone *time.Location, block *entity.Block, refreshInterval time.Duration) *ViewModel {
 	// Start with basic columns, will be resized on first window size message
 	initialWidths := CalculateTableColumnWidths(120) // Assume medium width initially
 	columns := []table.Column{
@@ -82,6 +93,9 @@ func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calcula
 		table:               t,
 		getFilteredQuery:    getFilteredQuery,
 		calculateStatsQuery: calculateStatsQuery,
+		getUsageQuery:       getUsageQuery,
+		currentTab:          TabCurrent, // Start with current tab
+		usage:               entity.Usage{},
 		timeFilter:          FilterAll,
 		sortOrder:           SortDescending, // Default to latest first
 		stats:               entity.Stats{},
@@ -151,6 +165,15 @@ func (vm *ViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				vm.sortOrder = SortDescending
 			}
 			return vm, vm.refreshStats
+		case "tab":
+			// Switch tabs
+			if vm.currentTab == TabCurrent {
+				vm.currentTab = TabDaily
+				return vm, vm.refreshUsage
+			} else {
+				vm.currentTab = TabCurrent
+				return vm, vm.refreshStats
+			}
 		}
 
 	case tea.WindowSizeMsg:
@@ -163,13 +186,22 @@ func (vm *ViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		vm.adjustTableHeight()
 
 	case tickMsg:
-		// Periodic refresh
-		return vm, tea.Batch(vm.tick(), vm.refreshStats)
+		// Periodic refresh - refresh based on current tab
+		if vm.currentTab == TabDaily {
+			return vm, tea.Batch(vm.tick(), vm.refreshUsage)
+		} else {
+			return vm, tea.Batch(vm.tick(), vm.refreshStats)
+		}
 
 	case refreshStatsMsg:
 		// Recalculate stats via usecase
 		if vm.getFilteredQuery != nil {
 			vm.recalculateStats()
+		}
+	case refreshUsageMsg:
+		// Refresh usage data for daily tab
+		if vm.getUsageQuery != nil {
+			vm.recalculateUsage()
 		}
 	}
 
@@ -213,6 +245,14 @@ func (vm *ViewModel) Timezone() *time.Location {
 	return vm.timezone
 }
 
+func (vm *ViewModel) CurrentTab() Tab {
+	return vm.currentTab
+}
+
+func (vm *ViewModel) Usage() entity.Usage {
+	return vm.usage
+}
+
 // Business logic methods
 func (vm *ViewModel) GetTimeFilterString() string {
 	switch vm.timeFilter {
@@ -245,6 +285,17 @@ func (vm *ViewModel) GetSortOrderString() string {
 	}
 }
 
+func (vm *ViewModel) GetCurrentTabName() string {
+	switch vm.currentTab {
+	case TabCurrent:
+		return "Current"
+	case TabDaily:
+		return "Daily Usage"
+	default:
+		return "Current"
+	}
+}
+
 func (vm *ViewModel) getTimePeriod() entity.Period {
 	switch vm.timeFilter {
 	case FilterHour:
@@ -267,6 +318,10 @@ func (vm *ViewModel) getTimePeriod() entity.Period {
 
 func (vm *ViewModel) refreshStats() tea.Msg {
 	return refreshStatsMsg{}
+}
+
+func (vm *ViewModel) refreshUsage() tea.Msg {
+	return refreshUsageMsg{}
 }
 
 func (vm *ViewModel) recalculateStats() {
@@ -326,6 +381,17 @@ func (vm *ViewModel) recalculateStats() {
 
 	// Update table
 	vm.updateTableRows()
+}
+
+func (vm *ViewModel) recalculateUsage() {
+	// Fetch daily usage statistics (last 30 days)
+	usage, err := vm.getUsageQuery.ListByDay(context.Background(), 30)
+	if err != nil {
+		// Handle error silently for now, usage will remain empty
+		vm.usage = entity.Usage{}
+		return
+	}
+	vm.usage = usage
 }
 
 func (vm *ViewModel) reverseRequests() {
@@ -466,6 +532,7 @@ func (vm *ViewModel) adjustTableHeight() {
 // Message types
 type tickMsg time.Time
 type refreshStatsMsg struct{}
+type refreshUsageMsg struct{}
 
 // View renders the UI using the renderer
 func (vm *ViewModel) View() string {

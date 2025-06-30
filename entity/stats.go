@@ -8,6 +8,7 @@ type Stats struct {
 	premiumTokens   Token
 	baseCost        Cost
 	premiumCost     Cost
+	period          Period
 }
 
 // BaseRequests returns the number of base model requests
@@ -55,8 +56,13 @@ func (s Stats) TotalCost() Cost {
 	return s.baseCost.Add(s.premiumCost)
 }
 
+// Period returns the time period for these statistics
+func (s Stats) Period() Period {
+	return s.period
+}
+
 // NewStats creates a new Stats instance with the given values
-func NewStats(baseRequests, premiumRequests int, baseTokens, premiumTokens Token, baseCost, premiumCost Cost) Stats {
+func NewStats(baseRequests, premiumRequests int, baseTokens, premiumTokens Token, baseCost, premiumCost Cost, period Period) Stats {
 	return Stats{
 		baseRequests:    baseRequests,
 		premiumRequests: premiumRequests,
@@ -64,5 +70,6 @@ func NewStats(baseRequests, premiumRequests int, baseTokens, premiumTokens Token
 		premiumTokens:   premiumTokens,
 		baseCost:        baseCost,
 		premiumCost:     premiumCost,
+		period:          period,
 	}
 }

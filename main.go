@@ -54,6 +54,8 @@ func main() {
 		appendCommand := usecase.NewAppendApiRequestCommand(repo)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo)
+		// Note: getUsageQuery would be used if we add usage endpoints to gRPC server
+		_ = usecase.NewGetUsageQuery(repo) // Avoid unused variable
 
 		// Run server with usecases
 		if err := grpcserver.RunServer(config.Server.Address, appendCommand, getFilteredQuery, calculateStatsQuery); err != nil {
@@ -76,6 +78,7 @@ func main() {
 		// Create query usecases (no append command needed for monitor)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo)
+		getUsageQuery := usecase.NewGetUsageQuery(repo)
 
 		// Convert config to TUI-specific struct
 		monitorConfig := tui.MonitorConfig{
@@ -87,7 +90,7 @@ func main() {
 		}
 
 		// Run monitor with usecases and config - TUI handler owns block logic
-		if err := tui.RunMonitor(getFilteredQuery, calculateStatsQuery, monitorConfig); err != nil {
+		if err := tui.RunMonitor(getFilteredQuery, calculateStatsQuery, getUsageQuery, monitorConfig); err != nil {
 			fmt.Fprintf(os.Stderr, "Monitor error: %v\n", err)
 			os.Exit(1)
 		}

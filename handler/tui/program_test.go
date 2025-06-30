@@ -29,9 +29,10 @@ func TestProgram_BasicOutput(t *testing.T) {
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
 	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	getUsageQuery := CreateTestUsageQuery()
 
 	// Create the ViewModel
-	model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, nil, 5*time.Second)
+	model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 5*time.Second)
 
 	// Create teatest model
 	tm := teatest.NewTestModel(
@@ -148,9 +149,10 @@ func TestViewModel_KeyboardInteractions(t *testing.T) {
 
 			getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
 			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			getUsageQuery := CreateTestUsageQuery()
 
 			// Create ViewModel
-			vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, tc.block, 5*time.Second)
+			vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, tc.block, 5*time.Second)
 
 			// Send window size to initialize the view
 			vm.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -172,8 +174,9 @@ func TestViewModel_LayoutResponsiveness(t *testing.T) {
 
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
 	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	getUsageQuery := CreateTestUsageQuery()
 
-	vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, nil, 5*time.Second)
+	vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 5*time.Second)
 
 	windowSizes := []struct {
 		name   string
@@ -247,8 +250,9 @@ func TestViewModel_DataFlow(t *testing.T) {
 
 			getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
 			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			getUsageQuery := CreateTestUsageQuery()
 
-			vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, nil, 5*time.Second)
+			vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 5*time.Second)
 
 			// Initialize the view
 			vm.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -286,7 +290,9 @@ func TestViewModel_BlockTracking(t *testing.T) {
 	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
 
 	block := CreateTestBlock()
-	vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, block, 5*time.Second)
+	getUsageQuery := CreateTestUsageQuery()
+
+	vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, block, 5*time.Second)
 
 	// Initialize the view
 	vm.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -482,7 +488,9 @@ func TestViewModel_GetterMethods(t *testing.T) {
 	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
 
 	block := CreateTestBlock()
-	vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, block, 5*time.Second)
+	getUsageQuery := CreateTestUsageQuery()
+
+	vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, block, 5*time.Second)
 
 	// Test all getter methods
 	_ = vm.Requests()
@@ -521,7 +529,9 @@ func TestViewModel_FilterStateCoverage(t *testing.T) {
 
 	// Test with block tracking
 	block := CreateTestBlock()
-	vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, block, 5*time.Second)
+	getUsageQuery := CreateTestUsageQuery()
+
+	vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, block, 5*time.Second)
 
 	// Initialize
 	vm.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -589,9 +599,10 @@ func TestProgram_FullInteractiveOutput(t *testing.T) {
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
 	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	getUsageQuery := CreateTestUsageQuery()
 
 	// Create the ViewModel
-	model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, nil, 5*time.Second)
+	model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 5*time.Second)
 
 	// Create teatest model
 	tm := teatest.NewTestModel(
@@ -677,7 +688,9 @@ func TestProgram_KeyboardInteractions(t *testing.T) {
 			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
 
 			// Create the ViewModel
-			model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, nil, 5*time.Second)
+			getUsageQuery := CreateTestUsageQuery()
+
+			model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 5*time.Second)
 
 			// Create teatest model
 			tm := teatest.NewTestModel(
@@ -749,9 +762,10 @@ func TestProgram_SortOrderToggle(t *testing.T) {
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
 	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	getUsageQuery := CreateTestUsageQuery()
 
 	// Create the ViewModel
-	model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, nil, 5*time.Second)
+	model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 5*time.Second)
 
 	// Create teatest model
 	tm := teatest.NewTestModel(
@@ -821,7 +835,9 @@ func TestProgram_BlockFilterInteraction(t *testing.T) {
 
 	// Create the ViewModel with block tracking
 	block := CreateTestBlock()
-	model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, block, 5*time.Second)
+	getUsageQuery := CreateTestUsageQuery()
+
+	model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, block, 5*time.Second)
 
 	// Create teatest model
 	tm := teatest.NewTestModel(
@@ -872,9 +888,10 @@ func TestProgram_MultipleFiltersSequence(t *testing.T) {
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
 	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	getUsageQuery := CreateTestUsageQuery()
 
 	// Create the ViewModel
-	model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, time.UTC, nil, 5*time.Second)
+	model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 5*time.Second)
 
 	// Create teatest model
 	tm := teatest.NewTestModel(
