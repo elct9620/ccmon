@@ -138,9 +138,10 @@ The application follows a modular architecture with clear separation of concerns
 2. **config.go** - Configuration system using Viper with TOML/YAML/JSON support
 
 #### TUI Handler (`handler/tui/`)
-1. **monitor.go** - Sets up the TUI monitor mode with gRPC client
-2. **model.go** - Bubble Tea model that queries data via gRPC and refreshes periodically  
-3. **ui.go** - Rendering logic using Lipgloss for styled terminal output
+1. **program.go** - Sets up the TUI monitor mode with config handling and initialization
+2. **view_model.go** - Bubble Tea model that queries data via gRPC and refreshes periodically  
+3. **renderer.go** - Rendering logic using Lipgloss for styled terminal output
+4. **block.go** - Block time parsing and calculation logic (private functions)
 
 #### gRPC Handler (`handler/grpc/`)
 1. **server.go** - gRPC server lifecycle management and service registration
@@ -173,6 +174,7 @@ The application follows a modular architecture with clear separation of concerns
 - **Repository Pattern**: Repository layer handles entity conversion and database operations
 - **Database Factory Functions**: Simple factory functions for database initialization at root level
 - **Clean Architecture Compliance**: Proper dependency inversion with usecase and repository layers
+- **Handler Ownership**: Each handler owns its specific business logic (e.g., TUI owns block calculations)
 
 ### Data Flow
 
@@ -186,11 +188,11 @@ The application follows a modular architecture with clear separation of concerns
 7. Query service (`handler/grpc/query/`) provides gRPC API using usecase queries with efficient limiting
 
 **Monitor Mode:**
-1. main.go initializes gRPC repository and multiple usecase layers for monitor mode:
-   - `GetFilteredApiRequestsQuery` for display requests
-   - `GetStatsQuery` for filtered statistics  
-   - `GetBlockStatsQuery` for block progress tracking
-2. TUI handler receives all usecase queries for comprehensive data access
+1. main.go creates MonitorConfig struct with timezone, refresh interval, token limit, and block time
+2. TUI handler receives config and usecases, then handles all initialization internally:
+   - Loads timezone and validates refresh interval
+   - Parses block time and calculates current block if block tracking enabled
+   - Initializes view model with computed values
 3. Queries data via gRPC calls through repository abstraction with limit parameters
 4. Refreshes statistics every 5 seconds via dual stats system:
    - **Display statistics**: Uses `GetStatsQuery` with current filter period
