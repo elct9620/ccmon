@@ -15,7 +15,7 @@ proto: check-protoc
 
 # Build the application with version info
 build: generate
-	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
+	@VERSION=$$(git describe --tags --exact-match 2>/dev/null || echo "dev"); \
 	COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
 	DATE=$$(date -u '+%Y-%m-%d_%H:%M:%S'); \
 	go build -ldflags "-X main.version=$$VERSION -X main.commit=$$COMMIT -X main.date=$$DATE" -o $(BINARY_NAME) .
