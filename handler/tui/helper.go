@@ -163,24 +163,3 @@ func CalculateTableColumnWidths(availableWidth int) []int {
 
 	return minWidths
 }
-
-// Progress bar rendering
-func RenderProgressBar(percentage float64, width int) string {
-	filled := int(percentage / 100 * float64(width))
-	if filled > width {
-		filled = width
-	}
-
-	var color lipgloss.Color
-	if percentage >= 90 {
-		color = lipgloss.Color("196") // Red
-	} else if percentage >= 75 {
-		color = lipgloss.Color("214") // Orange
-	} else {
-		color = lipgloss.Color("42") // Green
-	}
-
-	bar := strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
-	style := lipgloss.NewStyle().Foreground(color)
-	return "[" + style.Render(bar) + "]"
-}

@@ -477,16 +477,6 @@ func TestHelperFunctions(t *testing.T) {
 		}
 	})
 
-	t.Run("RenderProgressBar", func(t *testing.T) {
-		testCases := []float64{0.0, 25.0, 75.0, 95.0, 100.0, 110.0}
-		for _, percentage := range testCases {
-			result := tui.RenderProgressBar(percentage, 20)
-			if len(result) == 0 {
-				t.Errorf("RenderProgressBar returned empty string for %f%%", percentage)
-			}
-		}
-	})
-
 }
 
 // TestViewModel_GetterMethods tests all getter methods for coverage

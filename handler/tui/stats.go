@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/usecase"
@@ -22,18 +23,29 @@ type StatsModel struct {
 	timezone *time.Location
 	width    int
 
+	// Progress bar components
+	progressModel progress.Model
+
 	// Business logic dependencies
 	calculateStatsQuery *usecase.CalculateStatsQuery
 }
 
 // NewStatsModel creates a new statistics model with usecase dependency
 func NewStatsModel(calculateStatsQuery *usecase.CalculateStatsQuery, timezone *time.Location, block *entity.Block) *StatsModel {
+	// Initialize progress model with green to red gradient
+	progressModel := progress.New(
+		progress.WithWidth(40),
+		progress.WithScaledGradient("42", "196"), // Green to Red
+		progress.WithoutPercentage(),
+	)
+
 	return &StatsModel{
 		stats:               entity.Stats{},
 		blockStats:          entity.Stats{},
 		block:               block,
 		timezone:            timezone,
 		width:               120, // Default width
+		progressModel:       progressModel,
 		calculateStatsQuery: calculateStatsQuery,
 	}
 }
@@ -234,8 +246,9 @@ func (m *StatsModel) renderBlockProgress() string {
 	b.WriteString(HeaderStyle.Render(fmt.Sprintf("Block Progress (%s)", blockTime)))
 	b.WriteString("\n\n")
 
-	// Progress bar
-	progressBar := RenderProgressBar(percentage, 40)
+	// Progress bar using calculated percentage
+
+	progressBar := "[" + m.progressModel.ViewAs(percentage/100) + "]"
 	b.WriteString(progressBar)
 	b.WriteString(" ")
 	used := m.blockStats.PremiumTokens().Limited()
