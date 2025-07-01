@@ -134,9 +134,15 @@ func (m *DailyUsageTabModel) UpdateUsage(usage entity.Usage) {
 
 // calculateDailyTableWidths calculates column widths for daily usage table
 func (m *DailyUsageTabModel) calculateDailyTableWidths(availableWidth int) []int {
-	// Account for spaces between columns (7 spaces for 8 columns)
-	spaceBetweenColumns := 7
-	usableWidth := availableWidth - spaceBetweenColumns
+	// Account for table internal spacing - Bubble Tea table adds padding/borders
+	// Estimate ~2-3 chars per column for internal spacing/borders
+	tableOverhead := 8 * 3 // 8 columns * 3 chars overhead each
+	usableWidth := availableWidth - tableOverhead
+
+	// Ensure we have minimum usable width
+	if usableWidth < 60 {
+		usableWidth = 60
+	}
 
 	// Date: 10 (2025-06-30), Requests: 10 (999/999), Input: 8, Output: 8, Read Cache: 10, Creation Cache: 12, Total: 8, Premium Cost: remaining
 	dateWidth := 10
