@@ -32,10 +32,10 @@ type StatsModel struct {
 
 // NewStatsModel creates a new statistics model with usecase dependency
 func NewStatsModel(calculateStatsQuery *usecase.CalculateStatsQuery, timezone *time.Location, block *entity.Block) *StatsModel {
-	// Initialize progress model with green to red gradient
+	// Initialize progress model with prettier green to red gradient
 	progressModel := progress.New(
 		progress.WithWidth(40),
-		progress.WithScaledGradient("42", "196"), // Green to Red
+		progress.WithGradient("#22c55e", "#ef4444"), // Tailwind green-500 to red-500
 		progress.WithoutPercentage(),
 	)
 
