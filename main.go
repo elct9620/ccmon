@@ -12,12 +12,20 @@ import (
 	"github.com/spf13/pflag"
 )
 
+var (
+	version = "dev"
+	commit  = "unknown"
+	date    = "unknown"
+)
+
 func main() {
 	// Parse command line flags using pflag
 	var serverMode bool
 	var blockTime string
+	var showVersion bool
 	pflag.BoolVarP(&serverMode, "server", "s", false, "Run as OTLP server (headless mode)")
 	pflag.StringVarP(&blockTime, "block", "b", "", "Set block start time for token tracking (e.g., '5am', '11pm')")
+	pflag.BoolVarP(&showVersion, "version", "v", false, "Show version information")
 
 	// Add help flag
 	pflag.BoolP("help", "h", false, "Show help")
@@ -27,6 +35,16 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Check for version flag after config is loaded
+	if showVersion {
+		if commit != "unknown" && commit != "" {
+			fmt.Printf("ccmon version %s-%s (built %s)\n", version, commit[:7], date)
+		} else {
+			fmt.Printf("ccmon version %s\n", version)
+		}
+		os.Exit(0)
 	}
 
 	// Check for help flag after config is loaded
