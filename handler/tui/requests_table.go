@@ -189,6 +189,12 @@ func (m *RequestsTableModel) resizeTableColumns() {
 	// Calculate auto-width columns based on available terminal width
 	widths := CalculateTableColumnWidths(m.width)
 
+	// Ensure we have the expected number of width values
+	if len(widths) < 8 {
+		// Fallback to safe default widths if calculation failed
+		widths = []int{16, 20, 6, 6, 6, 6, 8, 8}
+	}
+
 	// Define column titles based on available width
 	var columns []table.Column
 	if m.width < 80 {
@@ -203,10 +209,6 @@ func (m *RequestsTableModel) resizeTableColumns() {
 			{Title: "Cost", Width: widths[6]},
 			{Title: "Dur", Width: widths[7]},
 		}
-		// Update rows first to match column count
-		m.updateTableRows()
-		// Then set the columns
-		m.table.SetColumns(columns)
 	} else {
 		// Normal layout - full column titles
 		columns = []table.Column{
@@ -219,11 +221,12 @@ func (m *RequestsTableModel) resizeTableColumns() {
 			{Title: "Cost ($)", Width: widths[6]},
 			{Title: "Duration", Width: widths[7]},
 		}
-		// Update rows first to match column count
-		m.updateTableRows()
-		// Then set the columns
-		m.table.SetColumns(columns)
 	}
+
+	// Clear rows before setting new columns to avoid index out of range
+	m.table.SetRows([]table.Row{})
+	m.table.SetColumns(columns)
+	m.updateTableRows() // Update rows to match new column structure
 }
 
 // adjustTableHeight calculates and sets appropriate table height

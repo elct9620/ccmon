@@ -448,8 +448,8 @@ func TestHelperFunctions(t *testing.T) {
 
 	t.Run("CalculateStatsColumnWidths", func(t *testing.T) {
 		widths := tui.CalculateStatsColumnWidths(100)
-		if len(widths) != 6 {
-			t.Errorf("Expected 6 column widths, got %d", len(widths))
+		if len(widths) != 7 {
+			t.Errorf("Expected 7 column widths, got %d", len(widths))
 		}
 	})
 

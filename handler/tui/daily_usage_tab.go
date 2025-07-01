@@ -23,9 +23,24 @@ type DailyUsageTabModel struct {
 	width    int
 	height   int
 
+	// Display mode configuration
+	displayMode DailyDisplayMode
+
 	// Business logic dependencies
 	getUsageQuery *usecase.GetUsageQuery
 }
+
+// DailyDisplayMode defines the table display mode based on available width
+type DailyDisplayMode int
+
+const (
+	// FullMode shows all 9 columns with complete token breakdown
+	FullMode DailyDisplayMode = iota
+	// GroupedMode shows 4 main columns with grouped token details
+	GroupedMode
+	// CompactMode shows 4 main columns with simplified token display
+	CompactMode
+)
 
 // NewDailyUsageTabModel creates a new daily usage tab model with usecase dependency
 func NewDailyUsageTabModel(getUsageQuery *usecase.GetUsageQuery, timezone *time.Location) *DailyUsageTabModel {
@@ -60,6 +75,7 @@ func NewDailyUsageTabModel(getUsageQuery *usecase.GetUsageQuery, timezone *time.
 		timezone:      timezone,
 		width:         120,
 		height:        30,
+		displayMode:   FullMode,
 		getUsageQuery: getUsageQuery,
 	}
 }
@@ -173,6 +189,53 @@ func (m *DailyUsageTabModel) calculateDailyTableWidths(availableWidth int) []int
 	return baseWidths
 }
 
+// calculateGroupedTableWidths calculates column widths for grouped display mode
+func (m *DailyUsageTabModel) calculateGroupedTableWidths(availableWidth int) []int {
+	// Account for table internal spacing
+	tableOverhead := 4 * 3 // 4 columns * 3 chars overhead each
+	usableWidth := availableWidth - tableOverhead
+
+	// Ensure minimum usable width
+	if usableWidth < 40 {
+		usableWidth = 40
+	}
+
+	// Base widths for grouped mode: Date, B/P Reqs, Burn Rate, Cost
+	baseWidths := []int{12, 10, 12, 12} // Total: 46
+	totalBaseWidth := 0
+	for _, w := range baseWidths {
+		totalBaseWidth += w
+	}
+
+	// Distribute extra space if available
+	if usableWidth > totalBaseWidth {
+		extraSpace := usableWidth - totalBaseWidth
+		// Distribute: Date 30%, B/P Reqs 20%, Burn Rate 25%, Cost 25%
+		distribution := []float64{0.30, 0.20, 0.25, 0.25}
+
+		for i := range baseWidths {
+			extra := int(float64(extraSpace) * distribution[i])
+			baseWidths[i] += extra
+		}
+	}
+
+	// Ensure minimum widths
+	if baseWidths[0] < 10 { // Date minimum
+		baseWidths[0] = 10
+	}
+	if baseWidths[1] < 8 { // B/P Reqs minimum
+		baseWidths[1] = 8
+	}
+	if baseWidths[2] < 10 { // Burn Rate minimum
+		baseWidths[2] = 10
+	}
+	if baseWidths[3] < 10 { // Cost minimum
+		baseWidths[3] = 10
+	}
+
+	return baseWidths
+}
+
 // refreshUsage handles data fetching for the daily usage model
 func (m *DailyUsageTabModel) refreshUsage() tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
@@ -252,29 +315,13 @@ func (m *DailyUsageTabModel) resizeTableColumns() {
 	// Calculate available width for table (accounting for box padding)
 	availableWidth := m.width - 6
 
+	// Determine display mode based on available width
+	var newDisplayMode DailyDisplayMode
 	var columns []table.Column
-	if availableWidth < 120 {
-		// Compact layout: reduce to essential columns with shorter names
-		if availableWidth < 70 {
-			// Ultra-compact: only 4 most important columns
-			columns = []table.Column{
-				{Title: "Date", Width: 10},
-				{Title: "Reqs", Width: 8},
-				{Title: "Total", Width: 10},
-				{Title: "Rate/min", Width: 12},
-			}
-		} else {
-			// Standard compact: 5 columns with shortened names
-			columns = []table.Column{
-				{Title: "Date", Width: 10},
-				{Title: "B/P", Width: 8}, // Base/Premium requests
-				{Title: "Tokens", Width: 10},
-				{Title: "Rate/min", Width: 12},
-				{Title: "Cost", Width: 12},
-			}
-		}
-	} else {
-		// Calculate column widths
+
+	if availableWidth >= 140 {
+		// Full mode: traditional 9-column layout
+		newDisplayMode = FullMode
 		colWidths := m.calculateDailyTableWidths(availableWidth)
 		columns = []table.Column{
 			{Title: "Date", Width: colWidths[0]},
@@ -287,7 +334,29 @@ func (m *DailyUsageTabModel) resizeTableColumns() {
 			{Title: "Burn Rate", Width: colWidths[7]},
 			{Title: "Premium Cost ($)", Width: colWidths[8]},
 		}
+	} else if availableWidth >= 80 {
+		// Grouped mode: 4 main columns with token details in sub-rows
+		newDisplayMode = GroupedMode
+		colWidths := m.calculateGroupedTableWidths(availableWidth)
+		columns = []table.Column{
+			{Title: "Date", Width: colWidths[0]},
+			{Title: "B/P Reqs", Width: colWidths[1]},
+			{Title: "Burn Rate", Width: colWidths[2]},
+			{Title: "Cost ($)", Width: colWidths[3]},
+		}
+	} else {
+		// Compact mode: 4 simplified columns
+		newDisplayMode = CompactMode
+		columns = []table.Column{
+			{Title: "Date", Width: 10},
+			{Title: "Reqs", Width: 8},
+			{Title: "Rate/min", Width: 12},
+			{Title: "Cost", Width: 10},
+		}
 	}
+
+	// Update display mode if changed
+	m.displayMode = newDisplayMode
 
 	// Clear rows before setting new columns to avoid index out of range
 	m.table.SetRows([]table.Row{})
@@ -298,10 +367,7 @@ func (m *DailyUsageTabModel) resizeTableColumns() {
 // updateTableRows updates the table rows based on current usage data
 func (m *DailyUsageTabModel) updateTableRows() {
 	stats := m.usage.GetStats()
-	rows := make([]table.Row, 0, len(stats))
-
-	// Get current column count to determine the row format
-	columnCount := len(m.table.Columns())
+	rows := make([]table.Row, 0, len(stats)*2) // Pre-allocate for potential sub-rows
 
 	for _, stat := range stats {
 		period := stat.Period()
@@ -310,52 +376,64 @@ func (m *DailyUsageTabModel) updateTableRows() {
 		}
 
 		date := period.StartAt().In(m.timezone).Format("2006-01-02")
-
-		// Create row based on current column structure
-		switch columnCount {
-		case 4:
-			// Ultra-compact: Date, Reqs, Total, Rate/min
-			requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
-			totalTokens := FormatTokenCount(stat.PremiumTokens().Total())
-			burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
-			rows = append(rows, table.Row{date, requests, totalTokens, burnRate})
-
-		case 5:
-			// Standard compact: Date, B/P, Tokens, Rate/min, Cost
-			requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
-			totalTokens := FormatTokenCount(stat.PremiumTokens().Total())
-			burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
-			cost := fmt.Sprintf("%.4f", stat.PremiumCost().Amount())
-			rows = append(rows, table.Row{date, requests, totalTokens, burnRate, cost})
-
-		case 9:
-			// Full mode: Date, Requests, Input, Output, Read Cache, Creation Cache, Total, Burn Rate, Premium Cost
-			requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
-			input := FormatTokenCount(stat.PremiumTokens().Input())
-			output := FormatTokenCount(stat.PremiumTokens().Output())
-			readCache := FormatTokenCount(stat.PremiumTokens().CacheRead())
-			creationCache := FormatTokenCount(stat.PremiumTokens().CacheCreation())
-			total := FormatTokenCount(stat.PremiumTokens().Total())
-			burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
-			cost := fmt.Sprintf("%.6f", stat.PremiumCost().Amount())
-			rows = append(rows, table.Row{date, requests, input, output, readCache, creationCache, total, burnRate, cost})
-
-		default:
-			// Fallback: create a row with the minimum data and pad with empty strings
-			requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
-			totalTokens := FormatTokenCount(stat.PremiumTokens().Total())
-			burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
-			
-			row := table.Row{date, requests, totalTokens, burnRate}
-			// Pad with empty strings to match column count
-			for len(row) < columnCount {
-				row = append(row, "-")
-			}
-			rows = append(rows, row)
-		}
+		rows = append(rows, m.createRowsForStat(stat, date)...)
 	}
 
 	m.table.SetRows(rows)
+}
+
+// createRowsForStat creates table rows for a single stat based on display mode
+func (m *DailyUsageTabModel) createRowsForStat(stat entity.Stats, date string) []table.Row {
+	switch m.displayMode {
+	case FullMode:
+		// Traditional 9-column layout
+		requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
+		input := FormatTokenCount(stat.PremiumTokens().Input())
+		output := FormatTokenCount(stat.PremiumTokens().Output())
+		readCache := FormatTokenCount(stat.PremiumTokens().CacheRead())
+		creationCache := FormatTokenCount(stat.PremiumTokens().CacheCreation())
+		total := FormatTokenCount(stat.PremiumTokens().Total())
+		burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
+		cost := fmt.Sprintf("%.6f", stat.PremiumCost().Amount())
+		return []table.Row{{date, requests, input, output, readCache, creationCache, total, burnRate, cost}}
+
+	case GroupedMode:
+		// 4 main columns with token details in sub-rows
+		requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
+		burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
+		cost := fmt.Sprintf("%.4f", stat.PremiumCost().Amount())
+
+		// Main row
+		mainRow := table.Row{date, requests, burnRate, cost}
+
+		// Token detail sub-rows (formatted to show grouping)
+		input := FormatTokenCount(stat.PremiumTokens().Input())
+		output := FormatTokenCount(stat.PremiumTokens().Output())
+		readCache := FormatTokenCount(stat.PremiumTokens().CacheRead())
+		creationCache := FormatTokenCount(stat.PremiumTokens().CacheCreation())
+
+		// Create grouped token display in second column
+		tokenDetails := fmt.Sprintf("├─I:%s O:%s", input, output)
+		cacheDetails := fmt.Sprintf("└─CR:%s CC:%s", readCache, creationCache)
+
+		subRow1 := table.Row{"", tokenDetails, "", ""}
+		subRow2 := table.Row{"", cacheDetails, "", ""}
+
+		return []table.Row{mainRow, subRow1, subRow2}
+
+	case CompactMode:
+		// 4 simplified columns
+		requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
+		burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
+		cost := fmt.Sprintf("%.3f", stat.PremiumCost().Amount())
+		return []table.Row{{date, requests, burnRate, cost}}
+
+	default:
+		// Fallback
+		requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
+		burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
+		return []table.Row{{date, requests, burnRate, "-"}}
+	}
 }
 
 // Message types for DailyUsageTabModel
