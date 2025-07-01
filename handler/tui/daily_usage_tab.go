@@ -39,6 +39,7 @@ func NewDailyUsageTabModel(getUsageQuery *usecase.GetUsageQuery, timezone *time.
 		{Title: "Creation Cache", Width: 12},
 		{Title: "Total", Width: 8},
 		{Title: "Premium Cost ($)", Width: 16},
+		{Title: "Burn Rate", Width: 10},
 	}
 
 	t := table.New(
@@ -136,29 +137,40 @@ func (m *DailyUsageTabModel) UpdateUsage(usage entity.Usage) {
 func (m *DailyUsageTabModel) calculateDailyTableWidths(availableWidth int) []int {
 	// Account for table internal spacing - Bubble Tea table adds padding/borders
 	// Estimate ~2-3 chars per column for internal spacing/borders
-	tableOverhead := 8 * 3 // 8 columns * 3 chars overhead each
+	tableOverhead := 9 * 3 // 9 columns * 3 chars overhead each
 	usableWidth := availableWidth - tableOverhead
 
-	// Ensure we have minimum usable width
-	if usableWidth < 60 {
-		usableWidth = 60
+	// Ensure we have minimum usable width for full mode
+	if usableWidth < 100 {
+		usableWidth = 100
 	}
 
-	// Date: 10 (2025-06-30), Requests: 10 (999/999), Input: 8, Output: 8, Read Cache: 10, Creation Cache: 12, Total: 8, Premium Cost: remaining
-	dateWidth := 10
-	requestsWidth := 10
-	inputWidth := 8
-	outputWidth := 8
-	readCacheWidth := 10
-	creationCacheWidth := 12
-	totalWidth := 8
-	costWidth := usableWidth - dateWidth - requestsWidth - inputWidth - outputWidth - readCacheWidth - creationCacheWidth - totalWidth
-
-	if costWidth < 12 {
-		costWidth = 12
+	// Calculate proportional widths with better distribution
+	// Base widths: Date: 10, Requests: 10, Input: 8, Output: 8, Read Cache: 9, Creation Cache: 11, Total: 8, Burn Rate: 10, Premium Cost: remaining
+	baseWidths := []int{10, 10, 8, 8, 9, 11, 8, 10, 14} // Total base: 88
+	totalBaseWidth := 0
+	for _, w := range baseWidths {
+		totalBaseWidth += w
 	}
 
-	return []int{dateWidth, requestsWidth, inputWidth, outputWidth, readCacheWidth, creationCacheWidth, totalWidth, costWidth}
+	// If we have extra space, distribute it proportionally
+	if usableWidth > totalBaseWidth {
+		extraSpace := usableWidth - totalBaseWidth
+		// Distribute extra space: favor Premium Cost (40%), Date (15%), Burn Rate (15%), others get smaller amounts
+		distribution := []float64{0.15, 0.08, 0.06, 0.06, 0.06, 0.08, 0.06, 0.15, 0.30}
+
+		for i := range baseWidths {
+			extra := int(float64(extraSpace) * distribution[i])
+			baseWidths[i] += extra
+		}
+	}
+
+	// Ensure minimum widths
+	if baseWidths[8] < 12 { // Premium Cost minimum
+		baseWidths[8] = 12
+	}
+
+	return baseWidths
 }
 
 // refreshUsage handles data fetching for the daily usage model
@@ -206,20 +218,33 @@ func (m *DailyUsageTabModel) adjustTableHeight() {
 	// - Legend: 1 line (Requests: Base/Premium...)
 	// - Empty lines: 2 lines
 	// - Box borders: 2 lines
-	// - Safety margin: 2 lines
-	fixedHeight := 9
+	// - Safety margin: 3 lines (increased for better header visibility)
+	fixedHeight := 10
 
 	// Calculate remaining height for table
 	tableHeight := m.height - fixedHeight
 
-	// Ensure reasonable minimum and maximum
-	if tableHeight < 5 {
-		tableHeight = 5
-	} else if tableHeight > 30 {
-		tableHeight = 30 // Cap maximum table height to show all 30 days
+	// More conservative minimum to ensure headers stay visible
+	if tableHeight < 3 {
+		tableHeight = 3
+	} else if tableHeight > 25 {
+		tableHeight = 25 // Reduced max to leave more space for headers
+	}
+
+	// For very small screens, be even more conservative
+	if m.height < 20 {
+		tableHeight = max(2, m.height-12) // Leave even more space for headers
 	}
 
 	m.table.SetHeight(tableHeight)
+}
+
+// Helper function for max
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // resizeTableColumns resizes table columns based on available width
@@ -228,13 +253,25 @@ func (m *DailyUsageTabModel) resizeTableColumns() {
 	availableWidth := m.width - 6
 
 	var columns []table.Column
-	if availableWidth < 60 {
-		// Compact layout for very narrow terminals
-		columns = []table.Column{
-			{Title: "Date", Width: 10},
-			{Title: "Reqs", Width: 8},
-			{Title: "Tokens", Width: 12},
-			{Title: "Cost", Width: 12},
+	if availableWidth < 120 {
+		// Compact layout: reduce to essential columns with shorter names
+		if availableWidth < 70 {
+			// Ultra-compact: only 4 most important columns
+			columns = []table.Column{
+				{Title: "Date", Width: 10},
+				{Title: "Reqs", Width: 8},
+				{Title: "Total", Width: 10},
+				{Title: "Rate/min", Width: 12},
+			}
+		} else {
+			// Standard compact: 5 columns with shortened names
+			columns = []table.Column{
+				{Title: "Date", Width: 10},
+				{Title: "B/P", Width: 8}, // Base/Premium requests
+				{Title: "Tokens", Width: 10},
+				{Title: "Rate/min", Width: 12},
+				{Title: "Cost", Width: 12},
+			}
 		}
 	} else {
 		// Calculate column widths
@@ -247,10 +284,13 @@ func (m *DailyUsageTabModel) resizeTableColumns() {
 			{Title: "Read Cache", Width: colWidths[4]},
 			{Title: "Creation Cache", Width: colWidths[5]},
 			{Title: "Total", Width: colWidths[6]},
-			{Title: "Premium Cost ($)", Width: colWidths[7]},
+			{Title: "Burn Rate", Width: colWidths[7]},
+			{Title: "Premium Cost ($)", Width: colWidths[8]},
 		}
 	}
 
+	// Clear rows before setting new columns to avoid index out of range
+	m.table.SetRows([]table.Row{})
 	m.table.SetColumns(columns)
 	m.updateTableRows() // Update rows to match new column structure
 }
@@ -260,6 +300,9 @@ func (m *DailyUsageTabModel) updateTableRows() {
 	stats := m.usage.GetStats()
 	rows := make([]table.Row, 0, len(stats))
 
+	// Get current column count to determine the row format
+	columnCount := len(m.table.Columns())
+
 	for _, stat := range stats {
 		period := stat.Period()
 		if period.IsAllTime() {
@@ -268,26 +311,47 @@ func (m *DailyUsageTabModel) updateTableRows() {
 
 		date := period.StartAt().In(m.timezone).Format("2006-01-02")
 
-		// Check if we're in compact mode
-		availableWidth := m.width - 6
-		if availableWidth < 60 {
-			// Compact mode: combine data
+		// Create row based on current column structure
+		switch columnCount {
+		case 4:
+			// Ultra-compact: Date, Reqs, Total, Rate/min
 			requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
 			totalTokens := FormatTokenCount(stat.PremiumTokens().Total())
-			cost := fmt.Sprintf("%.4f", stat.PremiumCost().Amount())
+			burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
+			rows = append(rows, table.Row{date, requests, totalTokens, burnRate})
 
-			rows = append(rows, table.Row{date, requests, totalTokens, cost})
-		} else {
-			// Normal mode: full columns
+		case 5:
+			// Standard compact: Date, B/P, Tokens, Rate/min, Cost
+			requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
+			totalTokens := FormatTokenCount(stat.PremiumTokens().Total())
+			burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
+			cost := fmt.Sprintf("%.4f", stat.PremiumCost().Amount())
+			rows = append(rows, table.Row{date, requests, totalTokens, burnRate, cost})
+
+		case 9:
+			// Full mode: Date, Requests, Input, Output, Read Cache, Creation Cache, Total, Burn Rate, Premium Cost
 			requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
 			input := FormatTokenCount(stat.PremiumTokens().Input())
 			output := FormatTokenCount(stat.PremiumTokens().Output())
 			readCache := FormatTokenCount(stat.PremiumTokens().CacheRead())
 			creationCache := FormatTokenCount(stat.PremiumTokens().CacheCreation())
 			total := FormatTokenCount(stat.PremiumTokens().Total())
+			burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
 			cost := fmt.Sprintf("%.6f", stat.PremiumCost().Amount())
+			rows = append(rows, table.Row{date, requests, input, output, readCache, creationCache, total, burnRate, cost})
 
-			rows = append(rows, table.Row{date, requests, input, output, readCache, creationCache, total, cost})
+		default:
+			// Fallback: create a row with the minimum data and pad with empty strings
+			requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
+			totalTokens := FormatTokenCount(stat.PremiumTokens().Total())
+			burnRate := FormatBurnRate(stat.PremiumTokenBurnRate())
+			
+			row := table.Row{date, requests, totalTokens, burnRate}
+			// Pad with empty strings to match column count
+			for len(row) < columnCount {
+				row = append(row, "-")
+			}
+			rows = append(rows, row)
 		}
 	}
 
