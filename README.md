@@ -9,7 +9,7 @@ Inspired by [ccusage](https://github.com/ryoppippi/ccusage), but uses OTLP to re
 - **Real-time Monitoring**: Live TUI dashboard showing Claude Code API usage statistics
 - **Token Tracking**: Separate monitoring for base (Haiku) and premium (Sonnet/Opus) models
 - **Cost Analysis**: Track API costs and usage patterns
-- **Block Progress**: Monitor Claude token limit progress with 5-hour block tracking
+- **Block Progress**: Monitor Claude token limit progress with 5-hour block tracking and beautiful gradient progress bars
 - **Time Filtering**: Filter data by various time periods (last hour, day, week, etc.)
 - **Configurable Refresh**: Customizable monitor refresh intervals (1s to 5m)
 - **OTLP Integration**: Receives telemetry data via OpenTelemetry protocol
@@ -39,6 +39,9 @@ Download the latest release for your platform from the [releases page](https://g
 ```bash
 # Pull the latest image
 docker pull ghcr.io/elct9620/ccmon:latest
+
+# Check version
+docker run --rm ghcr.io/elct9620/ccmon:latest --version
 
 # Run in server mode (recommended for security)
 # Note: Binding to 127.0.0.1:4317 restricts access to localhost only
@@ -86,6 +89,20 @@ Monitor with Claude token limit progress bars for 5-hour blocks:
 ./ccmon -b 5am      # Track usage from 5am start blocks
 ./ccmon --block 11pm # Track usage from 11pm start blocks
 ```
+
+### Version Information
+
+Check the installed version of ccmon:
+```bash
+./ccmon --version
+# or
+./ccmon -v
+```
+
+This will display:
+- Version number (e.g., v0.4.0 for releases or "dev" for development builds)
+- Git commit hash
+- Build date
 
 ### Quick Start
 
@@ -277,7 +294,7 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://your-server:4317
 ### Prerequisites
 - Go 1.24.3+
 - Make
-- Protocol Buffers compiler
+- Protocol Buffers compiler (protoc) v30.2+
 
 ### Build Commands
 ```bash
