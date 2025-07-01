@@ -61,6 +61,30 @@ func (s Stats) Period() Period {
 	return s.period
 }
 
+// PremiumTokenBurnRate returns the premium token consumption rate per minute
+// Returns 0 for all-time periods or zero duration periods
+func (s Stats) PremiumTokenBurnRate() float64 {
+	// Skip calculation for all-time periods
+	if s.period.IsAllTime() {
+		return 0
+	}
+
+	// Calculate duration in minutes
+	duration := s.period.EndAt().Sub(s.period.StartAt())
+	if duration <= 0 {
+		return 0
+	}
+
+	minutes := duration.Minutes()
+	if minutes == 0 {
+		return 0
+	}
+
+	// Use Limited() tokens as these count against Claude's rate limits
+	limitedTokens := float64(s.premiumTokens.Limited())
+	return limitedTokens / minutes
+}
+
 // NewStats creates a new Stats instance with the given values
 func NewStats(baseRequests, premiumRequests int, baseTokens, premiumTokens Token, baseCost, premiumCost Cost, period Period) Stats {
 	return Stats{

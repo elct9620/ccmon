@@ -87,7 +87,7 @@ func (m *StatsModel) View() string {
 	}
 
 	// Create table headers
-	headers := []string{"Model Tier", "Reqs", "Limited", "Cache", "Total", "Cost ($)"}
+	headers := []string{"Model Tier", "Reqs", "Limited", "Cache", "Total", "Cost ($)", "Burn Rate"}
 
 	// Calculate dynamic column widths based on available space
 	colWidths := CalculateStatsColumnWidths(availableWidth)
@@ -113,6 +113,7 @@ func (m *StatsModel) View() string {
 		FormatTokenCount(m.stats.BaseTokens().Cache()),
 		FormatTokenCount(m.stats.BaseTokens().Total()),
 		fmt.Sprintf("%.6f", m.stats.BaseCost().Amount()),
+		"-", // Base tokens don't count against limits
 	}
 	for i, cell := range baseRow {
 		if i == 0 {
@@ -131,6 +132,7 @@ func (m *StatsModel) View() string {
 		FormatTokenCount(m.stats.PremiumTokens().Cache()),
 		FormatTokenCount(m.stats.PremiumTokens().Total()),
 		fmt.Sprintf("%.6f", m.stats.PremiumCost().Amount()),
+		FormatBurnRate(m.stats.PremiumTokenBurnRate()),
 	}
 	for i, cell := range premiumRow {
 		if i == 0 {
@@ -147,7 +149,7 @@ func (m *StatsModel) View() string {
 	}
 	b.WriteString("\n")
 
-	// Total row
+	// Total row (burn rate same as premium since base tokens don't count)
 	totalRow := []string{
 		StatStyle.Bold(true).Render("Total"),
 		fmt.Sprintf("%d", m.stats.TotalRequests()),
@@ -155,6 +157,7 @@ func (m *StatsModel) View() string {
 		FormatTokenCount(m.stats.TotalTokens().Cache()),
 		FormatTokenCount(m.stats.TotalTokens().Total()),
 		fmt.Sprintf("%.6f", m.stats.TotalCost().Amount()),
+		FormatBurnRate(m.stats.PremiumTokenBurnRate()),
 	}
 	for i, cell := range totalRow {
 		if i == 0 {
@@ -206,6 +209,14 @@ func (m *StatsModel) renderCompact() string {
 		m.stats.PremiumRequests(),
 		FormatTokenCount(m.stats.PremiumTokens().Total()),
 		m.stats.PremiumCost().Amount()))
+
+	// Add burn rate for compact view if not all-time period
+	burnRate := m.stats.PremiumTokenBurnRate()
+	if burnRate > 0 {
+		b.WriteString("\n")
+		b.WriteString(StatStyle.Render("Burn Rate: "))
+		b.WriteString(FormatBurnRate(burnRate))
+	}
 
 	// Add progress bar section if block is configured with limit
 	if m.block != nil && m.block.HasLimit() {

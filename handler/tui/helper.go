@@ -95,6 +95,20 @@ func FormatDurationFromTime(d time.Duration) string {
 	}
 }
 
+func FormatBurnRate(tokensPerMinute float64) string {
+	if tokensPerMinute <= 0 {
+		return "-"
+	}
+
+	if tokensPerMinute < 1000 {
+		return fmt.Sprintf("%.1f/min", tokensPerMinute)
+	} else if tokensPerMinute < 1000000 {
+		return fmt.Sprintf("%.1fK/min", tokensPerMinute/1000)
+	} else {
+		return fmt.Sprintf("%.2fM/min", tokensPerMinute/1000000)
+	}
+}
+
 // Layout helper functions
 func PadRight(s string, width int) string {
 	// Account for ANSI escape codes when calculating padding
@@ -107,7 +121,7 @@ func PadRight(s string, width int) string {
 
 func CalculateStatsColumnWidths(availableWidth int) []int {
 	// Base minimum widths for each column
-	minWidths := []int{12, 5, 8, 6, 8, 10} // Model Tier, Reqs, Limited, Cache, Total, Cost
+	minWidths := []int{12, 5, 8, 6, 8, 10, 10} // Model Tier, Reqs, Limited, Cache, Total, Cost, Burn Rate
 
 	// Calculate total minimum width
 	totalMinWidth := 0
@@ -118,8 +132,8 @@ func CalculateStatsColumnWidths(availableWidth int) []int {
 	// If we have extra space, distribute it proportionally
 	if availableWidth > totalMinWidth {
 		extraSpace := availableWidth - totalMinWidth
-		// Distribute extra space: favor first and last columns
-		distribution := []float64{0.3, 0.1, 0.2, 0.1, 0.2, 0.1}
+		// Distribute extra space: favor first column and burn rate column
+		distribution := []float64{0.25, 0.1, 0.15, 0.1, 0.15, 0.1, 0.15}
 
 		for i := range minWidths {
 			extra := int(float64(extraSpace) * distribution[i])

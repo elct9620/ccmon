@@ -40,7 +40,11 @@ func main() {
 	// Check for version flag after config is loaded
 	if showVersion {
 		if commit != "unknown" && commit != "" {
-			fmt.Printf("ccmon version %s-%s (built %s)\n", version, commit[:7], date)
+			shortCommit := commit
+			if len(commit) > 7 {
+				shortCommit = commit[:7]
+			}
+			fmt.Printf("ccmon version %s-%s (built %s)\n", version, shortCommit, date)
 		} else {
 			fmt.Printf("ccmon version %s\n", version)
 		}
