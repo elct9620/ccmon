@@ -252,7 +252,7 @@ func (m *StatsModel) renderBlockProgress() string {
 	// Block header
 	blockTime := ""
 	if m.block != nil {
-		blockTime = m.block.FormatBlockTime(m.timezone)
+		blockTime = FormatBlockTime(*m.block, m.timezone)
 	}
 	b.WriteString(HeaderStyle.Render(fmt.Sprintf("Block Progress (%s)", blockTime)))
 	b.WriteString("\n\n")

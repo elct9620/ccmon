@@ -295,7 +295,7 @@ func (vm *ViewModel) GetTimeFilterString() string {
 		return "Last 30 Days"
 	case FilterBlock:
 		if vm.Block() != nil {
-			return "Current Block (" + vm.Block().FormatBlockTime(vm.timezone) + ")"
+			return "Current Block (" + FormatBlockTime(*vm.Block(), vm.timezone) + ")"
 		}
 		return "Block (not configured)"
 	default:

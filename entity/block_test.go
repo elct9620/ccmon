@@ -73,51 +73,6 @@ func TestBlock_NextBlock(t *testing.T) {
 	}
 }
 
-func TestBlock_FormatBlockTime(t *testing.T) {
-	loc, _ := time.LoadLocation("UTC")
-
-	tests := []struct {
-		name       string
-		blockStart time.Time
-		want       string
-	}{
-		{
-			name:       "morning block",
-			blockStart: time.Date(2025, 1, 1, 10, 0, 0, 0, loc), // 10am start
-			want:       "10am - 3pm",
-		},
-		{
-			name:       "afternoon block",
-			blockStart: time.Date(2025, 1, 1, 15, 0, 0, 0, loc), // 3pm start
-			want:       "3pm - 8pm",
-		},
-		{
-			name:       "late night block",
-			blockStart: time.Date(2024, 12, 31, 23, 0, 0, 0, loc), // 11pm start
-			want:       "11pm - 4am",
-		},
-		{
-			name:       "midnight start",
-			blockStart: time.Date(2025, 1, 1, 0, 0, 0, 0, loc), // 12am start
-			want:       "12am - 5am",
-		},
-		{
-			name:       "noon crossing",
-			blockStart: time.Date(2025, 1, 1, 10, 0, 0, 0, loc), // 10am start
-			want:       "10am - 3pm",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			block := NewBlock(tt.blockStart.UTC())
-			got := block.FormatBlockTime(loc)
-			if got != tt.want {
-				t.Errorf("FormatBlockTime() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 func TestBlock_ValueObjectBehavior(t *testing.T) {
 	loc, _ := time.LoadLocation("UTC")
@@ -146,16 +101,4 @@ func TestBlock_ValueObjectBehavior(t *testing.T) {
 		}
 	})
 
-	t.Run("Block formatting works correctly", func(t *testing.T) {
-		// Test the key scenario: 9:46am with 10am start should show "10am - 3pm"
-		start := time.Date(2025, 1, 1, 10, 0, 0, 0, loc) // 10am start
-		block := NewBlock(start.UTC())
-
-		formatted := block.FormatBlockTime(loc)
-		expected := "10am - 3pm"
-
-		if formatted != expected {
-			t.Errorf("FormatBlockTime() = %v, want %v", formatted, expected)
-		}
-	})
 }

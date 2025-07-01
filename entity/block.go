@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -101,28 +100,4 @@ func (b Block) NextBlock(now time.Time) Block {
 	// Create new block at the appropriate position, preserving token limit
 	newStart := b.startAt.Add(time.Duration(blockIndex) * TimeBlockDuration)
 	return NewBlockWithLimit(newStart, b.tokenLimit)
-}
-
-// FormatBlockTime formats the block period for display in the given timezone
-func (b Block) FormatBlockTime(timezone *time.Location) string {
-	startLocal := b.startAt.In(timezone)
-	endLocal := b.EndAt().In(timezone)
-
-	startStr := formatHour(startLocal.Hour())
-	endStr := formatHour(endLocal.Hour())
-
-	return fmt.Sprintf("%s - %s", startStr, endStr)
-}
-
-// formatHour formats hour (0-23) into 12-hour format with am/pm
-func formatHour(hour int) string {
-	if hour == 0 {
-		return "12am"
-	} else if hour < 12 {
-		return fmt.Sprintf("%dam", hour)
-	} else if hour == 12 {
-		return "12pm"
-	} else {
-		return fmt.Sprintf("%dpm", hour-12)
-	}
 }
