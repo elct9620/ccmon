@@ -141,3 +141,18 @@ func (m *OverviewTabModel) RefreshRequests(period entity.Period, sortOrder SortO
 func (m *OverviewTabModel) GetRequestsTable() *RequestsTableModel {
 	return m.requestsTableModel
 }
+
+// Focus sets focus on the requests table
+func (m *OverviewTabModel) Focus() {
+	m.requestsTableModel.Focus()
+}
+
+// Blur removes focus from the requests table
+func (m *OverviewTabModel) Blur() {
+	m.requestsTableModel.Blur()
+}
+
+// Focused returns whether the requests table is focused
+func (m *OverviewTabModel) Focused() bool {
+	return m.requestsTableModel.Focused()
+}

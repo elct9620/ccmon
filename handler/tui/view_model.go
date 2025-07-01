@@ -61,6 +61,10 @@ func NewViewModel(getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calcula
 
 // Init is the Bubble Tea initialization function
 func (vm *ViewModel) Init() tea.Cmd {
+	// Ensure the current tab is focused on startup
+	vm.overviewTab.Focus()
+	vm.dailyUsageTab.Blur()
+
 	return tea.Batch(
 		tea.EnterAltScreen,
 		vm.overviewTab.Init(),
@@ -110,16 +114,28 @@ func (vm *ViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "tab":
 			// Switch tabs
 			if vm.currentTab == TabCurrent {
+				// Blur current tab and focus daily tab
+				vm.overviewTab.Blur()
 				vm.currentTab = TabDaily
+				vm.dailyUsageTab.Focus()
 				return vm, vm.refreshUsage
 			} else {
+				// Blur daily tab and focus current tab
+				vm.dailyUsageTab.Blur()
 				vm.currentTab = TabCurrent
+				vm.overviewTab.Focus()
 				return vm, vm.refreshStats
 			}
 		default:
 			// Forward key messages to active tab
-			if vm.currentTab == TabCurrent {
+			switch vm.currentTab {
+			case TabCurrent:
 				_, cmd := vm.overviewTab.Update(msg)
+				if cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+			case TabDaily:
+				_, cmd := vm.dailyUsageTab.Update(msg)
 				if cmd != nil {
 					cmds = append(cmds, cmd)
 				}

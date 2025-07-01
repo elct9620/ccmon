@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/usecase"
@@ -15,6 +16,7 @@ import (
 type DailyUsageTabModel struct {
 	// Data ownership
 	usage entity.Usage
+	table table.Model
 
 	// Configuration
 	timezone *time.Location
@@ -27,8 +29,33 @@ type DailyUsageTabModel struct {
 
 // NewDailyUsageTabModel creates a new daily usage tab model with usecase dependency
 func NewDailyUsageTabModel(getUsageQuery *usecase.GetUsageQuery, timezone *time.Location) *DailyUsageTabModel {
+	// Initialize table columns
+	columns := []table.Column{
+		{Title: "Date", Width: 10},
+		{Title: "Requests", Width: 10},
+		{Title: "Input", Width: 8},
+		{Title: "Output", Width: 8},
+		{Title: "Read Cache", Width: 10},
+		{Title: "Creation Cache", Width: 12},
+		{Title: "Total", Width: 8},
+		{Title: "Premium Cost ($)", Width: 16},
+	}
+
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithFocused(false), // Daily tab doesn't need focus by default
+		table.WithHeight(10),     // Will be adjusted based on terminal size
+	)
+
+	// Set table styles
+	s := table.DefaultStyles()
+	s.Header = s.Header.Bold(true)
+	s.Selected = s.Selected.Bold(false)
+	t.SetStyles(s)
+
 	return &DailyUsageTabModel{
 		usage:         entity.Usage{},
+		table:         t,
 		timezone:      timezone,
 		width:         120,
 		height:        30,
@@ -43,6 +70,8 @@ func (m *DailyUsageTabModel) Init() tea.Cmd {
 
 // Update handles messages and updates the model
 func (m *DailyUsageTabModel) Update(msg tea.Msg) (ComponentModel, tea.Cmd) {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case ResizeMsg:
 		m.SetSize(msg.Width, msg.Height)
@@ -50,8 +79,12 @@ func (m *DailyUsageTabModel) Update(msg tea.Msg) (ComponentModel, tea.Cmd) {
 		return m, m.refreshUsage()
 	case UsageDataMsg:
 		m.usage = msg.Usage
+		m.updateTableRows()
+	case tea.KeyMsg:
+		// Handle table navigation
+		m.table, cmd = m.table.Update(msg)
 	}
-	return m, nil
+	return m, cmd
 }
 
 // View renders the daily usage tab
@@ -70,9 +103,16 @@ func (m *DailyUsageTabModel) View() string {
 	legend := HelpStyle.Render("Requests: Base/Premium • Tokens: Premium only (Sonnet/Opus)")
 	b.WriteString(legend + "\n\n")
 
-	// Daily usage table
-	dailyContent := m.renderDailyUsageTable()
-	dailyBox := BoxStyle.Width(m.width - 4).Render(dailyContent)
+	// Check if we have data
+	if len(m.usage.GetStats()) == 0 {
+		emptyContent := HelpStyle.Render("No usage data available")
+		dailyBox := BoxStyle.Width(m.width - 4).Render(emptyContent)
+		b.WriteString(dailyBox + "\n")
+		return b.String()
+	}
+
+	// Daily usage table - now using table.Model
+	dailyBox := BoxStyle.Width(m.width - 4).Render(m.table.View())
 	b.WriteString(dailyBox + "\n")
 
 	return b.String()
@@ -82,103 +122,14 @@ func (m *DailyUsageTabModel) View() string {
 func (m *DailyUsageTabModel) SetSize(width, height int) {
 	m.width = width
 	m.height = height
+	m.resizeTableColumns()
+	m.adjustTableHeight()
 }
 
 // UpdateUsage updates the usage data
 func (m *DailyUsageTabModel) UpdateUsage(usage entity.Usage) {
 	m.usage = usage
-}
-
-// renderDailyUsageTable renders the daily usage statistics as a table
-func (m *DailyUsageTabModel) renderDailyUsageTable() string {
-	var b strings.Builder
-
-	stats := m.usage.GetStats()
-
-	if len(stats) == 0 {
-		b.WriteString(HelpStyle.Render("No usage data available"))
-		return b.String()
-	}
-
-	// Calculate available width for table
-	availableWidth := m.width - 6 // Account for box padding
-	if availableWidth < 60 {
-		return m.renderCompactDailyUsage(stats)
-	}
-
-	// Table headers
-	headers := []string{"Date", "Requests", "Input", "Output", "Read Cache", "Creation Cache", "Total", "Premium Cost ($)"}
-	colWidths := m.calculateDailyTableWidths(availableWidth)
-
-	// Render header row
-	for i, header := range headers {
-		cell := TableHeaderStyle.Render(PadRight(header, colWidths[i]))
-		b.WriteString(cell)
-		if i < len(headers)-1 {
-			b.WriteString(" ") // Add space between columns
-		}
-	}
-	b.WriteString("\n")
-
-	// Separator line
-	for i, width := range colWidths {
-		b.WriteString(strings.Repeat("─", width))
-		if i < len(colWidths)-1 {
-			b.WriteString(" ") // Add space between separator lines
-		}
-	}
-	b.WriteString("\n")
-
-	// Data rows
-	for _, stat := range stats {
-		period := stat.Period()
-		if period.IsAllTime() {
-			continue // Skip all-time periods
-		}
-
-		date := period.StartAt().In(m.timezone).Format("2006-01-02")
-		requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
-		input := FormatTokenCount(stat.PremiumTokens().Input())
-		output := FormatTokenCount(stat.PremiumTokens().Output())
-		readCache := FormatTokenCount(stat.PremiumTokens().CacheRead())
-		creationCache := FormatTokenCount(stat.PremiumTokens().CacheCreation())
-		total := FormatTokenCount(stat.PremiumTokens().Total())
-		cost := fmt.Sprintf("%.6f", stat.PremiumCost().Amount())
-
-		row := []string{date, requests, input, output, readCache, creationCache, total, cost}
-		for i, cell := range row {
-			b.WriteString(PadRight(cell, colWidths[i]))
-			if i < len(row)-1 {
-				b.WriteString(" ") // Add space between columns
-			}
-		}
-		b.WriteString("\n")
-	}
-
-	return b.String()
-}
-
-// renderCompactDailyUsage renders compact daily usage for narrow terminals
-func (m *DailyUsageTabModel) renderCompactDailyUsage(stats []entity.Stats) string {
-	var b strings.Builder
-
-	for _, stat := range stats {
-		period := stat.Period()
-		if period.IsAllTime() {
-			continue
-		}
-
-		// Convert UTC time back to user's timezone for display
-		date := period.StartAt().In(m.timezone).Format("2006-01-02")
-		b.WriteString(StatStyle.Render(date))
-		b.WriteString(fmt.Sprintf(": %d/%d reqs, %s premium tokens, $%.6f\n",
-			stat.BaseRequests(),
-			stat.PremiumRequests(),
-			FormatTokenCount(stat.PremiumTokens().Total()),
-			stat.PremiumCost().Amount()))
-	}
-
-	return b.String()
+	m.updateTableRows()
 }
 
 // calculateDailyTableWidths calculates column widths for daily usage table
@@ -224,6 +175,117 @@ func (m *DailyUsageTabModel) refreshUsage() tea.Cmd {
 // Usage returns the current usage (for compatibility)
 func (m *DailyUsageTabModel) Usage() entity.Usage {
 	return m.usage
+}
+
+// Focus sets focus on the table
+func (m *DailyUsageTabModel) Focus() {
+	m.table.Focus()
+}
+
+// Blur removes focus from the table
+func (m *DailyUsageTabModel) Blur() {
+	m.table.Blur()
+}
+
+// Focused returns whether the table is focused
+func (m *DailyUsageTabModel) Focused() bool {
+	return m.table.Focused()
+}
+
+// adjustTableHeight calculates and sets appropriate table height
+func (m *DailyUsageTabModel) adjustTableHeight() {
+	// Fixed height components:
+	// - Header: 1 line (Daily Usage Statistics)
+	// - Subtitle: 1 line (Premium Token Breakdown)
+	// - Legend: 1 line (Requests: Base/Premium...)
+	// - Empty lines: 2 lines
+	// - Box borders: 2 lines
+	// - Safety margin: 2 lines
+	fixedHeight := 9
+
+	// Calculate remaining height for table
+	tableHeight := m.height - fixedHeight
+
+	// Ensure reasonable minimum and maximum
+	if tableHeight < 5 {
+		tableHeight = 5
+	} else if tableHeight > 30 {
+		tableHeight = 30 // Cap maximum table height to show all 30 days
+	}
+
+	m.table.SetHeight(tableHeight)
+}
+
+// resizeTableColumns resizes table columns based on available width
+func (m *DailyUsageTabModel) resizeTableColumns() {
+	// Calculate available width for table (accounting for box padding)
+	availableWidth := m.width - 6
+
+	var columns []table.Column
+	if availableWidth < 60 {
+		// Compact layout for very narrow terminals
+		columns = []table.Column{
+			{Title: "Date", Width: 10},
+			{Title: "Reqs", Width: 8},
+			{Title: "Tokens", Width: 12},
+			{Title: "Cost", Width: 12},
+		}
+	} else {
+		// Calculate column widths
+		colWidths := m.calculateDailyTableWidths(availableWidth)
+		columns = []table.Column{
+			{Title: "Date", Width: colWidths[0]},
+			{Title: "Requests", Width: colWidths[1]},
+			{Title: "Input", Width: colWidths[2]},
+			{Title: "Output", Width: colWidths[3]},
+			{Title: "Read Cache", Width: colWidths[4]},
+			{Title: "Creation Cache", Width: colWidths[5]},
+			{Title: "Total", Width: colWidths[6]},
+			{Title: "Premium Cost ($)", Width: colWidths[7]},
+		}
+	}
+
+	m.table.SetColumns(columns)
+	m.updateTableRows() // Update rows to match new column structure
+}
+
+// updateTableRows updates the table rows based on current usage data
+func (m *DailyUsageTabModel) updateTableRows() {
+	stats := m.usage.GetStats()
+	rows := make([]table.Row, 0, len(stats))
+
+	for _, stat := range stats {
+		period := stat.Period()
+		if period.IsAllTime() {
+			continue // Skip all-time periods
+		}
+
+		date := period.StartAt().In(m.timezone).Format("2006-01-02")
+
+		// Check if we're in compact mode
+		availableWidth := m.width - 6
+		if availableWidth < 60 {
+			// Compact mode: combine data
+			requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
+			totalTokens := FormatTokenCount(stat.PremiumTokens().Total())
+			cost := fmt.Sprintf("%.4f", stat.PremiumCost().Amount())
+
+			rows = append(rows, table.Row{date, requests, totalTokens, cost})
+		} else {
+			// Normal mode: full columns
+			requests := fmt.Sprintf("%d/%d", stat.BaseRequests(), stat.PremiumRequests())
+			input := FormatTokenCount(stat.PremiumTokens().Input())
+			output := FormatTokenCount(stat.PremiumTokens().Output())
+			readCache := FormatTokenCount(stat.PremiumTokens().CacheRead())
+			creationCache := FormatTokenCount(stat.PremiumTokens().CacheCreation())
+			total := FormatTokenCount(stat.PremiumTokens().Total())
+			cost := fmt.Sprintf("%.6f", stat.PremiumCost().Amount())
+
+			rows = append(rows, table.Row{date, requests, input, output, readCache, creationCache, total, cost})
+		}
+	}
+
+	m.table.SetRows(rows)
 }
 
 // Message types for DailyUsageTabModel
