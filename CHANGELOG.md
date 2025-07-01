@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.0](https://github.com/elct9620/ccmon/compare/v0.3.2...v0.4.0) (2025-07-01)
+
+
+### Features
+
+* add daily usage tab with tab navigation ([3d1ed23](https://github.com/elct9620/ccmon/commit/3d1ed23fae0ed2623f33b595a4b5a4e6cc80bb51))
+* add explanatory text to daily usage tab for premium token clarity ([3ff31f2](https://github.com/elct9620/ccmon/commit/3ff31f24ba60d2e615f70e690c50e4ce0fb674df))
+* add version flag with build metadata integration ([#16](https://github.com/elct9620/ccmon/issues/16)) ([f058780](https://github.com/elct9620/ccmon/commit/f058780dba8febbc352da96a8ca5d463774fe29d))
+* enhance daily usage table with detailed premium token breakdown ([253d64e](https://github.com/elct9620/ccmon/commit/253d64eaa2dfef4590e12a87432107ff7819d84a))
+
+
+### Bug Fixes
+
+* enable keyboard navigation in daily usage tab ([019e14c](https://github.com/elct9620/ccmon/commit/019e14c89dc8e347b837c8af870617cd38edccdc))
+* handle timezone correctly for daily usage statistics ([c2bf3bf](https://github.com/elct9620/ccmon/commit/c2bf3bfc085471a27ff22542d4015ad0031a6190))
+* prevent proto file version inconsistency in Homebrew PRs ([77362c3](https://github.com/elct9620/ccmon/commit/77362c37181aded50407c5122c73cf742e5ae0f6))
+* remove unused min function from mock repository test ([780999d](https://github.com/elct9620/ccmon/commit/780999dbe50c8b7d15a7f1c10e68a7b8cd2396c3))
+
 ## [0.3.2](https://github.com/elct9620/ccmon/compare/v0.3.1...v0.3.2) (2025-06-30)
 
 
