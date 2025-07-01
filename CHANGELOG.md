@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/elct9620/ccmon/compare/v0.4.0...v0.4.1) (2025-07-01)
+
+
+### Bug Fixes
+
+* prevent daily usage table right border from being cut off ([2bf5ab0](https://github.com/elct9620/ccmon/commit/2bf5ab0c8aeb2affbc7e47111bd01b66b212c19b))
+
 ## [0.4.0](https://github.com/elct9620/ccmon/compare/v0.3.2...v0.4.0) (2025-07-01)
 
 
