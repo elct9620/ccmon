@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0](https://github.com/elct9620/ccmon/compare/v0.4.1...v0.5.0) (2025-07-01)
+
+
+### Features
+
+* add burn rate to daily usage and fix resize panic ([0c083fe](https://github.com/elct9620/ccmon/commit/0c083fe97d753d4e365cda27bd76ad2635574237))
+* add premium token burn rate display to dashboard ([a07b386](https://github.com/elct9620/ccmon/commit/a07b386e90c649f8b206f75ebbc09d947e3b4174))
+* implement grouped layout for daily usage and fix resize panic ([0c9f96c](https://github.com/elct9620/ccmon/commit/0c9f96c2ad4d49654fc8a74eff2f8a6389beb7a8))
+
 ## [0.4.1](https://github.com/elct9620/ccmon/compare/v0.4.0...v0.4.1) (2025-07-01)
 
 
