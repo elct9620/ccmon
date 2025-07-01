@@ -31,7 +31,7 @@ ccmon has two distinct operating modes:
 ## Development Requirements
 
 ### Protocol Buffers Toolchain
-- **Required protoc version**: v28.0 or higher
+- **Required protoc version**: v30.2 or higher
 - **Required protoc-gen-go**: v1.28.1 (pinned for consistency)
 - **Required protoc-gen-go-grpc**: v1.2.0 (pinned for consistency)
 - **Installation**: 

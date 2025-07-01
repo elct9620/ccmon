@@ -47,7 +47,7 @@ jobs:
       - name: Install protoc
         run: |
           # Install specific protoc version for consistency
-          PROTOC_VERSION=28.0
+          PROTOC_VERSION=30.2
           PROTOC_ZIP=protoc-${PROTOC_VERSION}-linux-x86_64.zip
           curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}
           sudo unzip -o ${PROTOC_ZIP} -d /usr/local bin/protoc

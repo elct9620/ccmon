@@ -62,14 +62,14 @@ deps:
 check-protoc:
 	@echo "Checking Protocol Buffers toolchain..."
 	@if ! command -v protoc >/dev/null 2>&1; then \
-		echo "Error: protoc is not installed. Please install Protocol Buffers compiler v28.0+"; \
+		echo "Error: protoc is not installed. Please install Protocol Buffers compiler v30.2+"; \
 		echo "Visit: https://github.com/protocolbuffers/protobuf/releases"; \
 		exit 1; \
 	fi
 	@PROTOC_VERSION=$$(protoc --version | sed 's/libprotoc //'); \
 	MAJOR_VERSION=$$(echo $$PROTOC_VERSION | cut -d. -f1); \
-	if [ "$$MAJOR_VERSION" -lt 28 ] 2>/dev/null; then \
-		echo "Warning: protoc version $$PROTOC_VERSION detected. Recommended: v28.0+"; \
+	if [ "$$MAJOR_VERSION" -lt 30 ] 2>/dev/null; then \
+		echo "Warning: protoc version $$PROTOC_VERSION detected. Recommended: v30.2+"; \
 		echo "This may cause version inconsistencies in generated files."; \
 		echo "Consider upgrading: https://github.com/protocolbuffers/protobuf/releases"; \
 	else \
