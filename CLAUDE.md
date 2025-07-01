@@ -63,6 +63,9 @@ gofmt -w .
 # Run server (OTLP collector + Query service)
 ./ccmon -s
 
+# Check version information
+./ccmon --version
+
 # Clean build artifacts
 make clean
 
