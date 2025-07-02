@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/elct9620/ccmon/compare/v0.5.0...v0.6.0) (2025-07-02)
+
+
+### Features
+
+* implement data retention feature with configurable cleanup ([d5dcb9f](https://github.com/elct9620/ccmon/commit/d5dcb9f8538729fe719804c135a58b20fc74343b))
+
+
+### Bug Fixes
+
+* handle error return values in boltdb_api_request_repository tests ([6668ca8](https://github.com/elct9620/ccmon/commit/6668ca8682bf810d7d7fb40707629d4e19a84a57))
+* handle error return values in server_cleanup_test.go ([eebaf88](https://github.com/elct9620/ccmon/commit/eebaf88b8945e831255653b8cc6f5396cd0ac953))
+
 ## [0.5.0](https://github.com/elct9620/ccmon/compare/v0.4.1...v0.5.0) (2025-07-01)
 
 
