@@ -12,6 +12,7 @@ Inspired by [ccusage](https://github.com/ryoppippi/ccusage), but uses OTLP to re
 - **Block Progress**: Monitor Claude token limit progress with 5-hour block tracking and beautiful gradient progress bars
 - **Time Filtering**: Filter data by various time periods (last hour, day, week, etc.)
 - **Configurable Refresh**: Customizable monitor refresh intervals (1s to 5m)
+- **Data Retention**: Automatic cleanup of old telemetry data with configurable retention periods
 - **OTLP Integration**: Receives telemetry data via OpenTelemetry protocol
 - **Dual Operating Modes**: Monitor mode (TUI) and server mode (headless collector)
 
@@ -72,6 +73,10 @@ Headless OTLP collector + gRPC query service that receives telemetry data from C
 ./ccmon -s
 # or
 ./ccmon --server
+
+# With data retention (automatically delete old records)
+./ccmon -s --server-retention 7d   # Keep 7 days of data
+./ccmon -s --server-retention 30d  # Keep 30 days of data
 ```
 
 **Important**: You must run the server mode first to collect telemetry data before using the monitor.
@@ -148,6 +153,15 @@ docker run -d \
   -v ccmon-data:/data \
   -e TZ=UTC \
   ghcr.io/elct9620/ccmon:latest
+
+# With data retention
+docker run -d \
+  --name ccmon \
+  -p 127.0.0.1:4317:4317 \
+  -v ccmon-data:/data \
+  -e TZ=UTC \
+  ghcr.io/elct9620/ccmon:latest \
+  --server --server-retention 7d
 
 # Check server logs
 docker logs ccmon
@@ -230,6 +244,10 @@ path = "~/.ccmon/ccmon.db"
 [server]
 # gRPC server address for OTLP receiver + Query service
 address = "127.0.0.1:4317"
+# Data retention period (optional)
+# retention = "7d"  # Keep 7 days of data
+# retention = "30d" # Keep 30 days of data
+# retention = "never" # Keep all data (default)
 
 [monitor]
 # gRPC server address for query service
@@ -271,6 +289,45 @@ refresh_interval = "5s"    # Default: matches Claude Code telemetry frequency
 - **1-5 minutes**: Minimal overhead for background monitoring on slower systems
 
 **Note:** Claude Code sends telemetry approximately every 5 seconds, so refresh intervals shorter than 5s may not show new data more frequently.
+
+### Data Retention
+
+ccmon supports automatic cleanup of old telemetry data to manage storage space. When enabled, the server will automatically delete records older than the specified period.
+
+#### Configuration Options
+
+1. **Via Configuration File** (config.toml):
+```toml
+[server]
+retention = "7d"    # Keep 7 days of data
+# retention = "30d"   # Keep 30 days of data  
+# retention = "never" # Keep all data (default)
+```
+
+2. **Via Command Line Flag**:
+```bash
+./ccmon -s --server-retention 7d
+```
+
+3. **Via Docker**:
+```bash
+docker run -d \
+  --name ccmon \
+  -p 127.0.0.1:4317:4317 \
+  -v ccmon-data:/data \
+  ghcr.io/elct9620/ccmon:latest \
+  --server --server-retention 30d
+```
+
+#### Retention Period Format
+- Supported formats: `"1d"`, `"7d"`, `"30d"`, `"24h"`, `"168h"`, `"720h"`
+- Minimum retention: 24 hours (prevents accidental data loss)
+- Default: `"never"` (no automatic cleanup)
+
+#### How It Works
+- Cleanup runs automatically every 6 hours when retention is enabled
+- Only deletes records older than the specified period
+- Runs in the background without affecting server performance
 
 ## Claude Code Integration
 
