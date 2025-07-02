@@ -15,10 +15,10 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThan(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name           string
-		setupRecords   []schema.APIRequest
-		cutoffTime     time.Time
-		expectedDeleted int
+		name              string
+		setupRecords      []schema.APIRequest
+		cutoffTime        time.Time
+		expectedDeleted   int
 		expectedRemaining []string // session IDs that should remain
 	}{
 		{
@@ -29,8 +29,8 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThan(t *testing.T) {
 				createTestRecord("session3", time.Date(2025, 1, 3, 10, 0, 0, 0, time.UTC)),
 				createTestRecord("session4", time.Date(2025, 1, 4, 10, 0, 0, 0, time.UTC)),
 			},
-			cutoffTime:      time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC),
-			expectedDeleted: 2,
+			cutoffTime:        time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC),
+			expectedDeleted:   2,
 			expectedRemaining: []string{"session3", "session4"},
 		},
 		{
@@ -39,8 +39,8 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThan(t *testing.T) {
 				createTestRecord("session1", time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)),
 				createTestRecord("session2", time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC)),
 			},
-			cutoffTime:      time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC),
-			expectedDeleted: 2,
+			cutoffTime:        time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC),
+			expectedDeleted:   2,
 			expectedRemaining: []string{},
 		},
 		{
@@ -49,15 +49,15 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThan(t *testing.T) {
 				createTestRecord("session1", time.Date(2025, 1, 3, 10, 0, 0, 0, time.UTC)),
 				createTestRecord("session2", time.Date(2025, 1, 4, 10, 0, 0, 0, time.UTC)),
 			},
-			cutoffTime:      time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
-			expectedDeleted: 0,
+			cutoffTime:        time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
+			expectedDeleted:   0,
 			expectedRemaining: []string{"session1", "session2"},
 		},
 		{
-			name: "empty database",
-			setupRecords: []schema.APIRequest{},
-			cutoffTime:      time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
-			expectedDeleted: 0,
+			name:              "empty database",
+			setupRecords:      []schema.APIRequest{},
+			cutoffTime:        time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
+			expectedDeleted:   0,
 			expectedRemaining: []string{},
 		},
 		{
@@ -66,8 +66,8 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThan(t *testing.T) {
 				createTestRecord("session1", time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC)),
 				createTestRecord("session2", time.Date(2025, 1, 2, 10, 0, 0, 1, time.UTC)), // 1 nanosecond later
 			},
-			cutoffTime:      time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC),
-			expectedDeleted: 0, // Records at exact cutoff time should not be deleted
+			cutoffTime:        time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC),
+			expectedDeleted:   0, // Records at exact cutoff time should not be deleted
 			expectedRemaining: []string{"session1", "session2"},
 		},
 		{
@@ -77,8 +77,8 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThan(t *testing.T) {
 				createTestRecord("sessionB", time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)),
 				createTestRecord("sessionC", time.Date(2025, 1, 3, 10, 0, 0, 0, time.UTC)),
 			},
-			cutoffTime:      time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
-			expectedDeleted: 2,
+			cutoffTime:        time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
+			expectedDeleted:   2,
 			expectedRemaining: []string{"sessionC"},
 		},
 	}
@@ -89,14 +89,22 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThan(t *testing.T) {
 
 			// Create temporary database
 			dbPath := createTempDB(t)
-			defer os.Remove(dbPath)
+			defer func() {
+				if err := os.Remove(dbPath); err != nil {
+					t.Logf("Failed to remove temp database: %v", err)
+				}
+			}()
 
 			// Open database
 			db, err := bbolt.Open(dbPath, 0600, nil)
 			if err != nil {
 				t.Fatalf("Failed to open database: %v", err)
 			}
-			defer db.Close()
+			defer func() {
+				if err := db.Close(); err != nil {
+					t.Logf("Failed to close database: %v", err)
+				}
+			}()
 
 			// Initialize bucket
 			err = db.Update(func(tx *bbolt.Tx) error {
@@ -173,14 +181,22 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThanWithLargeDataset(t *testing.T
 
 	// Create temporary database
 	dbPath := createTempDB(t)
-	defer os.Remove(dbPath)
+	defer func() {
+		if err := os.Remove(dbPath); err != nil {
+			t.Logf("Failed to remove temp database: %v", err)
+		}
+	}()
 
 	// Open database
 	db, err := bbolt.Open(dbPath, 0600, nil)
 	if err != nil {
 		t.Fatalf("Failed to open database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Initialize bucket
 	err = db.Update(func(tx *bbolt.Tx) error {
@@ -196,7 +212,7 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThanWithLargeDataset(t *testing.T
 	// Create 1000 records over different time periods
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	recordCount := 1000
-	
+
 	for i := 0; i < recordCount; i++ {
 		timestamp := baseTime.Add(time.Duration(i) * time.Hour)
 		record := createTestRecord(fmt.Sprintf("session%d", i), timestamp)
@@ -236,7 +252,11 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThanDatabaseError(t *testing.T) {
 
 	// Create temporary database
 	dbPath := createTempDB(t)
-	defer os.Remove(dbPath)
+	defer func() {
+		if err := os.Remove(dbPath); err != nil {
+			t.Logf("Failed to remove temp database: %v", err)
+		}
+	}()
 
 	// Open database
 	db, err := bbolt.Open(dbPath, 0600, nil)
@@ -256,7 +276,9 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThanDatabaseError(t *testing.T) {
 	repo := NewBoltDBAPIRequestRepository(db)
 
 	// Close database to simulate error
-	db.Close()
+	if err := db.Close(); err != nil {
+		t.Logf("Failed to close database (expected for test): %v", err)
+	}
 
 	// Attempt to delete should return error
 	cutoffTime := time.Now().Add(-24 * time.Hour)
@@ -292,4 +314,3 @@ func createTestRecord(sessionID string, timestamp time.Time) schema.APIRequest {
 		DurationMS:          1000,
 	}
 }
-
