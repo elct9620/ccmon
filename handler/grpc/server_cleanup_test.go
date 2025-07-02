@@ -75,11 +75,19 @@ func TestCleanupSchedulerIntegration(t *testing.T) {
 
 			// Create temporary database
 			dbPath := createTempDBFile(t)
-			defer os.Remove(dbPath)
+			defer func() {
+				if err := os.Remove(dbPath); err != nil {
+					t.Logf("Failed to remove temp database: %v", err)
+				}
+			}()
 
 			// Setup database with test data
 			db := setupTestDatabase(t, dbPath, tt.initialRecords)
-			defer db.Close()
+			defer func() {
+				if err := db.Close(); err != nil {
+					t.Logf("Failed to close database: %v", err)
+				}
+			}()
 
 			// Create repository and cleanup command
 			repo := repository.NewBoltDBAPIRequestRepository(db)
@@ -134,7 +142,11 @@ func TestRunCleanupFunction(t *testing.T) {
 
 	// Create temporary database
 	dbPath := createTempDBFile(t)
-	defer os.Remove(dbPath)
+	defer func() {
+		if err := os.Remove(dbPath); err != nil {
+			t.Logf("Failed to remove temp database: %v", err)
+		}
+	}()
 
 	// Setup test records
 	testRecords := []schema.APIRequest{
@@ -144,7 +156,11 @@ func TestRunCleanupFunction(t *testing.T) {
 	}
 
 	db := setupTestDatabase(t, dbPath, testRecords)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Create repository and cleanup command
 	repo := repository.NewBoltDBAPIRequestRepository(db)
@@ -188,10 +204,18 @@ func TestCleanupSchedulerCancellation(t *testing.T) {
 
 	// Create temporary database
 	dbPath := createTempDBFile(t)
-	defer os.Remove(dbPath)
+	defer func() {
+		if err := os.Remove(dbPath); err != nil {
+			t.Logf("Failed to remove temp database: %v", err)
+		}
+	}()
 
 	db := setupTestDatabase(t, dbPath, []schema.APIRequest{})
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Create repository and cleanup command
 	repo := repository.NewBoltDBAPIRequestRepository(db)
