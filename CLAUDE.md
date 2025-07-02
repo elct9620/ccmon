@@ -19,11 +19,13 @@ ccmon has two distinct operating modes:
    ./ccmon
    ```
 
-2. **Server Mode**: Headless OTLP collector + gRPC query service that receives and stores telemetry data
+2. **Server Mode**: Headless OTLP collector + gRPC query service that receives and stores telemetry data with optional data retention
    ```bash
    ./ccmon -s
    # or
    ./ccmon --server
+   # Configure retention via config file or flag:
+   ./ccmon -s --server-retention 30d
    ```
 
 3. **Block Tracking Mode**: Monitor with Claude token limit progress bars for 5-hour blocks

@@ -49,6 +49,10 @@ func (m *mockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
 	return m.requests, m.findErr
 }
 
+func (m *mockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
+	return 0, nil
+}
+
 // Test helper to create an in-memory gRPC server
 func setupTestServer(t *testing.T) (*grpc.Server, *bufconn.Listener, pb.QueryServiceClient, *mockAPIRequestRepository) {
 	// Create bufconn listener

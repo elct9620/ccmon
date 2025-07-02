@@ -62,6 +62,10 @@ func (m *mockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
 	return m.requests, m.findErr
 }
 
+func (m *mockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
+	return 0, nil
+}
+
 func TestQueryService_GetStats(t *testing.T) {
 	baseTime := time.Date(2024, 6, 29, 12, 0, 0, 0, time.UTC)
 

@@ -40,6 +40,10 @@ func (m *mockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
 	return m.requests, nil
 }
 
+func (m *mockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
+	return 0, nil
+}
+
 // Helper function to create OTLP log request with Claude Code API request data
 func createClaudeCodeLogRequest(sessionID, timestamp, model string, inputTokens, outputTokens, cacheRead, cacheCreation int64, costUSD float64, durationMS int64) *logsv1.ExportLogsServiceRequest {
 	return &logsv1.ExportLogsServiceRequest{

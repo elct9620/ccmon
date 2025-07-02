@@ -86,6 +86,11 @@ func (r *GRPCAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
 	return r.FindByPeriodWithLimit(entity.NewAllTimePeriod(time.Now().UTC()), 0, 0)
 }
 
+// DeleteOlderThan is not supported in monitor mode (read-only repository)
+func (r *GRPCAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
+	return 0, errors.New("delete operation not supported in monitor mode (read-only repository)")
+}
+
 // Close closes the gRPC connection
 func (r *GRPCAPIRequestRepository) Close() error {
 	return r.conn.Close()

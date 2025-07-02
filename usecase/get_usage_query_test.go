@@ -42,6 +42,10 @@ func (m *MockAPIRequestRepositoryForUsage) Save(req entity.APIRequest) error {
 	return nil
 }
 
+func (m *MockAPIRequestRepositoryForUsage) DeleteOlderThan(cutoffTime time.Time) (int, error) {
+	return 0, nil
+}
+
 func TestGetUsageQuery_ListByDay(t *testing.T) {
 	// Create test API requests for a specific day
 	now := time.Now().UTC()

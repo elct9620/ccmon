@@ -66,6 +66,11 @@ func (m *MockAPIRequestRepository) Save(req entity.APIRequest) error {
 	return nil
 }
 
+// DeleteOlderThan implements the repository interface
+func (m *MockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
+	return 0, nil
+}
+
 // Mock query interfaces to avoid direct dependency on usecase types
 
 // GetFilteredQueryInterface represents the interface for getting filtered API requests

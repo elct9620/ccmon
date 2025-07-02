@@ -1,6 +1,10 @@
 package usecase
 
-import "github.com/elct9620/ccmon/entity"
+import (
+	"time"
+
+	"github.com/elct9620/ccmon/entity"
+)
 
 // APIRequestRepository defines the repository interface for API request data access
 type APIRequestRepository interface {
@@ -14,4 +18,8 @@ type APIRequestRepository interface {
 
 	// FindAll retrieves all API requests (limited to prevent memory issues)
 	FindAll() ([]entity.APIRequest, error)
+
+	// DeleteOlderThan deletes API requests older than the specified cutoff time
+	// Returns the number of deleted records and any error
+	DeleteOlderThan(cutoffTime time.Time) (int, error)
 }

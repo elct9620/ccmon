@@ -67,6 +67,48 @@ func (r *BoltDBAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
 	return r.convertToEntities(dbRequests), nil
 }
 
+// DeleteOlderThan deletes API requests older than the specified cutoff time
+// Returns the number of deleted records and any error
+func (r *BoltDBAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
+	deletedCount := 0
+
+	err := r.db.Update(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte(requestsBucket))
+		c := bucket.Cursor()
+
+		// Collect keys to delete
+		var keysToDelete [][]byte
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			// Parse the timestamp from the stored record to compare properly
+			var req schema.APIRequest
+			if err := json.Unmarshal(v, &req); err != nil {
+				// Skip malformed entries
+				continue
+			}
+			
+			// Only delete records that are strictly older than cutoff time
+			if req.Timestamp.Before(cutoffTime) {
+				// Make a copy of the key since it's only valid for the life of the transaction
+				keyToDelete := make([]byte, len(k))
+				copy(keyToDelete, k)
+				keysToDelete = append(keysToDelete, keyToDelete)
+			}
+		}
+
+		// Delete collected keys
+		for _, key := range keysToDelete {
+			if err := bucket.Delete(key); err != nil {
+				return fmt.Errorf("failed to delete key %s: %w", string(key), err)
+			}
+			deletedCount++
+		}
+
+		return nil
+	})
+
+	return deletedCount, err
+}
+
 // Close closes the database connection
 func (r *BoltDBAPIRequestRepository) Close() error {
 	return r.db.Close()

@@ -76,11 +76,12 @@ func main() {
 		appendCommand := usecase.NewAppendApiRequestCommand(repo)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo)
+		cleanupCommand := usecase.NewCleanupOldRecordsCommand(repo)
 		// Note: getUsageQuery would be used if we add usage endpoints to gRPC server
 		_ = usecase.NewGetUsageQuery(repo) // Avoid unused variable
 
 		// Run server with usecases
-		if err := grpcserver.RunServer(config.Server.Address, appendCommand, getFilteredQuery, calculateStatsQuery); err != nil {
+		if err := grpcserver.RunServer(config.Server.Address, appendCommand, getFilteredQuery, calculateStatsQuery, cleanupCommand, &config.Server); err != nil {
 			fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 			os.Exit(1)
 		}

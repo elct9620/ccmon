@@ -73,7 +73,6 @@ func TestBlock_NextBlock(t *testing.T) {
 	}
 }
 
-
 func TestBlock_ValueObjectBehavior(t *testing.T) {
 	loc, _ := time.LoadLocation("UTC")
 

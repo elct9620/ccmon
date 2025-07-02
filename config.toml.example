@@ -26,6 +26,19 @@ path = "~/.ccmon/ccmon.db"
 # Default is localhost for security, but can be changed if needed
 address = "127.0.0.1:4317"
 
+# Data retention period for automatic cleanup
+# Default: "never" (no automatic cleanup)
+# Valid values: 
+#   - "never" - No automatic cleanup
+#   - Duration format: "7d", "30d", "168h", "720h"
+# Minimum retention period: 24h (prevents accidental data loss)
+# Cleanup runs every 6 hours and deletes records older than specified period
+# Examples:
+#   retention = "7d"    # Keep 7 days of data
+#   retention = "30d"   # Keep 30 days of data
+#   retention = "never" # Keep all data (default)
+retention = "never"
+
 [monitor]
 # gRPC server address for query service
 # Default: 127.0.0.1:4317

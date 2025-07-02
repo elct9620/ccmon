@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,7 +28,8 @@ type Database struct {
 
 // Server configuration
 type Server struct {
-	Address string `mapstructure:"address"`
+	Address   string `mapstructure:"address"`
+	Retention string `mapstructure:"retention"`
 }
 
 // Monitor configuration
@@ -50,6 +52,7 @@ func LoadConfig() (*Config, error) {
 	// Set default values
 	v.SetDefault("database.path", "~/.ccmon/ccmon.db")
 	v.SetDefault("server.address", "127.0.0.1:4317")
+	v.SetDefault("server.retention", "never")
 	v.SetDefault("monitor.server", "127.0.0.1:4317")
 	v.SetDefault("monitor.timezone", "UTC")
 	v.SetDefault("monitor.refresh_interval", "5s")
@@ -62,6 +65,9 @@ func LoadConfig() (*Config, error) {
 	}
 	if pflag.Lookup("server-address") == nil {
 		pflag.String("server-address", "", "gRPC server address for OTLP receiver + Query service")
+	}
+	if pflag.Lookup("server-retention") == nil {
+		pflag.String("server-retention", "", "Data retention period (e.g., '7d', '30d', 'never')")
 	}
 	if pflag.Lookup("monitor-server") == nil {
 		pflag.String("monitor-server", "", "gRPC server address for query service")
@@ -87,6 +93,9 @@ func LoadConfig() (*Config, error) {
 	}
 	if err := v.BindPFlag("server.address", pflag.Lookup("server-address")); err != nil {
 		log.Printf("Warning: failed to bind server-address flag: %v", err)
+	}
+	if err := v.BindPFlag("server.retention", pflag.Lookup("server-retention")); err != nil {
+		log.Printf("Warning: failed to bind server-retention flag: %v", err)
 	}
 	if err := v.BindPFlag("monitor.server", pflag.Lookup("monitor-server")); err != nil {
 		log.Printf("Warning: failed to bind monitor-server flag: %v", err)
@@ -173,7 +182,70 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("claude.max_tokens must be >= 0, got: %d", c.Claude.MaxTokens)
 	}
 
+	// Validate retention
+	if err := c.Server.ValidateRetention(); err != nil {
+		return fmt.Errorf("invalid server.retention: %w", err)
+	}
+
 	return nil
+}
+
+// ValidateRetention validates the retention configuration
+func (s *Server) ValidateRetention() error {
+	if s.Retention == "" || s.Retention == "never" {
+		return nil // No retention is valid
+	}
+
+	// Try to parse as duration (with support for days)
+	duration, err := s.parseRetentionDuration(s.Retention)
+	if err != nil {
+		return fmt.Errorf("invalid duration format: %s", s.Retention)
+	}
+
+	// Minimum retention period: 24 hours
+	if duration < 24*time.Hour {
+		return fmt.Errorf("retention period must be at least 24h, got: %s", s.Retention)
+	}
+
+	return nil
+}
+
+// IsRetentionEnabled returns true if data retention is configured
+func (s *Server) IsRetentionEnabled() bool {
+	return s.Retention != "" && s.Retention != "never"
+}
+
+// GetRetentionDuration returns the retention duration or zero if disabled
+func (s *Server) GetRetentionDuration() time.Duration {
+	if !s.IsRetentionEnabled() {
+		return 0
+	}
+
+	duration, err := s.parseRetentionDuration(s.Retention)
+	if err != nil {
+		return 0 // Should not happen after validation
+	}
+
+	return duration
+}
+
+// parseRetentionDuration parses duration strings with support for days (e.g., "7d", "30d")
+func (s *Server) parseRetentionDuration(retention string) (time.Duration, error) {
+	// Handle days suffix (e.g., "7d", "30d")
+	if strings.HasSuffix(retention, "d") {
+		daysStr := strings.TrimSuffix(retention, "d")
+		days, err := strconv.Atoi(daysStr)
+		if err != nil {
+			return 0, fmt.Errorf("invalid day format: %s", retention)
+		}
+		if days < 0 {
+			return 0, fmt.Errorf("negative duration not allowed: %s", retention)
+		}
+		return time.Duration(days) * 24 * time.Hour, nil
+	}
+
+	// Use standard Go duration parsing for other formats (h, m, s)
+	return time.ParseDuration(retention)
 }
 
 // GetTokenLimit returns the effective token limit based on plan and config
