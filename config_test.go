@@ -277,4 +277,3 @@ func TestConfig_ValidateRetentionIntegration(t *testing.T) {
 		})
 	}
 }
-

@@ -85,7 +85,7 @@ func (r *BoltDBAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int,
 				// Skip malformed entries
 				continue
 			}
-			
+
 			// Only delete records that are strictly older than cutoff time
 			if req.Timestamp.Before(cutoffTime) {
 				// Make a copy of the key since it's only valid for the life of the transaction

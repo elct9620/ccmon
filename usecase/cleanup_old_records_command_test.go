@@ -40,12 +40,12 @@ func TestCleanupOldRecordsCommand_Execute(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name                string
-		cutoffTime          time.Time
-		mockDeleteFunc      func(cutoffTime time.Time) (int, error)
-		expectedDeleted     int
-		expectError         bool
-		expectedCallCount   int
+		name              string
+		cutoffTime        time.Time
+		mockDeleteFunc    func(cutoffTime time.Time) (int, error)
+		expectedDeleted   int
+		expectError       bool
+		expectedCallCount int
 	}{
 		{
 			name:       "successful cleanup with records deleted",

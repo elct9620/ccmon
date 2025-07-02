@@ -120,7 +120,7 @@ func TestCleanupSchedulerIntegration(t *testing.T) {
 				cutoffTime := time.Now().Add(-tt.serverConfig.GetRetentionDuration())
 				for _, record := range remaining {
 					if record.Timestamp().Before(cutoffTime) {
-						t.Errorf("Record with timestamp %v should have been deleted (cutoff: %v)", 
+						t.Errorf("Record with timestamp %v should have been deleted (cutoff: %v)",
 							record.Timestamp(), cutoffTime)
 					}
 				}
@@ -203,16 +203,16 @@ func TestCleanupSchedulerCancellation(t *testing.T) {
 
 	// Start cleanup scheduler with cancelled context
 	serverConfig := MockServerConfig{retention: "24h"}
-	
+
 	// This should return quickly due to cancelled context
 	start := time.Now()
 	startCleanupScheduler(ctx, cleanupCommand, serverConfig)
-	
+
 	// Give it a moment to process the cancellation
 	time.Sleep(50 * time.Millisecond)
-	
+
 	elapsed := time.Since(start)
-	
+
 	// Scheduler should handle cancellation gracefully and not hang
 	if elapsed > 1*time.Second {
 		t.Errorf("Cleanup scheduler took too long to handle cancellation: %v", elapsed)
