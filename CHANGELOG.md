@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/elct9620/ccmon/compare/v0.7.0...v0.8.0) (2025-07-19)
+
+
+### Features
+
+* implement unsupported event logging in OTLP receiver ([87d5d90](https://github.com/elct9620/ccmon/commit/87d5d90bbf938c7c9bd0ed7c44975b2a4a1f0b36))
+
 ## [0.7.0](https://github.com/elct9620/ccmon/compare/v0.6.0...v0.7.0) (2025-07-19)
 
 
