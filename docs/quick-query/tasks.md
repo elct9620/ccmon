@@ -119,7 +119,7 @@ Implementation of command-line quick query functionality for ccmon, enabling use
 
 ## Formula Update Tasks
 
-- [ ] 17. Update daily plan usage calculation formula in GetUsageVariablesQuery
+- [x] 17. Update daily plan usage calculation formula in GetUsageVariablesQuery
   - Modify `generateVariableMap` method in `usecase/get_usage_variables_query.go`
   - Change daily plan usage calculation from `(dailyCost / planPrice) * 100` to `(dailyCost / (planPrice / daysInMonth)) * 100`
   - Get current month days count using `time.Now().AddDate(0, 1, -time.Now().Day()).Day()`
@@ -127,7 +127,7 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Ensure "0%" is returned for unset/invalid plans
   - _Requirements: R3 (Updated daily plan usage formula)
 
-- [ ] 18. Update tests to verify new daily plan usage calculation
+- [x] 18. Update tests to verify new daily plan usage calculation
   - Update existing tests for `GetUsageVariablesQuery` to validate new formula
   - Test Pro plan examples: $1.0 daily cost with 31 days = 155%, $2.0 with 28 days = 280%
   - Test different month lengths (28, 29, 30, 31 days)

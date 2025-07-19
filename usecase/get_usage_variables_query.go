@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/elct9620/ccmon/entity"
 )
@@ -98,8 +99,22 @@ func (q *GetUsageVariablesQuery) generateVariableMap(
 	monthlyCost := monthlyStats.TotalCost()
 	variables[entity.MonthlyCostVariable.Key()] = fmt.Sprintf("$%.1f", monthlyCost.Amount())
 
-	// Daily plan usage percentage
-	dailyPercentage := plan.CalculateUsagePercentage(dailyCost)
+	// Daily plan usage percentage - updated formula: dailyCost / (planPrice / daysInMonth)
+	var dailyPercentage int
+	if !plan.IsValid() || plan.Price().Amount() == 0 {
+		dailyPercentage = 0
+	} else {
+		// Get days in current month
+		now := time.Now()
+		daysInMonth := now.AddDate(0, 1, -now.Day()).Day()
+
+		// Calculate daily budget (plan price / days in month)
+		dailyBudget := plan.Price().Amount() / float64(daysInMonth)
+
+		// Calculate percentage: (daily cost / daily budget) * 100
+		percentage := (dailyCost.Amount() / dailyBudget) * 100
+		dailyPercentage = int(percentage)
+	}
 	variables[entity.DailyPlanUsageVariable.Key()] = fmt.Sprintf("%d%%", dailyPercentage)
 
 	// Monthly plan usage percentage

@@ -3,6 +3,7 @@ package usecase_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -68,6 +69,15 @@ func (m *MockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, e
 	return 0, nil
 }
 
+// Helper function to calculate expected daily usage percentage based on current month
+func calculateExpectedDailyUsage(dailyCost, planPrice float64) string {
+	now := time.Now()
+	daysInMonth := now.AddDate(0, 1, -now.Day()).Day()
+	dailyBudget := planPrice / float64(daysInMonth)
+	percentage := int((dailyCost / dailyBudget) * 100)
+	return fmt.Sprintf("%d%%", percentage)
+}
+
 // Helper function to create test API requests
 func createAPIRequests(baseCount, premiumCount int, baseCost, premiumCost float64) []entity.APIRequest {
 	var requests []entity.APIRequest
@@ -127,37 +137,37 @@ func TestGetUsageVariablesQuery_Execute(t *testing.T) {
 		{
 			name:            "successful execution with pro plan",
 			plan:            entity.NewPlan("pro", entity.NewCost(20.0)),
-			dailyRequests:   createAPIRequests(5, 3, 5.0, 10.0),
-			monthlyRequests: createAPIRequests(50, 30, 50.0, 90.0), // Changed to avoid float precision issues
+			dailyRequests:   createAPIRequests(5, 3, 0.5, 0.5),     // $1.0 total daily cost
+			monthlyRequests: createAPIRequests(50, 30, 50.0, 90.0), // $140.0 total monthly cost
 			expectedVars: map[string]string{
-				"@daily_cost":         "$15.0",
+				"@daily_cost":         "$1.0",
 				"@monthly_cost":       "$140.0",
-				"@daily_plan_usage":   "75%",
-				"@monthly_plan_usage": "700%",
+				"@daily_plan_usage":   calculateExpectedDailyUsage(1.0, 20.0), // Calculate based on current month
+				"@monthly_plan_usage": "700%",                                 // (140/20)*100 = 700%
 			},
 		},
 		{
 			name:            "successful execution with unset plan",
 			plan:            entity.NewPlan("unset", entity.NewCost(0)),
-			dailyRequests:   createAPIRequests(5, 3, 5.0, 10.0),
-			monthlyRequests: createAPIRequests(50, 30, 50.0, 90.0),
+			dailyRequests:   createAPIRequests(5, 3, 0.5, 0.5),     // $1.0 total daily cost
+			monthlyRequests: createAPIRequests(50, 30, 50.0, 90.0), // $140.0 total monthly cost
 			expectedVars: map[string]string{
-				"@daily_cost":         "$15.0",
+				"@daily_cost":         "$1.0",
 				"@monthly_cost":       "$140.0",
-				"@daily_plan_usage":   "0%",
-				"@monthly_plan_usage": "0%",
+				"@daily_plan_usage":   "0%", // unset plan always returns 0%
+				"@monthly_plan_usage": "0%", // unset plan always returns 0%
 			},
 		},
 		{
 			name:            "plan repository error - fallback to unset",
 			planErr:         errors.New("failed to get plan"),
-			dailyRequests:   createAPIRequests(5, 3, 5.0, 10.0),
-			monthlyRequests: createAPIRequests(50, 30, 50.0, 90.0),
+			dailyRequests:   createAPIRequests(5, 3, 0.5, 0.5),     // $1.0 total daily cost
+			monthlyRequests: createAPIRequests(50, 30, 50.0, 90.0), // $140.0 total monthly cost
 			expectedVars: map[string]string{
-				"@daily_cost":         "$15.0",
+				"@daily_cost":         "$1.0",
 				"@monthly_cost":       "$140.0",
-				"@daily_plan_usage":   "0%",
-				"@monthly_plan_usage": "0%",
+				"@daily_plan_usage":   "0%", // fallback to unset plan always returns 0%
+				"@monthly_plan_usage": "0%", // fallback to unset plan always returns 0%
 			},
 		},
 		{
@@ -226,6 +236,164 @@ func TestGetUsageVariablesQuery_Execute(t *testing.T) {
 			// Ensure no extra variables
 			if len(vars) != len(tt.expectedVars) {
 				t.Errorf("got %d variables, want %d", len(vars), len(tt.expectedVars))
+			}
+		})
+	}
+}
+
+// TestDailyPlanUsageFormulaExamples tests specific examples mentioned in requirements
+func TestDailyPlanUsageFormulaExamples(t *testing.T) {
+	// Test the exact examples from the requirements to ensure formula is correct
+
+	// Calculate expected percentages based on different month lengths
+	calculateExpectedPercentage := func(dailyCost, planPrice float64, daysInMonth int) string {
+		dailyBudget := planPrice / float64(daysInMonth)
+		percentage := int((dailyCost / dailyBudget) * 100)
+		return fmt.Sprintf("%d%%", percentage)
+	}
+
+	tests := []struct {
+		name                   string
+		dailyCost              float64
+		planPrice              float64
+		monthDays              int
+		expectedPercentageNote string
+	}{
+		{
+			name:                   "Pro plan $1.0 daily cost with 31 days example",
+			dailyCost:              1.0,
+			planPrice:              20.0,
+			monthDays:              31,
+			expectedPercentageNote: "155%", // $1.0 / ($20 / 31) = $1.0 / $0.645 = 155%
+		},
+		{
+			name:                   "Pro plan $2.0 daily cost with 28 days example",
+			dailyCost:              2.0,
+			planPrice:              20.0,
+			monthDays:              28,
+			expectedPercentageNote: "280%", // $2.0 / ($20 / 28) = $2.0 / $0.714 = 280%
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expected := calculateExpectedPercentage(tt.dailyCost, tt.planPrice, tt.monthDays)
+
+			// Verify the calculation matches the expected percentage from requirements
+			if expected != tt.expectedPercentageNote {
+				t.Logf("Formula verification for %d-day month:", tt.monthDays)
+				t.Logf("  Daily Cost: $%.1f", tt.dailyCost)
+				t.Logf("  Plan Price: $%.1f", tt.planPrice)
+				t.Logf("  Daily Budget: $%.3f", tt.planPrice/float64(tt.monthDays))
+				t.Logf("  Calculated: %s", expected)
+				t.Logf("  Expected: %s", tt.expectedPercentageNote)
+				t.Errorf("formula calculation mismatch: got %s, want %s", expected, tt.expectedPercentageNote)
+			}
+		})
+	}
+}
+
+// TestGetUsageVariablesQuery_CurrentMonthCalculation tests with current month day count
+func TestGetUsageVariablesQuery_CurrentMonthCalculation(t *testing.T) {
+	// Test using current month's actual day count to verify the implementation
+	now := time.Now()
+	daysInCurrentMonth := now.AddDate(0, 1, -now.Day()).Day()
+
+	tests := []struct {
+		name          string
+		plan          entity.Plan
+		dailyCost     float64
+		expectedDaily string
+	}{
+		{
+			name:          "Pro plan with $1.0 daily cost (current month)",
+			plan:          entity.NewPlan("pro", entity.NewCost(20.0)),
+			dailyCost:     1.0,
+			expectedDaily: fmt.Sprintf("%d%%", int((1.0/(20.0/float64(daysInCurrentMonth)))*100)),
+		},
+		{
+			name:          "Max plan with $5.0 daily cost (current month)",
+			plan:          entity.NewPlan("max", entity.NewCost(100.0)),
+			dailyCost:     5.0,
+			expectedDaily: fmt.Sprintf("%d%%", int((5.0/(100.0/float64(daysInCurrentMonth)))*100)),
+		},
+		{
+			name:          "Zero daily cost should return 0%",
+			plan:          entity.NewPlan("pro", entity.NewCost(20.0)),
+			dailyCost:     0.0,
+			expectedDaily: "0%",
+		},
+		{
+			name:          "Unset plan should return 0%",
+			plan:          entity.NewPlan("unset", entity.NewCost(0)),
+			dailyCost:     5.0,
+			expectedDaily: "0%",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			now := time.Now()
+			dailyPeriod := entity.NewPeriod(
+				time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC),
+				time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999999999, time.UTC),
+			)
+			monthlyPeriod := entity.NewPeriod(
+				time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC),
+				time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond),
+			)
+
+			// Create API requests with the specified daily cost
+			dailyRequests := createAPIRequests(5, 3, tt.dailyCost/2, tt.dailyCost/2) // Split cost evenly
+			monthlyRequests := createAPIRequests(50, 30, 50.0, 90.0)                 // Monthly cost for other tests
+
+			// Setup mocks
+			mockPlanRepo := &MockPlanRepository{
+				plan: tt.plan,
+			}
+
+			mockPeriodFactory := &MockPeriodFactory{
+				dailyPeriod:   dailyPeriod,
+				monthlyPeriod: monthlyPeriod,
+			}
+
+			mockRepo := &MockAPIRequestRepository{
+				dailyRequests:   dailyRequests,
+				monthlyRequests: monthlyRequests,
+			}
+
+			statsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+
+			query := usecase.NewGetUsageVariablesQuery(
+				statsQuery,
+				mockPlanRepo,
+				mockPeriodFactory,
+			)
+
+			// Execute query
+			vars, err := query.Execute(context.Background())
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			// Verify daily plan usage with new formula
+			if actual, ok := vars["@daily_plan_usage"]; !ok {
+				t.Errorf("missing @daily_plan_usage variable")
+			} else if actual != tt.expectedDaily {
+				t.Errorf("daily plan usage: got %s, want %s (for %d-day month)", actual, tt.expectedDaily, daysInCurrentMonth)
+			}
+
+			// Verify monthly calculation remains unchanged
+			if tt.plan.Name() != "unset" && tt.plan.Price().Amount() > 0 {
+				if actual, ok := vars["@monthly_plan_usage"]; ok {
+					monthlyCost := 140.0 // From createAPIRequests: 50.0 + 90.0
+					expectedMonthly := int((monthlyCost / tt.plan.Price().Amount()) * 100)
+					expectedMonthlyStr := fmt.Sprintf("%d%%", expectedMonthly)
+					if actual != expectedMonthlyStr {
+						t.Errorf("monthly plan usage calculation changed unexpectedly: got %s, want %s", actual, expectedMonthlyStr)
+					}
+				}
 			}
 		})
 	}

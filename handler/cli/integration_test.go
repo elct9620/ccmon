@@ -58,6 +58,15 @@ func (m *MockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, e
 	return 0, nil
 }
 
+// Helper function to calculate expected daily usage percentage based on current month
+func calculateExpectedDailyUsage(dailyCost, planPrice float64) string {
+	now := time.Now()
+	daysInMonth := now.AddDate(0, 1, -now.Day()).Day()
+	dailyBudget := planPrice / float64(daysInMonth)
+	percentage := int((dailyCost / dailyBudget) * 100)
+	return fmt.Sprintf("%d%%", percentage)
+}
+
 // MockPlanRepository implements usecase.PlanRepository for integration testing
 type MockPlanRepository struct {
 	plan entity.Plan
@@ -168,7 +177,7 @@ func TestFormatQueryEndToEnd(t *testing.T) {
 			formatString:   "@daily_plan_usage",
 			plan:           entity.NewPlan("pro", entity.NewCost(20.0)),
 			requests:       createTestAPIRequests(3, 2, 10, 5, 5.0, 10.0, 50.0, 90.0),
-			expectedOutput: "75%", // $15.0 / $20.0 = 75%
+			expectedOutput: calculateExpectedDailyUsage(15.0, 20.0), // New formula: $15.0 / ($20.0 / days in current month)
 		},
 		{
 			name:           "monthly plan usage with max plan",
@@ -182,14 +191,14 @@ func TestFormatQueryEndToEnd(t *testing.T) {
 			formatString:   "Daily: @daily_cost Monthly: @monthly_cost Usage: @daily_plan_usage",
 			plan:           entity.NewPlan("pro", entity.NewCost(20.0)),
 			requests:       createTestAPIRequests(3, 2, 10, 5, 5.0, 10.0, 50.0, 90.0),
-			expectedOutput: "Daily: $15.0 Monthly: $155.0 Usage: 75%",
+			expectedOutput: fmt.Sprintf("Daily: $15.0 Monthly: $155.0 Usage: %s", calculateExpectedDailyUsage(15.0, 20.0)),
 		},
 		{
 			name:           "format string with emojis and custom text",
 			formatString:   "💰 Daily: @daily_cost | 📊 Monthly: @monthly_cost | 📈 @daily_plan_usage of plan",
 			plan:           entity.NewPlan("pro", entity.NewCost(20.0)),
 			requests:       createTestAPIRequests(3, 2, 10, 5, 5.0, 10.0, 50.0, 90.0),
-			expectedOutput: "💰 Daily: $15.0 | 📊 Monthly: $155.0 | 📈 75% of plan",
+			expectedOutput: fmt.Sprintf("💰 Daily: $15.0 | 📊 Monthly: $155.0 | 📈 %s of plan", calculateExpectedDailyUsage(15.0, 20.0)),
 		},
 		{
 			name:           "unset plan returns zero percentage",
@@ -233,7 +242,7 @@ func TestFormatQueryEndToEnd(t *testing.T) {
 			formatString:   "@daily_cost @monthly_cost @daily_plan_usage @monthly_plan_usage",
 			plan:           entity.NewPlan("pro", entity.NewCost(20.0)),
 			requests:       createTestAPIRequests(3, 2, 10, 5, 5.0, 10.0, 50.0, 90.0),
-			expectedOutput: "$15.0 $155.0 75% 775%",
+			expectedOutput: fmt.Sprintf("$15.0 $155.0 %s 775%%", calculateExpectedDailyUsage(15.0, 20.0)),
 		},
 	}
 
@@ -451,7 +460,7 @@ func TestVariableSubstitutionEdgeCases(t *testing.T) {
 		{
 			name:           "variables with special characters around",
 			formatString:   "(@daily_cost) [@monthly_cost] {@daily_plan_usage}",
-			expectedOutput: "($30.0) [$180.0] {150%}",
+			expectedOutput: fmt.Sprintf("($30.0) [$180.0] {%s}", calculateExpectedDailyUsage(30.0, 20.0)),
 		},
 		{
 			name:           "empty format string",
@@ -514,8 +523,8 @@ func TestOutputFormatSpecificationCompliance(t *testing.T) {
 			name:           "percentage format - integer",
 			plan:           entity.NewPlan("pro", entity.NewCost(20.0)),
 			formatString:   "@daily_plan_usage",
-			expectedOutput: "150%",
-			description:    "Percentages should be shown as integers (150% not 150.0%)",
+			expectedOutput: calculateExpectedDailyUsage(30.0, 20.0),
+			description:    "Percentages should be shown as integers using new formula: daily cost / (plan price / days in current month)",
 			requests:       baseRequests,
 		},
 		{
