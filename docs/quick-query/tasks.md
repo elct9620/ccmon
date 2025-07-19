@@ -68,28 +68,49 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Ensure error handling for missing/invalid plan configurations
   - _Requirements: R4
 
-- [ ] 10. Implement Calculate Percentage Query usecase
-  - Create `usecase/calculate_percentage_query.go` with CalculatePercentageQuery struct
-  - Add ExecuteDaily and ExecuteMonthly methods for percentage calculations
-  - Integrate with GetPlanQuery and existing CalculateStatsQuery
-  - Return integer percentages (e.g., "50%" not "50.0%") as per specification
+- [ ] 10. Create usage variable entity with predefined variables
+  - Implement `entity/usage_variable.go` with UsageVariable struct
+  - Define all predefined variables as constants (DailyCostVariable, etc.)
+  - Add GetAllUsageVariables() function to list all available variables
+  - Include Key() and Name() methods for accessing variable properties
+  - _Requirements: R3
+
+- [ ] 11. Implement GetUsageVariablesQuery usecase
+  - Create `usecase/get_usage_variables_query.go` with GetUsageVariablesQuery struct
+  - Add Execute method that returns map[string]string for variable substitution
+  - Wire dependencies: CalculateStatsQuery, PlanRepository, PeriodFactory
+  - Implement generateVariableMap helper to format all variable values
+  - _Requirements: R2, R3, R4
+
+- [ ] 12. Wire up percentage calculations in GetUsageVariablesQuery
+  - Update GetUsageVariablesQuery to calculate plan usage percentages
+  - Use Plan entity's CalculateUsagePercentage method for calculations
+  - Format percentages as integers (e.g., "50%" not "50.0%")
+  - Return "0%" for unset/invalid plans as specified
   - _Requirements: R2, R4
 
-- [ ] 11. Wire up plan functionality in format renderer
-  - Replace hardcoded percentage values in FormatRenderer with CalculatePercentageQuery
-  - Add dependency injection for CalculatePercentageQuery in FormatRenderer constructor
-  - Update variable substitution to use real plan calculations
-  - Ensure 0% return for unset/invalid plans as specified
-  - _Requirements: R2, R4
+- [ ] 13. Update format renderer to use GetUsageVariablesQuery
+  - Replace hardcoded values and stats query in FormatRenderer with GetUsageVariablesQuery
+  - Update constructor to accept usageVariablesQuery dependency
+  - Modify Render method to call query.Execute() for variable map
+  - Ensure substituteVariables uses the real variable map from query
+  - _Requirements: R1, R2, R3
 
-- [ ] 12. Add comprehensive error handling and timeout management
+- [ ] 14. Wire up complete dependency graph in main.go
+  - Create PeriodFactory instance for daily/monthly period generation
+  - Initialize GetUsageVariablesQuery with all required dependencies
+  - Update FormatRenderer and QueryHandler initialization
+  - Ensure proper error handling flow from query to output
+  - _Requirements: R1, R4, R5
+
+- [ ] 15. Add comprehensive error handling and timeout management
   - Enhance QueryHandler to handle all connection and data retrieval errors
   - Implement timeout handling for gRPC queries (prevent hanging)
   - Ensure graceful degradation with "❌ ERROR" output for all failure scenarios
   - Test error scenarios: server down, invalid configuration, network timeouts
   - _Requirements: R1, R2, R3, R5
 
-- [ ] 13. Create integration tests for end-to-end functionality
+- [ ] 16. Create integration tests for end-to-end functionality
   - Test complete format query execution with real gRPC responses
   - Verify all supported variables work correctly in various combinations
   - Test time zone consistency with existing TUI calculations
