@@ -33,7 +33,7 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Ensure time zone consistency with existing TUI calculations
   - _Requirements: R1, R2, R5
 
-- [ ] 5. Create embedded plans data file with go:embed setup
+- [x] 5. Create embedded plans data file with go:embed setup
   - Create `data/plans.json` with plan definitions (unset=0, pro=20, max=100, max20=200)
   - Add go:embed directive in main.go to embed data directory into binary
   - Ensure JSON structure matches design specification with name and price fields
