@@ -35,12 +35,22 @@ func NewGetUsageVariablesQuery(
 
 // Execute retrieves usage variables as a substitution map
 func (q *GetUsageVariablesQuery) Execute(ctx context.Context) (map[string]string, error) {
+	// Check if context is already cancelled
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled before execution: %w", err)
+	}
+
 	// Get configured plan for percentage calculations
 	plan, err := q.planRepository.GetConfiguredPlan()
 	if err != nil {
 		// Don't fail the entire query if plan is not configured
 		// Use an unset plan as fallback
 		plan = entity.NewPlan("unset", entity.NewCost(0))
+	}
+
+	// Check if context was cancelled while getting plan
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled while getting plan: %w", err)
 	}
 
 	// Create periods for daily and monthly calculations
@@ -53,6 +63,11 @@ func (q *GetUsageVariablesQuery) Execute(ctx context.Context) (map[string]string
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate daily stats: %w", err)
+	}
+
+	// Check if context was cancelled between stats queries
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled between stats queries: %w", err)
 	}
 
 	// Get monthly stats

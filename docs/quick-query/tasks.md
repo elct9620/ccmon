@@ -96,14 +96,14 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Ensure substituteVariables uses the real variable map from query
   - _Requirements: R1, R2, R3
 
-- [ ] 14. Wire up complete dependency graph in main.go
+- [x] 14. Wire up complete dependency graph in main.go
   - Create PeriodFactory instance for daily/monthly period generation
   - Initialize GetUsageVariablesQuery with all required dependencies
   - Update FormatRenderer and QueryHandler initialization
   - Ensure proper error handling flow from query to output
   - _Requirements: R1, R4, R5
 
-- [ ] 15. Add comprehensive error handling and timeout management
+- [x] 15. Add comprehensive error handling and timeout management
   - Enhance QueryHandler to handle all connection and data retrieval errors
   - Implement timeout handling for gRPC queries (prevent hanging)
   - Ensure graceful degradation with "❌ ERROR" output for all failure scenarios

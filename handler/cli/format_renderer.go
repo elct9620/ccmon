@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/elct9620/ccmon/usecase"
 )
@@ -18,7 +19,11 @@ func NewFormatRenderer(usageVariablesQuery *usecase.GetUsageVariablesQuery) *For
 }
 
 func (r *FormatRenderer) Render(formatString string) (string, error) {
-	variableMap, err := r.usageVariablesQuery.Execute(context.Background())
+	// Create context with timeout to prevent hanging
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	variableMap, err := r.usageVariablesQuery.Execute(ctx)
 	if err != nil {
 		return "", err
 	}
