@@ -14,6 +14,8 @@ This glossary defines terms and concepts used in the ccmon project to ensure con
 | Stats | An aggregate entity containing usage statistics for both base and premium models within a specific period, including request counts, token usage, costs, and burn rate calculations. |
 | Usage | An entity representing usage statistics grouped by periods, typically used for daily usage displays and historical analysis. |
 | Block | A value object representing Claude's 5-hour token limit blocks with start time and optional token limit. Used for monitoring usage against subscription plan limits. |
+| Plan | A domain entity representing Claude subscription plans with name and monthly price. Supports plan types: unset (no plan), pro ($20), max ($200), max20 ($2000). Used for calculating usage percentages against plan limits. |
+| UsageVariable | A domain entity representing predefined variables for quick query formatting. Contains a human-readable name and key for format string substitution (e.g., "@daily_cost"). |
 
 ## Business Concepts
 
@@ -26,6 +28,9 @@ This glossary defines terms and concepts used in the ccmon project to ensure con
 | Burn Rate | The rate of premium token consumption per minute, calculated as limited tokens divided by period duration. Used to monitor API usage intensity. |
 | Block Tracking | Monitoring API usage within Claude's 5-hour token limit blocks, showing progress bars and time remaining until the next block starts. |
 | Session ID | A unique identifier for a Claude Code session, used to group related API requests and track usage patterns. |
+| Plan Usage Percentage | Calculated percentage showing how much of a subscription plan's monthly cost limit has been consumed by current usage. Computed as (actual cost / plan price) * 100. |
+| Quick Query | Command-line feature enabling instant retrieval of usage statistics without launching the full TUI, using format strings with predefined variables. |
+| Format Variables | Predefined placeholders (@daily_cost, @monthly_cost, @daily_plan_usage, @monthly_plan_usage) that can be used in format strings for quick queries. |
 
 ## Technical Concepts
 
@@ -36,6 +41,9 @@ This glossary defines terms and concepts used in the ccmon project to ensure con
 | TUI | Terminal User Interface - the interactive terminal-based dashboard that displays real-time statistics with keyboard navigation and multiple views. |
 | Server Mode | Headless operation mode running the OTLP collector and gRPC query service to receive and store telemetry data. |
 | Monitor Mode | Interactive TUI mode that connects to a server via gRPC to display usage statistics and request details. |
+| Format Query Mode | Non-interactive command-line mode that outputs formatted usage data directly to stdout using the --format flag, suitable for scripting and automation. |
+| TimePeriodFactory | Service layer component providing timezone-aware period creation for consistent time calculations across the application. Eliminates duplicate period logic. |
+| Embedded Data | Pattern using Go's go:embed directive to compile JSON configuration files into the binary, eliminating runtime file dependencies while maintaining updateability. |
 
 ## Cache Concepts
 
@@ -61,3 +69,7 @@ This glossary defines terms and concepts used in the ccmon project to ensure con
 | BoltDB | Embedded key-value database used for storing API request data locally, providing persistence without external dependencies. |
 | Entity Conversion | Process of converting between database storage types and domain entities, handled by the repository layer to maintain clean architecture. |
 | Request Limiting | Database queries support limit and offset parameters to manage memory usage and optimize network traffic between monitor and server. |
+| EmbeddedPlanRepository | Repository implementation that reads plan configuration data from embedded JSON files using go:embed, providing compile-time data inclusion. |
+| PlanRepository | Interface defining contract for plan data access, enabling dependency injection and testing through mock implementations. |
+| Variable Substitution | Process of replacing format string placeholders (e.g., "@daily_cost") with actual usage values for quick query output formatting. |
+| GetUsageVariablesQuery | Unified usecase that retrieves all format variables in a single operation, providing atomic consistency and reducing database round-trips. |
