@@ -40,7 +40,7 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Test embedded data loading during application startup
   - _Requirements: R4
 
-- [ ] 6. Create Plan entity with business rules
+- [x] 6. Create Plan entity with business rules
   - Implement `entity/plan.go` with Plan struct, NewPlan constructor, and core methods
   - Add Name(), Price(), IsValid(), and CalculateUsagePercentage() methods
   - Include validation logic for plan names and percentage calculations
