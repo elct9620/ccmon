@@ -37,8 +37,10 @@ Feature: Multiple variables in format string
   Scenario: Combine cost and percentage
     Given ccmon server is running with usage data
     And user has Pro plan configured ($20)
+    And current month has 30 days
+    And daily cost is $2.0
     When I run "ccmon --format '💰 @daily_cost / @daily_plan_usage'"
-    Then I should see output like "💰 $10.0 / 50%"
+    Then I should see output like "💰 $2.0 / 300%"
 
   Scenario: Multiple daily metrics
     Given ccmon server is running with usage data
@@ -69,13 +71,27 @@ Feature: Predefined variables
     Given ccmon server has daily usage data
     And user has plan configured in settings
     When I use "@daily_plan_usage" variable
-    Then it should return daily cost as percentage of plan price
+    Then it should return daily cost as percentage of daily budget (plan price / days in current month)
 
   Scenario: Monthly plan usage percentage
     Given ccmon server has monthly usage data
     And user has plan configured in settings
     When I use "@monthly_plan_usage" variable
     Then it should return monthly cost as percentage of plan price
+
+  Scenario: Daily plan usage calculation with new formula
+    Given user has Pro plan configured ($20)
+    And current month has 31 days (January)
+    And daily cost is $1.0
+    When I use "@daily_plan_usage" variable
+    Then it should calculate: $1.0 / ($20 / 31) = $1.0 / $0.645 = 155%
+
+  Scenario: Daily plan usage exceeding daily budget
+    Given user has Pro plan configured ($20)
+    And current month has 28 days (February)
+    And daily cost is $2.0
+    When I use "@daily_plan_usage" variable
+    Then it should calculate: $2.0 / ($20 / 28) = $2.0 / $0.714 = 280%
 
   Scenario: No plan configured
     Given user has no plan configured in settings
@@ -150,5 +166,7 @@ Feature: Time zone consistency
 - **No Caching**: Real-time queries without local caching
 - **Command Flag**: Consider `-format` vs `-print` for final implementation
 - **Plan Prices**: Pro=$20, Max=$100, Max20=$200
-- **Percentage Format**: Show as integer percentage (e.g., "50%" not "50.0%")
+- **Daily Plan Usage Formula**: `Daily Cost / (Plan Price / Days in Current Month)`
+- **Days in Month**: Use calendar days of current month (28-31 days)
+- **Percentage Format**: Show as integer percentage (e.g., "300%" not "300.0%")
 - **Currency Format**: USD with one decimal place (e.g., "$10.0")

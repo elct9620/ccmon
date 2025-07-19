@@ -117,9 +117,27 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Validate output format matches specification requirements exactly
   - _Requirements: R1, R2, R3, R5
 
+## Formula Update Tasks
+
+- [ ] 17. Update daily plan usage calculation formula in GetUsageVariablesQuery
+  - Modify `generateVariableMap` method in `usecase/get_usage_variables_query.go`
+  - Change daily plan usage calculation from `(dailyCost / planPrice) * 100` to `(dailyCost / (planPrice / daysInMonth)) * 100`
+  - Get current month days count using `time.Now().AddDate(0, 1, -time.Now().Day()).Day()`
+  - Keep monthly plan usage calculation unchanged (continue using existing `CalculateUsagePercentage`)
+  - Ensure "0%" is returned for unset/invalid plans
+  - _Requirements: R3 (Updated daily plan usage formula)
+
+- [ ] 18. Update tests to verify new daily plan usage calculation
+  - Update existing tests for `GetUsageVariablesQuery` to validate new formula
+  - Test Pro plan examples: $1.0 daily cost with 31 days = 155%, $2.0 with 28 days = 280%
+  - Test different month lengths (28, 29, 30, 31 days)
+  - Verify monthly calculation remains unchanged
+  - Ensure edge cases work: unset plan returns 0%, zero costs, etc.
+  - _Requirements: R3
+
 ## Requirements Reference
 - R1: Basic usage information query with simple command
 - R2: Multiple variables in single query
-- R3: Predefined variable support (@daily_cost, @monthly_cost, etc.)
+- R3: Predefined variable support (@daily_cost, @monthly_cost, etc.) - **Updated with new daily plan usage formula: Daily Cost / (Plan Price / Days in Current Month)**
 - R4: Plan configuration support (Pro, Max, Max20)
 - R5: Time zone consistency with TUI interface
