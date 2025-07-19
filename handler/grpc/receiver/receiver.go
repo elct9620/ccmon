@@ -108,6 +108,9 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 							}
 						}
 					}
+				} else if body, ok := logRecord.Body.Value.(*commonv1.AnyValue_StringValue); ok && body.StringValue != "" {
+					// Log unsupported event types for analysis
+					log.Printf("Unsupported log event: %s", body.StringValue)
 				}
 			}
 		}

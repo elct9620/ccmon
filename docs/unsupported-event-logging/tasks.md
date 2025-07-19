@@ -1,6 +1,6 @@
 # Unsupported Event Logging Feature Tasks
 
-- [ ] 1. Add unsupported event logging to OTLP receiver Export method
+- [x] 1. Add unsupported event logging to OTLP receiver Export method
   - Modify `handler/grpc/receiver/receiver.go` logsReceiver.Export() method
   - Add logging for non-API request string body values that are not empty
   - Use INFO level with format: "Unsupported log event: [event_type]"
