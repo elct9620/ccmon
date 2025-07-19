@@ -95,6 +95,37 @@ Monitor with Claude token limit progress bars for 5-hour blocks:
 ./ccmon --block 11pm # Track usage from 11pm start blocks
 ```
 
+#### 4. Format Query Mode
+Quick query mode that outputs formatted usage data directly to stdout:
+```bash
+./ccmon --format "@daily_cost"              # Today's cost (e.g., $1.2)
+./ccmon --format "@monthly_cost"            # This month's cost
+./ccmon --format "Today: @daily_cost"       # Custom format with text
+./ccmon --format "@daily_plan_usage"        # Daily plan usage percentage
+./ccmon --format "@monthly_plan_usage"      # Monthly plan usage percentage
+```
+
+**Available Variables:**
+- `@daily_cost` - Today's total cost (e.g., "$1.2")
+- `@monthly_cost` - This month's total cost
+- `@daily_plan_usage` - Daily usage as percentage of plan limit (e.g., "15%")
+- `@monthly_plan_usage` - Monthly usage as percentage of plan limit
+
+**Example Usage:**
+```bash
+# Simple cost query
+./ccmon --format "@daily_cost"
+# Output: $1.2
+
+# Custom format with multiple variables
+./ccmon --format "Daily: @daily_cost (@daily_plan_usage of plan)"
+# Output: Daily: $1.2 (15% of plan)
+
+# Use in scripts
+DAILY_COST=$(./ccmon --format "@daily_cost")
+echo "Today's Claude usage cost: $DAILY_COST"
+```
+
 ### Version Information
 
 Check the installed version of ccmon:
