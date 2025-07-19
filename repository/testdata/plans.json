@@ -1,0 +1,20 @@
+{
+  "plans": {
+    "unset": {
+      "name": "unset",
+      "price": 0.0
+    },
+    "pro": {
+      "name": "pro", 
+      "price": 20.0
+    },
+    "max": {
+      "name": "max",
+      "price": 100.0
+    },
+    "max20": {
+      "name": "max20",
+      "price": 200.0
+    }
+  }
+}

@@ -47,7 +47,7 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Support plan types: unset, pro, max, max20 with respective USD prices
   - _Requirements: R4
 
-- [ ] 7. Implement plan repository with embedded data access
+- [x] 7. Implement plan repository with embedded data access
   - Create `repository/embedded_plan_repository.go` with EmbeddedPlanRepository struct
   - Implement GetConfiguredPlan method reading from config and embedded JSON
   - Add PlanRepository interface and implement JSON parsing logic
