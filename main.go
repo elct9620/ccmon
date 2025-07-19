@@ -23,9 +23,11 @@ func main() {
 	var serverMode bool
 	var blockTime string
 	var showVersion bool
+	var formatString string
 	pflag.BoolVarP(&serverMode, "server", "s", false, "Run as OTLP server (headless mode)")
 	pflag.StringVarP(&blockTime, "block", "b", "", "Set block start time for token tracking (e.g., '5am', '11pm')")
 	pflag.BoolVarP(&showVersion, "version", "v", false, "Show version information")
+	pflag.StringVar(&formatString, "format", "", "Format string for quick query (e.g., '@daily_cost')")
 
 	// Add help flag
 	pflag.BoolP("help", "h", false, "Show help")
@@ -54,6 +56,13 @@ func main() {
 	// Check for help flag after config is loaded
 	if help, _ := pflag.CommandLine.GetBool("help"); help {
 		pflag.Usage()
+		os.Exit(0)
+	}
+
+	// Handle format query mode - bypass TUI and output directly to stdout
+	if formatString != "" {
+		// For now, output hardcoded response to verify flag parsing works
+		fmt.Printf("Format: %s\n", formatString)
 		os.Exit(0)
 	}
 
