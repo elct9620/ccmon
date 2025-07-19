@@ -110,7 +110,7 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Test error scenarios: server down, invalid configuration, network timeouts
   - _Requirements: R1, R2, R3, R5
 
-- [ ] 16. Create integration tests for end-to-end functionality
+- [x] 16. Create integration tests for end-to-end functionality
   - Test complete format query execution with real gRPC responses
   - Verify all supported variables work correctly in various combinations
   - Test time zone consistency with existing TUI calculations
