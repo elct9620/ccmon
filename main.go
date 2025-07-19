@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +14,9 @@ import (
 	"github.com/elct9620/ccmon/usecase"
 	"github.com/spf13/pflag"
 )
+
+//go:embed data/*
+var dataFS embed.FS
 
 var (
 	version = "dev"
