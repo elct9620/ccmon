@@ -7,6 +7,10 @@
           {
             "type": "command",
             "command": "jq -r '.tool_input.file_path | select(endswith(\".go\"))' | xargs -r gofmt -w"
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path | select(endswith(\".go\"))' | xargs -r goimports -w"
           }
         ]
       }
