@@ -10,6 +10,16 @@ ccmon is a TUI (Terminal User Interface) application that monitors Claude Code A
 
 - The `docs/glossary.md` is defined our domain concepts
 
+## Architecture Conventions
+
+### Directory Structure
+
+- `entity/` - Domain entities and business rules
+- `usecase/` - Business logic and application services with interface definitions
+- `repository/` - Data access implementations  
+- `handler/` - External interfaces (TUI, gRPC, CLI)
+- `service/` - Infrastructure services and non-business logic implementations (e.g., time handling, external service adapters)
+
 ## Operating Modes
 
 ccmon has two distinct operating modes:

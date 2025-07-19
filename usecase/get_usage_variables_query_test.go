@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/service"
 	"github.com/elct9620/ccmon/usecase"
 )
 
@@ -237,7 +238,7 @@ func TestTimePeriodFactory(t *testing.T) {
 		t.Fatalf("Failed to load timezone: %v", err)
 	}
 
-	factory := usecase.NewTimePeriodFactory(loc)
+	factory := service.NewTimePeriodFactory(loc)
 
 	t.Run("CreateDaily", func(t *testing.T) {
 		period := factory.CreateDaily()
@@ -284,7 +285,7 @@ func TestTimePeriodFactory(t *testing.T) {
 
 	t.Run("CreateWithNilTimezone", func(t *testing.T) {
 		// Should default to UTC
-		factory := usecase.NewTimePeriodFactory(nil)
+		factory := service.NewTimePeriodFactory(nil)
 		period := factory.CreateDaily()
 
 		if period.StartAt().Location() != time.UTC {
