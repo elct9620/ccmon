@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.7.0](https://github.com/elct9620/ccmon/compare/v0.6.0...v0.7.0) (2025-07-19)
+
+
+### Features
+
+* add comprehensive error handling and timeout management for quick-query ([f405b19](https://github.com/elct9620/ccmon/commit/f405b19c5536a97f99d51f99441b9a51b9ffbf96))
+* add embedded plans data file with go:embed setup ([b6f882f](https://github.com/elct9620/ccmon/commit/b6f882f790c3b2df0e28e423792d73f5bf781066))
+* add format flag to main CLI interface ([6db5819](https://github.com/elct9620/ccmon/commit/6db58191924f9d4d89dcb2e414b5001a4a276a9d))
+* add usage variable entity for quick query feature ([85525e6](https://github.com/elct9620/ccmon/commit/85525e6e43c31da985dbd525874bd5b9bc07f4b3))
+* connect format renderer to real gRPC cost data ([7ab7e1c](https://github.com/elct9620/ccmon/commit/7ab7e1c41a9fd7f747527a0094be3645d40ffedf))
+* implement CLI query handler with hardcoded responses ([ffcac91](https://github.com/elct9620/ccmon/commit/ffcac91769dbbbbb9655307ab10f2678d6303fb5))
+* implement format renderer with variable substitution ([79f2cdb](https://github.com/elct9620/ccmon/commit/79f2cdb2605447a597d56ff7757e03a5d761a854))
+* implement Get Plan Query usecase for quick-query feature ([d5a0bf9](https://github.com/elct9620/ccmon/commit/d5a0bf92dbb5c17a9f9bc59610bfe2a9cf086219))
+* implement GetClaudePlan method for plan configuration support ([b9d4f49](https://github.com/elct9620/ccmon/commit/b9d4f494f4d9cde6c4980ffe39c1878bcbd3afaa))
+* implement GetUsageVariablesQuery usecase for quick-query feature ([d029132](https://github.com/elct9620/ccmon/commit/d0291328b11a01dd21cd00788b072fd06f025bba))
+* implement Plan entity with business rules ([1064293](https://github.com/elct9620/ccmon/commit/1064293599520ce9025ebc31d22493ab74ca5cea))
+* implement plan repository with embedded data access ([1d3d427](https://github.com/elct9620/ccmon/commit/1d3d4278e32169d675e6709277ddf0de0094d77c))
+* update FormatRenderer to use GetUsageVariablesQuery ([6e95d32](https://github.com/elct9620/ccmon/commit/6e95d3234a3bad132c9209ef85faae187c5ad457))
+
+
+### Bug Fixes
+
+* remove unused error handling functions in query handler ([2c87f46](https://github.com/elct9620/ccmon/commit/2c87f4684886b6d92aba4a347f02cd060a081f00))
+
 ## [0.6.0](https://github.com/elct9620/ccmon/compare/v0.5.0...v0.6.0) (2025-07-02)
 
 
