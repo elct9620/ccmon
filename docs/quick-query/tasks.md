@@ -1,12 +1,12 @@
 # Quick Query Feature Tasks
 
 ## Overview
-Implementation of command-line quick query functionality for ccmon, enabling users to retrieve usage metrics via format strings with predefined variables (e.g., `ccmon -format '@daily_cost'`).
+Implementation of command-line quick query functionality for ccmon, enabling users to retrieve usage metrics via format strings with predefined variables (e.g., `ccmon --format '@daily_cost'`).
 
 ## Task List
 
 - [x] 1. Add format flag to main CLI interface
-  - Extend main.go flag parsing to include `-format` flag
+  - Extend main.go flag parsing to include `--format` flag
   - Create basic command structure that accepts format string and exits without TUI
   - Output hardcoded "Format: {input}" to verify flag parsing works
   - Ensure format query bypasses TUI initialization and outputs directly to stdout

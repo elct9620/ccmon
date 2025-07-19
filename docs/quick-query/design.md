@@ -36,22 +36,22 @@ graph TB
     CLI[CLI Flag Handler] --> QH[Query Handler]
     QH --> FR[Format Renderer]
     FR --> GUV[Get Usage Variables Query]
-    
+
     FR --> |"map[string]string substitution"| Output[Formatted Output]
     GUV --> |"Variable definitions"| VD[Usage Variable Entity]
     GUV --> |"Stats queries"| ESQ[Existing Stats Query]
     GUV --> |"Plan config"| PlanRepo[Plan Repository]
-    
+
     ESQ --> gRPC[Existing gRPC Service]
     PlanRepo --> Config[Configuration File]
     PlanRepo --> JSON[Embedded plans.json]
-    
+
     subgraph "Existing Components"
         gRPC
         Config
         ESQ
     end
-    
+
     subgraph "New Components"
         QH
         FR
@@ -174,7 +174,7 @@ func (h *QueryHandler) outputResult(result string, err error)
 
 // Error handling:
 // - Connection errors -> "❌ ERROR"
-// - Invalid format -> "❌ ERROR"  
+// - Invalid format -> "❌ ERROR"
 // - Missing plan config -> use 0% for percentages
 ```
 
@@ -187,7 +187,7 @@ func (h *QueryHandler) outputResult(result string, err error)
       "price": 0.0
     },
     "pro": {
-      "name": "pro", 
+      "name": "pro",
       "price": 20.0
     },
     "max": {
@@ -214,7 +214,7 @@ if formatString != "" {
     )
     renderer := cli.NewFormatRenderer(usageVariablesQuery)
     handler := cli.NewQueryHandler(renderer)
-    
+
     // Execute query
     if err := handler.HandleFormatQuery(formatString); err != nil {
         os.Exit(1)
@@ -257,12 +257,12 @@ func NewEmbeddedPlanRepository(config *Config, dataFS embed.FS) (*EmbeddedPlanRe
     if err != nil {
         return nil, fmt.Errorf("failed to read plans.json: %w", err)
     }
-    
+
     var doc PlansDocument
     if err := json.Unmarshal(plansData, &doc); err != nil {
         return nil, fmt.Errorf("failed to unmarshal plans data: %w", err)
     }
-    
+
     return &EmbeddedPlanRepository{
         config: config,
         dataFS: dataFS,
@@ -275,13 +275,13 @@ func (r *EmbeddedPlanRepository) GetConfiguredPlan() (entity.Plan, error) {
     if planName == "" {
         planName = "unset"
     }
-    
+
     planData, exists := r.plans[planName]
     if !exists {
         // Return unset plan for invalid configurations
         planData = r.plans["unset"]
     }
-    
+
     return entity.NewPlan(planData.Name, cost.NewCost(planData.Price)), nil
 }
 ```
@@ -317,7 +317,7 @@ plan = "pro"  # Options: "unset", "pro", "max", "max20"
 
 ### Deployment Considerations
 - Extend existing CLI flag parsing in main.go
-- Add `-format` flag handler that creates and uses QueryHandler
+- Add `--format` flag handler that creates and uses QueryHandler
 - Pass existing Config instance to PlanRepository via dependency injection
 - Ensure graceful error handling for network connectivity issues
 - Maintain backward compatibility with existing CLI flags
