@@ -3,12 +3,21 @@
 ## Feature Overview
 The quick query feature enables Claude Code users to retrieve usage information via command-line interface without opening the full TUI dashboard. Users can query metrics like daily/monthly costs and plan usage percentages using simple format strings with predefined variables, making it ideal for integration with status bars, tmux panels, and shell scripts.
 
+## Design Summary
+The design follows a simplified approach where:
+- **GetUsageVariablesQuery** is the single query interface that retrieves all usage variables
+- **UsageVariable** entity defines all supported variables in the business logic layer
+- **Plan** entity (already exists) provides percentage calculation logic
+- **FormatRenderer** performs simple string substitution using the variable map
+- No intermediate abstractions - direct use of existing repositories and queries
+
 ## Architecture Planning
 
 ### File Structure
 ```
 entity/
   plan.go                    # Plan configuration value object
+  usage_variable.go          # Variable definitions for business logic
 handler/
   cli/
     format_renderer.go       # Format string rendering with variable substitution
@@ -16,8 +25,7 @@ handler/
 repository/
   embedded_plan_repository.go # Plan repository with embedded JSON data
 usecase/
-  get_plan_query.go         # Plan configuration business logic
-  calculate_percentage_query.go # Plan usage percentage calculations
+  get_usage_variables_query.go # Retrieves usage variables for substitution
 data/
   plans.json                # Embedded plan definitions (go:embed)
 ```
@@ -27,29 +35,28 @@ data/
 graph TB
     CLI[CLI Flag Handler] --> QH[Query Handler]
     QH --> FR[Format Renderer]
-    QH --> GPU[Get Plan Query]
-    QH --> CPQ[Calculate Percentage Query]
-    QH --> ESQ[Existing Stats Query]
+    FR --> GUV[Get Usage Variables Query]
     
-    FR --> |"Variable substitution"| Output[Formatted Output]
-    GPU --> |"Plan config"| PlanRepo[Plan Repository]
-    CPQ --> |"Percentage calc"| StatsRepo[Stats Repository]
-    ESQ --> |"Cost/usage data"| StatsRepo
+    FR --> |"map[string]string substitution"| Output[Formatted Output]
+    GUV --> |"Variable definitions"| VD[Usage Variable Entity]
+    GUV --> |"Stats queries"| ESQ[Existing Stats Query]
+    GUV --> |"Plan config"| PlanRepo[Plan Repository]
     
+    ESQ --> gRPC[Existing gRPC Service]
     PlanRepo --> Config[Configuration File]
     PlanRepo --> JSON[Embedded plans.json]
-    StatsRepo --> gRPC[Existing gRPC Service]
     
     subgraph "Existing Components"
         gRPC
         Config
+        ESQ
     end
     
     subgraph "New Components"
         QH
         FR
-        GPU
-        CPQ
+        GUV
+        VD
         PlanRepo
         JSON
     end
@@ -57,8 +64,9 @@ graph TB
 
 ### Key Architectural Features
 - **Single Responsibility**: Format rendering separated from data retrieval and business logic
-- **Direct Config Injection**: Uses existing Config struct directly without unnecessary ConfigReader abstraction
-- **Clean Architecture**: Domain entities for Plan, handlers for CLI, usecases for business rules
+- **Simplified Design**: Single query interface (GetUsageVariablesQuery) handles all variable generation
+- **Business Logic in Entities**: Variable definitions centralized in entity layer for consistency
+- **Direct Dependencies**: No unnecessary abstraction layers, uses PlanRepository directly
 - **Embedded Data**: Plan definitions stored in embedded JSON file using go:embed for maintainability
 - **Reuse Existing Infrastructure**: Leverages existing gRPC query service and configuration system
 - **Error Handling**: Graceful degradation with "❌ ERROR" output on failures
@@ -69,50 +77,67 @@ graph TB
 
 **Business Logic Components**: Plain Objects without dependencies, relying on dependency injection for infrastructure needs. Include objects, methods, interface contracts that implement business rules and user features.
 
-**Plan Entity** (`entity/plan.go`):
+**Plan Entity** (`entity/plan.go`) - Already exists:
 ```go
 type Plan struct {
     name  string
     price cost.Cost
 }
 
-func NewPlan(name string) Plan
+func NewPlan(name string, price Cost) Plan
 func (p Plan) Name() string
 func (p Plan) Price() cost.Cost
 func (p Plan) IsValid() bool
 func (p Plan) CalculateUsagePercentage(actualCost cost.Cost) int
 ```
 
-**Get Plan Query** (`usecase/get_plan_query.go`):
+**Usage Variable Entity** (`entity/usage_variable.go`):
 ```go
-type GetPlanQuery struct {
-    planRepository PlanRepository
+type UsageVariable struct {
+    name string
+    key  string
 }
 
-func NewGetPlanQuery(planRepo PlanRepository) *GetPlanQuery
-func (q *GetPlanQuery) Execute() (entity.Plan, error)
+// Predefined variables
+var (
+    DailyCostVariable        = UsageVariable{name: "Daily Cost", key: "@daily_cost"}
+    MonthlyCostVariable      = UsageVariable{name: "Monthly Cost", key: "@monthly_cost"}
+    DailyPlanUsageVariable   = UsageVariable{name: "Daily Plan Usage", key: "@daily_plan_usage"}
+    MonthlyPlanUsageVariable = UsageVariable{name: "Monthly Plan Usage", key: "@monthly_plan_usage"}
+)
+
+func GetAllUsageVariables() []UsageVariable
+func (v UsageVariable) Key() string
+func (v UsageVariable) Name() string
+```
+
+**Get Usage Variables Query** (`usecase/get_usage_variables_query.go`):
+```go
+type GetUsageVariablesQuery struct {
+    statsQuery      *CalculateStatsQuery
+    planRepository  PlanRepository
+    periodFactory   PeriodFactory
+}
+
+func NewGetUsageVariablesQuery(
+    statsQuery *CalculateStatsQuery,
+    planRepository PlanRepository,
+    periodFactory PeriodFactory,
+) *GetUsageVariablesQuery
+
+// Execute retrieves usage variables as a substitution map
+func (q *GetUsageVariablesQuery) Execute(ctx context.Context) (map[string]string, error)
+
+// Internal helper for generating the variable map
+func (q *GetUsageVariablesQuery) generateVariableMap(
+    plan entity.Plan,
+    dailyStats entity.Stats,
+    monthlyStats entity.Stats,
+) map[string]string
 
 type PlanRepository interface {
     GetConfiguredPlan() (entity.Plan, error)
 }
-```
-
-**Calculate Percentage Query** (`usecase/calculate_percentage_query.go`):
-```go
-type CalculatePercentageQuery struct {
-    planQuery     *GetPlanQuery
-    statsQuery    *CalculateStatsQuery
-    periodFactory PeriodFactory
-}
-
-func NewCalculatePercentageQuery(
-    planQuery *GetPlanQuery,
-    statsQuery *CalculateStatsQuery,
-    periodFactory PeriodFactory,
-) *CalculatePercentageQuery
-
-func (q *CalculatePercentageQuery) ExecuteDaily() (int, error)
-func (q *CalculatePercentageQuery) ExecuteMonthly() (int, error)
 
 type PeriodFactory interface {
     CreateDaily() entity.Period
@@ -125,25 +150,16 @@ type PeriodFactory interface {
 **Format Renderer** (`handler/cli/format_renderer.go`):
 ```go
 type FormatRenderer struct {
-    statsQuery      *CalculateStatsQuery
-    percentageQuery *CalculatePercentageQuery
-    periodFactory   PeriodFactory
+    usageVariablesQuery *GetUsageVariablesQuery
 }
 
-func NewFormatRenderer(
-    statsQuery *CalculateStatsQuery,
-    percentageQuery *CalculatePercentageQuery,
-    periodFactory PeriodFactory,
-) *FormatRenderer
+func NewFormatRenderer(usageVariablesQuery *GetUsageVariablesQuery) *FormatRenderer
 
 func (r *FormatRenderer) Render(formatString string) (string, error)
-func (r *FormatRenderer) substituteVariables(input string) (string, error)
+func (r *FormatRenderer) substituteVariables(input string, variableMap map[string]string) string
 
-// Variable substitution map:
-// @daily_cost -> daily cost in USD format ($10.0)
-// @monthly_cost -> monthly cost in USD format ($150.0)  
-// @daily_plan_usage -> daily usage percentage (50%)
-// @monthly_plan_usage -> monthly usage percentage (75%)
+// Uses variable map from GetUsageVariablesQuery for substitution
+// Handles error cases by returning "❌ ERROR"
 ```
 
 **Query Handler** (`handler/cli/query_handler.go`):
@@ -186,18 +202,29 @@ func (h *QueryHandler) outputResult(result string, err error)
 }
 ```
 
-**Main.go Embedding**:
+**Main.go Integration**:
 ```go
-package main
+// In main.go, add to existing flag handling:
+if formatString != "" {
+    // Create dependencies
+    usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
+        statsQuery,
+        planRepository,
+        periodFactory,
+    )
+    renderer := cli.NewFormatRenderer(usageVariablesQuery)
+    handler := cli.NewQueryHandler(renderer)
+    
+    // Execute query
+    if err := handler.HandleFormatQuery(formatString); err != nil {
+        os.Exit(1)
+    }
+    return
+}
 
-import (
-    "embed"
-)
-
+// Existing dataFS for plan repository:
 //go:embed data/*
 var dataFS embed.FS
-
-// Pass dataFS to repository via dependency injection
 ```
 
 **Plan Repository Implementation** (`repository/embedded_plan_repository.go`):
@@ -281,8 +308,9 @@ plan = "pro"  # Options: "unset", "pro", "max", "max20"
 ```
 
 ### Testing Strategy
-- Unit tests for Plan entity business rules
-- Unit tests for format variable substitution
+- Unit tests for UsageVariable entity definitions
+- Unit tests for GetUsageVariablesQuery with mock repositories
+- Unit tests for FormatRenderer variable substitution
 - Unit tests for percentage calculations with different plans
 - Integration tests with mock gRPC responses
 - CLI integration tests for error scenarios
