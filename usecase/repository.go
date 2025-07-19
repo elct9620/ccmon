@@ -23,3 +23,9 @@ type APIRequestRepository interface {
 	// Returns the number of deleted records and any error
 	DeleteOlderThan(cutoffTime time.Time) (int, error)
 }
+
+// PlanRepository defines the repository interface for plan configuration access
+type PlanRepository interface {
+	// GetConfiguredPlan retrieves the configured plan from the repository
+	GetConfiguredPlan() (entity.Plan, error)
+}
