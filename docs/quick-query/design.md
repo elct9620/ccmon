@@ -57,7 +57,7 @@ graph TB
 
 ### Key Architectural Features
 - **Single Responsibility**: Format rendering separated from data retrieval and business logic
-- **Dependency Injection**: Business logic components receive infrastructure dependencies
+- **Direct Config Injection**: Uses existing Config struct directly without unnecessary ConfigReader abstraction
 - **Clean Architecture**: Domain entities for Plan, handlers for CLI, usecases for business rules
 - **Embedded Data**: Plan definitions stored in embedded JSON file using go:embed for maintainability
 - **Reuse Existing Infrastructure**: Leverages existing gRPC query service and configuration system
@@ -211,9 +211,9 @@ import (
 )
 
 type EmbeddedPlanRepository struct {
-    configReader ConfigReader
-    dataFS       embed.FS
-    plans        map[string]PlanData
+    config *Config  // Direct Config injection
+    dataFS embed.FS
+    plans  map[string]PlanData
 }
 
 type PlanData struct {
@@ -225,11 +225,7 @@ type PlansDocument struct {
     Plans map[string]PlanData `json:"plans"`
 }
 
-type ConfigReader interface {
-    GetClaudePlan() string
-}
-
-func NewEmbeddedPlanRepository(configReader ConfigReader, dataFS embed.FS) (*EmbeddedPlanRepository, error) {
+func NewEmbeddedPlanRepository(config *Config, dataFS embed.FS) (*EmbeddedPlanRepository, error) {
     plansData, err := dataFS.ReadFile("data/plans.json")
     if err != nil {
         return nil, fmt.Errorf("failed to read plans.json: %w", err)
@@ -241,14 +237,14 @@ func NewEmbeddedPlanRepository(configReader ConfigReader, dataFS embed.FS) (*Emb
     }
     
     return &EmbeddedPlanRepository{
-        configReader: configReader,
-        dataFS:       dataFS,
-        plans:        doc.Plans,
+        config: config,
+        dataFS: dataFS,
+        plans:  doc.Plans,
     }, nil
 }
 
 func (r *EmbeddedPlanRepository) GetConfiguredPlan() (entity.Plan, error) {
-    planName := r.configReader.GetClaudePlan()
+    planName := r.config.Claude.Plan
     if planName == "" {
         planName = "unset"
     }
@@ -274,7 +270,7 @@ func (r *EmbeddedPlanRepository) GetConfiguredPlan() (entity.Plan, error) {
 - Existing entity types (Cost, Period, Stats)
 - Existing usecase (CalculateStatsQuery)
 - Existing gRPC client infrastructure
-- Existing configuration system
+- Existing Config struct with Claude.Plan field
 - Go embed package for data file embedding
 
 ### Configuration Files
@@ -294,7 +290,8 @@ plan = "pro"  # Options: "unset", "pro", "max", "max20"
 ### Deployment Considerations
 - Extend existing CLI flag parsing in main.go
 - Add `-format` flag handler that creates and uses QueryHandler
+- Pass existing Config instance to PlanRepository via dependency injection
 - Ensure graceful error handling for network connectivity issues
 - Maintain backward compatibility with existing CLI flags
 - Plans data embedded in binary at compile time via go:embed
-- Dependency injection pattern for dataFS from main.go to repository layer
+- Follow existing dependency injection pattern for Config and dataFS
