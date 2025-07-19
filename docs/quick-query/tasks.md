@@ -19,7 +19,7 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Implement basic error output "❌ ERROR" for connection simulation
   - _Requirements: R1, R2, R3
 
-- [ ] 3. Implement format renderer with variable substitution
+- [x] 3. Implement format renderer with variable substitution
   - Create `handler/cli/format_renderer.go` with FormatRenderer struct
   - Add Render method that processes format strings and substitutes variables
   - Support @daily_cost, @monthly_cost, @daily_plan_usage, @monthly_plan_usage variables
