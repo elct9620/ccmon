@@ -4,10 +4,14 @@ import (
 	"fmt"
 )
 
-type QueryHandler struct{}
+type QueryHandler struct {
+	renderer *FormatRenderer
+}
 
 func NewQueryHandler() *QueryHandler {
-	return &QueryHandler{}
+	return &QueryHandler{
+		renderer: NewFormatRenderer(),
+	}
 }
 
 func (h *QueryHandler) HandleFormatQuery(formatString string) error {
@@ -17,22 +21,8 @@ func (h *QueryHandler) HandleFormatQuery(formatString string) error {
 }
 
 func (h *QueryHandler) processFormat(formatString string) (string, error) {
-	// For task 2: Return hardcoded values for testing
-	// This will be replaced with real format rendering in later tasks
-	switch formatString {
-	case "@daily_cost":
-		return "$10.0", nil
-	case "@monthly_cost":
-		return "$150.0", nil
-	case "@daily_plan_usage":
-		return "50%", nil
-	case "@monthly_plan_usage":
-		return "50%", nil
-	default:
-		// For any other format string, return it as-is for now
-		// This handles cases like "💰 @daily_cost" which will be processed by FormatRenderer later
-		return formatString, nil
-	}
+	// Use FormatRenderer to handle variable substitution
+	return h.renderer.Render(formatString)
 }
 
 func (h *QueryHandler) outputResult(result string, err error) {
