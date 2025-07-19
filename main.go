@@ -123,7 +123,24 @@ func main() {
 		// Convert config to TUI-specific struct
 		// Handle format query mode - bypass TUI and output directly to stdout
 		if formatString != "" {
-			queryHandler := cli.NewQueryHandler(calculateStatsQuery, timezone)
+			// Create plan repository for usage percentage calculations
+			planRepository, err := repository.NewEmbeddedPlanRepository(config, dataFS)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to initialize plan repository: %v\n", err)
+				os.Exit(1)
+			}
+
+			// Create GetUsageVariablesQuery with all dependencies
+			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
+				calculateStatsQuery,
+				planRepository,
+				periodFactory,
+			)
+
+			// Create format renderer and query handler
+			renderer := cli.NewFormatRenderer(usageVariablesQuery)
+			queryHandler := cli.NewQueryHandler(renderer)
+
 			if err := queryHandler.HandleFormatQuery(formatString); err != nil {
 				os.Exit(1)
 			}

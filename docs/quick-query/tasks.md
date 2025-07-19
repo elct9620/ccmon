@@ -82,14 +82,14 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Implement generateVariableMap helper to format all variable values
   - _Requirements: R2, R3, R4
 
-- [ ] 12. Wire up percentage calculations in GetUsageVariablesQuery
+- [x] 12. Wire up percentage calculations in GetUsageVariablesQuery
   - Update GetUsageVariablesQuery to calculate plan usage percentages
   - Use Plan entity's CalculateUsagePercentage method for calculations
   - Format percentages as integers (e.g., "50%" not "50.0%")
   - Return "0%" for unset/invalid plans as specified
   - _Requirements: R2, R4
 
-- [ ] 13. Update format renderer to use GetUsageVariablesQuery
+- [x] 13. Update format renderer to use GetUsageVariablesQuery
   - Replace hardcoded values and stats query in FormatRenderer with GetUsageVariablesQuery
   - Update constructor to accept usageVariablesQuery dependency
   - Modify Render method to call query.Execute() for variable map
