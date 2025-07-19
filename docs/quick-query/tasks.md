@@ -68,7 +68,7 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Ensure error handling for missing/invalid plan configurations
   - _Requirements: R4
 
-- [ ] 10. Create usage variable entity with predefined variables
+- [x] 10. Create usage variable entity with predefined variables
   - Implement `entity/usage_variable.go` with UsageVariable struct
   - Define all predefined variables as constants (DailyCostVariable, etc.)
   - Add GetAllUsageVariables() function to list all available variables
