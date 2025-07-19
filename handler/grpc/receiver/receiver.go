@@ -77,6 +77,11 @@ func (r *logsReceiver) Export(ctx context.Context, req *logsv1.ExportLogsService
 	for _, rl := range req.ResourceLogs {
 		for _, sl := range rl.ScopeLogs {
 			for _, logRecord := range sl.LogRecords {
+				// Skip if body is nil
+				if logRecord.Body == nil {
+					continue
+				}
+
 				// Check if this is an API request log
 				if body, ok := logRecord.Body.Value.(*commonv1.AnyValue_StringValue); ok && body.StringValue == "claude_code.api_request" {
 					apiReq := r.parseAPIRequest(logRecord)

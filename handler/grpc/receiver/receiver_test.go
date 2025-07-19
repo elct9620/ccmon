@@ -1,8 +1,11 @@
 package receiver
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log"
+	"strings"
 	"testing"
 	"time"
 
@@ -457,6 +460,207 @@ func TestOTLPReceiver_IgnoredServices(t *testing.T) {
 
 			// Run the specific test
 			tt.test(t, receiver)
+		})
+	}
+}
+
+func TestOTLPReceiver_UnsupportedEventLogging(t *testing.T) {
+	tests := []struct {
+		name        string
+		request     *logsv1.ExportLogsServiceRequest
+		expectedLog string // Empty string means no log expected
+	}{
+		{
+			name: "unsupported_custom_event",
+			request: &logsv1.ExportLogsServiceRequest{
+				ResourceLogs: []*logsdata.ResourceLogs{
+					{
+						ScopeLogs: []*logsdata.ScopeLogs{
+							{
+								LogRecords: []*logsdata.LogRecord{
+									{
+										Body: &commonv1.AnyValue{
+											Value: &commonv1.AnyValue_StringValue{
+												StringValue: "custom.event",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedLog: "Unsupported log event: custom.event",
+		},
+		{
+			name: "unsupported_system_monitoring",
+			request: &logsv1.ExportLogsServiceRequest{
+				ResourceLogs: []*logsdata.ResourceLogs{
+					{
+						ScopeLogs: []*logsdata.ScopeLogs{
+							{
+								LogRecords: []*logsdata.LogRecord{
+									{
+										Body: &commonv1.AnyValue{
+											Value: &commonv1.AnyValue_StringValue{
+												StringValue: "system.monitoring",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedLog: "Unsupported log event: system.monitoring",
+		},
+		{
+			name: "empty_string_body_skipped",
+			request: &logsv1.ExportLogsServiceRequest{
+				ResourceLogs: []*logsdata.ResourceLogs{
+					{
+						ScopeLogs: []*logsdata.ScopeLogs{
+							{
+								LogRecords: []*logsdata.LogRecord{
+									{
+										Body: &commonv1.AnyValue{
+											Value: &commonv1.AnyValue_StringValue{
+												StringValue: "",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedLog: "", // No log expected for empty string
+		},
+		{
+			name: "nil_body_skipped",
+			request: &logsv1.ExportLogsServiceRequest{
+				ResourceLogs: []*logsdata.ResourceLogs{
+					{
+						ScopeLogs: []*logsdata.ScopeLogs{
+							{
+								LogRecords: []*logsdata.LogRecord{
+									{
+										Body: nil,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedLog: "", // No log expected for nil body
+		},
+		{
+			name: "non_string_body_int_skipped",
+			request: &logsv1.ExportLogsServiceRequest{
+				ResourceLogs: []*logsdata.ResourceLogs{
+					{
+						ScopeLogs: []*logsdata.ScopeLogs{
+							{
+								LogRecords: []*logsdata.LogRecord{
+									{
+										Body: &commonv1.AnyValue{
+											Value: &commonv1.AnyValue_IntValue{
+												IntValue: 123,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedLog: "", // No log expected for non-string body
+		},
+		{
+			name: "non_string_body_bool_skipped",
+			request: &logsv1.ExportLogsServiceRequest{
+				ResourceLogs: []*logsdata.ResourceLogs{
+					{
+						ScopeLogs: []*logsdata.ScopeLogs{
+							{
+								LogRecords: []*logsdata.LogRecord{
+									{
+										Body: &commonv1.AnyValue{
+											Value: &commonv1.AnyValue_BoolValue{
+												BoolValue: true,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedLog: "", // No log expected for non-string body
+		},
+		{
+			name: "claude_code_api_request_processed_normally",
+			request: createClaudeCodeLogRequest(
+				"test-session",
+				time.Now().UTC().Format(time.RFC3339),
+				"claude-3-sonnet-20240229",
+				100, 50, 10, 5,
+				0.25,
+				500,
+			),
+			expectedLog: "", // No unsupported log expected for supported event
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Capture log output by redirecting log output to a buffer
+			var buf bytes.Buffer
+			originalOutput := log.Writer()
+			log.SetOutput(&buf)
+			defer log.SetOutput(originalOutput)
+
+			// Setup mock repository and usecase
+			mockRepo := &mockAPIRequestRepository{}
+			appendCommand := usecase.NewAppendApiRequestCommand(mockRepo)
+
+			// Create receiver
+			receiver := NewReceiver(nil, nil, appendCommand)
+			logsService := receiver.GetLogsServiceServer()
+
+			// Export the log
+			ctx := context.Background()
+			resp, err := logsService.Export(ctx, tt.request)
+			if err != nil {
+				t.Fatalf("Export failed: %v", err)
+			}
+
+			// Verify response is not nil
+			if resp == nil {
+				t.Fatal("Expected non-nil response")
+			}
+
+			// Get captured log output
+			logOutput := buf.String()
+
+			// Check if expected log was captured
+			if tt.expectedLog == "" {
+				// Verify no unsupported event log was generated
+				if strings.Contains(logOutput, "Unsupported log event:") {
+					t.Errorf("Expected no unsupported log, but got: %s", logOutput)
+				}
+			} else {
+				// Verify expected log was captured
+				if !strings.Contains(logOutput, tt.expectedLog) {
+					t.Errorf("Expected log '%s' not found in captured logs: %s", tt.expectedLog, logOutput)
+				}
+			}
 		})
 	}
 }
