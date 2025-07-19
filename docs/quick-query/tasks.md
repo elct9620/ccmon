@@ -5,14 +5,14 @@ Implementation of command-line quick query functionality for ccmon, enabling use
 
 ## Task List
 
-- [ ] 1. Add format flag to main CLI interface
+- [x] 1. Add format flag to main CLI interface
   - Extend main.go flag parsing to include `-format` flag
   - Create basic command structure that accepts format string and exits without TUI
   - Output hardcoded "Format: {input}" to verify flag parsing works
   - Ensure format query bypasses TUI initialization and outputs directly to stdout
   - _Requirements: R1
 
-- [ ] 2. Create CLI query handler with hardcoded responses
+- [x] 2. Create CLI query handler with hardcoded responses
   - Implement `handler/cli/query_handler.go` with QueryHandler struct
   - Add HandleFormatQuery method that outputs hardcoded values for testing
   - Return "$10.0" for @daily_cost, "$150.0" for @monthly_cost, "50%" for percentages

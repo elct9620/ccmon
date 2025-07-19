@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/elct9620/ccmon/handler/cli"
 	grpcserver "github.com/elct9620/ccmon/handler/grpc"
 	"github.com/elct9620/ccmon/handler/tui"
 	"github.com/elct9620/ccmon/repository"
@@ -61,8 +62,10 @@ func main() {
 
 	// Handle format query mode - bypass TUI and output directly to stdout
 	if formatString != "" {
-		// For now, output hardcoded response to verify flag parsing works
-		fmt.Printf("Format: %s\n", formatString)
+		queryHandler := cli.NewQueryHandler()
+		if err := queryHandler.HandleFormatQuery(formatString); err != nil {
+			os.Exit(1)
+		}
 		os.Exit(0)
 	}
 
