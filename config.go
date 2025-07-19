@@ -267,3 +267,8 @@ func (c *Claude) GetTokenLimit() int {
 		return 0 // No limit for unset plan
 	}
 }
+
+// GetClaudePlan returns the configured Claude plan, implementing PlanConfig interface
+func (c *Config) GetClaudePlan() string {
+	return c.Claude.Plan
+}

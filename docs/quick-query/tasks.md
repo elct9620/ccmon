@@ -54,7 +54,7 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Include dependency injection for Config struct and embed.FS
   - _Requirements: R4
 
-- [ ] 8. Extend config system for plan configuration
+- [x] 8. Extend config system for plan configuration
   - Update config.toml structure to include `[claude]` section with `plan` field
   - Modify Config struct to support Claude.Plan string field
   - Ensure graceful handling when plan is not configured (default to "unset")
