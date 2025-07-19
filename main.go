@@ -11,6 +11,7 @@ import (
 	grpcserver "github.com/elct9620/ccmon/handler/grpc"
 	"github.com/elct9620/ccmon/handler/tui"
 	"github.com/elct9620/ccmon/repository"
+	"github.com/elct9620/ccmon/service"
 	"github.com/elct9620/ccmon/usecase"
 	"github.com/spf13/pflag"
 )
@@ -86,7 +87,9 @@ func main() {
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo)
 		cleanupCommand := usecase.NewCleanupOldRecordsCommand(repo)
 		// Note: getUsageQuery would be used if we add usage endpoints to gRPC server
-		_ = usecase.NewGetUsageQuery(repo) // Avoid unused variable
+		// Server mode uses UTC timezone for consistency
+		periodFactory := service.NewTimePeriodFactory(time.UTC)
+		_ = usecase.NewGetUsageQuery(repo, periodFactory) // Avoid unused variable
 
 		// Run server with usecases
 		if err := grpcserver.RunServer(config.Server.Address, appendCommand, getFilteredQuery, calculateStatsQuery, cleanupCommand, &config.Server); err != nil {
@@ -109,17 +112,17 @@ func main() {
 		// Create query usecases (no append command needed for monitor)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo)
-		getUsageQuery := usecase.NewGetUsageQuery(repo)
+		timezone, err := time.LoadLocation(config.Monitor.Timezone)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid timezone: %v\n", err)
+			os.Exit(1)
+		}
+		periodFactory := service.NewTimePeriodFactory(timezone)
+		getUsageQuery := usecase.NewGetUsageQuery(repo, periodFactory)
 
 		// Convert config to TUI-specific struct
 		// Handle format query mode - bypass TUI and output directly to stdout
 		if formatString != "" {
-			timezone, err := time.LoadLocation(config.Monitor.Timezone)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Invalid timezone: %v\n", err)
-				os.Exit(1)
-			}
-
 			queryHandler := cli.NewQueryHandler(calculateStatsQuery, timezone)
 			if err := queryHandler.HandleFormatQuery(formatString); err != nil {
 				os.Exit(1)

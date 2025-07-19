@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/service"
 )
 
 // MockAPIRequestRepositoryForUsage implements APIRequestRepository for usage testing
@@ -58,7 +59,8 @@ func TestGetUsageQuery_ListByDay(t *testing.T) {
 	repo := &MockAPIRequestRepositoryForUsage{
 		requests: []entity.APIRequest{req1, req2},
 	}
-	query := NewGetUsageQuery(repo)
+	periodFactory := service.NewTimePeriodFactory(time.UTC)
+	query := NewGetUsageQuery(repo, periodFactory)
 
 	usage, err := query.ListByDay(context.Background(), 2, time.UTC) // Get last 2 days
 	if err != nil {
@@ -84,7 +86,8 @@ func TestGetUsageQuery_ListByDay(t *testing.T) {
 
 func TestGetUsageQuery_ListByDay_Error(t *testing.T) {
 	repo := &MockAPIRequestRepositoryForUsage{err: &MockError{message: "database error"}}
-	query := NewGetUsageQuery(repo)
+	periodFactory := service.NewTimePeriodFactory(time.UTC)
+	query := NewGetUsageQuery(repo, periodFactory)
 
 	_, err := query.ListByDay(context.Background(), 30, time.UTC)
 	if err == nil {
@@ -133,7 +136,6 @@ func TestGetUsageQuery_ListByDay_Timezone(t *testing.T) {
 	repo := &MockAPIRequestRepositoryForUsage{
 		requests: []entity.APIRequest{req},
 	}
-	query := NewGetUsageQuery(repo)
 
 	tests := []struct {
 		name             string
@@ -163,6 +165,8 @@ func TestGetUsageQuery_ListByDay_Timezone(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			periodFactory := service.NewTimePeriodFactory(tc.timezone)
+			query := NewGetUsageQuery(repo, periodFactory)
 			usage, err := query.ListByDay(context.Background(), 2, tc.timezone)
 			if err != nil {
 				t.Fatalf("Expected no error, got %v", err)
@@ -197,7 +201,8 @@ func TestGetUsageQuery_ListByDay_NilTimezone(t *testing.T) {
 	repo := &MockAPIRequestRepositoryForUsage{
 		requests: []entity.APIRequest{req},
 	}
-	query := NewGetUsageQuery(repo)
+	periodFactory := service.NewTimePeriodFactory(time.UTC)
+	query := NewGetUsageQuery(repo, periodFactory)
 
 	// Pass nil timezone
 	usage, err := query.ListByDay(context.Background(), 1, nil)

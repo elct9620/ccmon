@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/elct9620/ccmon/service"
 	"github.com/elct9620/ccmon/usecase"
 )
 
@@ -12,8 +13,9 @@ type QueryHandler struct {
 }
 
 func NewQueryHandler(statsQuery *usecase.CalculateStatsQuery, timezone *time.Location) *QueryHandler {
+	periodFactory := service.NewTimePeriodFactory(timezone)
 	return &QueryHandler{
-		renderer: NewFormatRenderer(statsQuery, timezone),
+		renderer: NewFormatRenderer(statsQuery, periodFactory),
 	}
 }
 

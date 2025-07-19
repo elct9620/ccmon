@@ -9,33 +9,25 @@ import (
 
 // GetUsageQuery handles retrieving usage statistics grouped by periods
 type GetUsageQuery struct {
-	repository APIRequestRepository
+	repository    APIRequestRepository
+	periodFactory PeriodFactory
 }
 
-// NewGetUsageQuery creates a new GetUsageQuery with the given repository
-func NewGetUsageQuery(repository APIRequestRepository) *GetUsageQuery {
+// NewGetUsageQuery creates a new GetUsageQuery with the given dependencies
+func NewGetUsageQuery(repository APIRequestRepository, periodFactory PeriodFactory) *GetUsageQuery {
 	return &GetUsageQuery{
-		repository: repository,
+		repository:    repository,
+		periodFactory: periodFactory,
 	}
 }
 
 // ListByDay retrieves usage statistics grouped by daily periods
 func (q *GetUsageQuery) ListByDay(ctx context.Context, days int, timezone *time.Location) (entity.Usage, error) {
-	// Use provided timezone, fallback to UTC if nil
-	if timezone == nil {
-		timezone = time.UTC
-	}
-
-	now := time.Now().In(timezone)
 	var dailyStats []entity.Stats
 
 	for i := 0; i < days; i++ {
-		// Calculate day period in the user's timezone (from 00:00:00 to 23:59:59)
-		dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone).AddDate(0, 0, -i)
-		dayEnd := dayStart.Add(24*time.Hour - time.Nanosecond)
-
-		// Convert to UTC for database queries but maintain timezone-aware boundaries
-		period := entity.NewPeriod(dayStart.UTC(), dayEnd.UTC())
+		// Create historical daily period (today minus i days)
+		period := q.createHistoricalDailyPeriod(i)
 
 		// Get requests for this day using the API request repository
 		requests, err := q.repository.FindByPeriodWithLimit(period, 0, 0) // No limit for stats calculation
@@ -49,6 +41,21 @@ func (q *GetUsageQuery) ListByDay(ctx context.Context, days int, timezone *time.
 	}
 
 	return entity.NewUsage(dailyStats), nil
+}
+
+// createHistoricalDailyPeriod creates a daily period for i days ago using PeriodFactory
+func (q *GetUsageQuery) createHistoricalDailyPeriod(daysAgo int) entity.Period {
+	// Get today's period from the factory
+	todayPeriod := q.periodFactory.CreateDaily()
+
+	// Calculate the offset for historical days
+	dayOffset := time.Duration(daysAgo) * 24 * time.Hour
+
+	// Create historical period by shifting both start and end times
+	startAt := todayPeriod.StartAt().Add(-dayOffset)
+	endAt := todayPeriod.EndAt().Add(-dayOffset)
+
+	return entity.NewPeriod(startAt, endAt)
 }
 
 // calculateStatsFromRequests calculates statistics from a list of requests

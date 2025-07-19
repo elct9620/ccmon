@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/elct9620/ccmon/handler/tui"
+	"github.com/elct9620/ccmon/service"
 	"github.com/elct9620/ccmon/usecase"
 )
 
@@ -63,7 +64,8 @@ func TestOverviewTab_IntegrationWithViewModel(t *testing.T) {
 
 			getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
 			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
-			getUsageQuery := usecase.NewGetUsageQuery(mockRepo)
+			periodFactory := service.NewTimePeriodFactory(time.UTC)
+			getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
 
 			// Create the ViewModel (starts on overview tab by default)
 			model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 10*time.Millisecond)
@@ -115,7 +117,8 @@ func TestOverviewTab_TableInteractions(t *testing.T) {
 		mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
-		getUsageQuery := usecase.NewGetUsageQuery(mockRepo)
+		periodFactory := service.NewTimePeriodFactory(time.UTC)
+		getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
 
 		model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 10*time.Millisecond)
 
@@ -170,7 +173,8 @@ func TestOverviewTab_TimeFiltering(t *testing.T) {
 		mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
-		getUsageQuery := usecase.NewGetUsageQuery(mockRepo)
+		periodFactory := service.NewTimePeriodFactory(time.UTC)
+		getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
 
 		model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 10*time.Millisecond)
 

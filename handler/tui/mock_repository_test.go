@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/service"
 	"github.com/elct9620/ccmon/usecase"
 	"github.com/muesli/termenv"
 )
@@ -221,7 +222,8 @@ func CreateTestUsage() entity.Usage {
 // CreateTestUsageQuery creates a test usage query for testing
 func CreateTestUsageQuery() *usecase.GetUsageQuery {
 	mockRepo := NewMockAPIRequestRepository()
-	return usecase.NewGetUsageQuery(mockRepo)
+	periodFactory := service.NewTimePeriodFactory(time.UTC)
+	return usecase.NewGetUsageQuery(mockRepo, periodFactory)
 }
 
 // setupTestEnvironment configures the environment for testing in CI/GitHub Actions
