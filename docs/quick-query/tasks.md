@@ -26,7 +26,7 @@ Implementation of command-line quick query functionality for ccmon, enabling use
   - Use hardcoded values initially, format currency as USD with one decimal place
   - _Requirements: R1, R2, R3
 
-- [ ] 4. Connect to existing gRPC service for real cost data
+- [x] 4. Connect to existing gRPC service for real cost data
   - Wire up FormatRenderer with existing CalculateStatsQuery
   - Replace hardcoded @daily_cost and @monthly_cost with real data from gRPC
   - Add dependency injection for stats query in QueryHandler

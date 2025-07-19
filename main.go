@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/elct9620/ccmon/handler/cli"
 	grpcserver "github.com/elct9620/ccmon/handler/grpc"
@@ -60,15 +61,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Handle format query mode - bypass TUI and output directly to stdout
-	if formatString != "" {
-		queryHandler := cli.NewQueryHandler()
-		if err := queryHandler.HandleFormatQuery(formatString); err != nil {
-			os.Exit(1)
-		}
-		os.Exit(0)
-	}
-
 	if serverMode {
 		// Server mode: Use BoltDB repository
 		db, err := NewDatabase(config.Database.Path)
@@ -116,6 +108,21 @@ func main() {
 		getUsageQuery := usecase.NewGetUsageQuery(repo)
 
 		// Convert config to TUI-specific struct
+		// Handle format query mode - bypass TUI and output directly to stdout
+		if formatString != "" {
+			timezone, err := time.LoadLocation(config.Monitor.Timezone)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid timezone: %v\n", err)
+				os.Exit(1)
+			}
+
+			queryHandler := cli.NewQueryHandler(calculateStatsQuery, timezone)
+			if err := queryHandler.HandleFormatQuery(formatString); err != nil {
+				os.Exit(1)
+			}
+			os.Exit(0)
+		}
+
 		monitorConfig := tui.MonitorConfig{
 			Server:          config.Monitor.Server,
 			Timezone:        config.Monitor.Timezone,

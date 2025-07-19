@@ -2,15 +2,18 @@ package cli
 
 import (
 	"fmt"
+	"time"
+
+	"github.com/elct9620/ccmon/usecase"
 )
 
 type QueryHandler struct {
 	renderer *FormatRenderer
 }
 
-func NewQueryHandler() *QueryHandler {
+func NewQueryHandler(statsQuery *usecase.CalculateStatsQuery, timezone *time.Location) *QueryHandler {
 	return &QueryHandler{
-		renderer: NewFormatRenderer(),
+		renderer: NewFormatRenderer(statsQuery, timezone),
 	}
 }
 
