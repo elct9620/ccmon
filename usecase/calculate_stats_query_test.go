@@ -35,13 +35,13 @@ func (m *mockAPIRequestRepository) DeleteOlderThan(timestamp time.Time) (int, er
 
 // mockStatsCache for testing
 type mockStatsCache struct {
-	getFunc   func(period *entity.Period) *entity.Stats
-	setFunc   func(period *entity.Period, stats *entity.Stats)
+	getFunc   func(period entity.Period) *entity.Stats
+	setFunc   func(period entity.Period, stats *entity.Stats)
 	getCalled int
 	setCalled int
 }
 
-func (m *mockStatsCache) Get(period *entity.Period) *entity.Stats {
+func (m *mockStatsCache) Get(period entity.Period) *entity.Stats {
 	m.getCalled++
 	if m.getFunc != nil {
 		return m.getFunc(period)
@@ -49,7 +49,7 @@ func (m *mockStatsCache) Get(period *entity.Period) *entity.Stats {
 	return nil
 }
 
-func (m *mockStatsCache) Set(period *entity.Period, stats *entity.Stats) {
+func (m *mockStatsCache) Set(period entity.Period, stats *entity.Stats) {
 	m.setCalled++
 	if m.setFunc != nil {
 		m.setFunc(period, stats)
@@ -186,7 +186,7 @@ func TestCalculateStatsQuery_Execute(t *testing.T) {
 			}
 
 			mockCache := &mockStatsCache{
-				getFunc: func(p *entity.Period) *entity.Stats {
+				getFunc: func(p entity.Period) *entity.Stats {
 					return tt.cacheGet
 				},
 			}

@@ -71,8 +71,8 @@ func (m *MockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, e
 // noOpStatsCache for testing
 type noOpStatsCache struct{}
 
-func (c *noOpStatsCache) Get(period *entity.Period) *entity.Stats        { return nil }
-func (c *noOpStatsCache) Set(period *entity.Period, stats *entity.Stats) {}
+func (c *noOpStatsCache) Get(period entity.Period) *entity.Stats        { return nil }
+func (c *noOpStatsCache) Set(period entity.Period, stats *entity.Stats) {}
 
 // Helper function to calculate expected daily usage percentage based on current month
 func calculateExpectedDailyUsage(dailyCost, planPrice float64) string {
