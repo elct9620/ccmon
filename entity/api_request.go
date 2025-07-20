@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -57,4 +58,9 @@ func (a APIRequest) Cost() Cost {
 // DurationMS returns the request duration in milliseconds
 func (a APIRequest) DurationMS() int64 {
 	return int64(a.duration / time.Millisecond)
+}
+
+// ID returns a unique identifier for the API request
+func (a APIRequest) ID() string {
+	return fmt.Sprintf("%s_%s", a.timestamp.Format(time.RFC3339Nano), a.sessionID)
 }

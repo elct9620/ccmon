@@ -36,31 +36,7 @@ func (q *CalculateStatsQuery) Execute(ctx context.Context, params CalculateStats
 		return entity.Stats{}, err
 	}
 
-	var baseRequests, premiumRequests int
-	var baseTokens, premiumTokens entity.Token
-	var baseCost, premiumCost entity.Cost
-
-	for _, req := range requests {
-		if req.Model().IsBase() {
-			baseRequests++
-			baseTokens = baseTokens.Add(req.Tokens())
-			baseCost = baseCost.Add(req.Cost())
-		} else {
-			premiumRequests++
-			premiumTokens = premiumTokens.Add(req.Tokens())
-			premiumCost = premiumCost.Add(req.Cost())
-		}
-	}
-
-	stats := entity.NewStats(
-		baseRequests,
-		premiumRequests,
-		baseTokens,
-		premiumTokens,
-		baseCost,
-		premiumCost,
-		params.Period,
-	)
+	stats := entity.NewStatsFromRequests(requests, params.Period)
 
 	q.cache.Set(params.Period, &stats)
 

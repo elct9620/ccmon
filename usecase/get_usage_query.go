@@ -60,29 +60,5 @@ func (q *GetUsageQuery) createHistoricalDailyPeriod(daysAgo int) entity.Period {
 
 // calculateStatsFromRequests calculates statistics from a list of requests
 func (q *GetUsageQuery) calculateStatsFromRequests(requests []entity.APIRequest, period entity.Period) entity.Stats {
-	var baseRequests, premiumRequests int
-	var baseTokens, premiumTokens entity.Token
-	var baseCost, premiumCost entity.Cost
-
-	for _, req := range requests {
-		if req.Model().IsBase() {
-			baseRequests++
-			baseTokens = baseTokens.Add(req.Tokens())
-			baseCost = baseCost.Add(req.Cost())
-		} else {
-			premiumRequests++
-			premiumTokens = premiumTokens.Add(req.Tokens())
-			premiumCost = premiumCost.Add(req.Cost())
-		}
-	}
-
-	return entity.NewStats(
-		baseRequests,
-		premiumRequests,
-		baseTokens,
-		premiumTokens,
-		baseCost,
-		premiumCost,
-		period,
-	)
+	return entity.NewStatsFromRequests(requests, period)
 }

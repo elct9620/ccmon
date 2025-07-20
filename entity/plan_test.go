@@ -2,6 +2,7 @@ package entity
 
 import (
 	"testing"
+	"time"
 )
 
 func TestNewPlan(t *testing.T) {
@@ -69,6 +70,132 @@ func TestPlanCalculateUsagePercentage(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("Expected %d%%, got %d%% for plan %s with cost $%.2f/$%.2f",
 					tt.expected, result, tt.planName, tt.actualCost, tt.planPrice)
+			}
+		})
+	}
+}
+
+func TestPlanCalculateUsagePercentageInPeriod(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		planName    string
+		planPrice   float64
+		actualCost  float64
+		periodYear  int
+		periodMonth time.Month
+		periodDay   int
+		expected    int
+		testReason  string
+	}{
+		{
+			name:        "February 2024 (leap year) - 29 days",
+			planName:    "pro",
+			planPrice:   20.0,
+			actualCost:  1.0,
+			periodYear:  2024,
+			periodMonth: time.February,
+			periodDay:   15,
+			expected:    145, // 1.0 / (20.0/29) * 100 = 145%
+			testReason:  "Leap year February should have 29 days",
+		},
+		{
+			name:        "February 2023 (non-leap year) - 28 days",
+			planName:    "pro",
+			planPrice:   20.0,
+			actualCost:  1.0,
+			periodYear:  2023,
+			periodMonth: time.February,
+			periodDay:   15,
+			expected:    140, // 1.0 / (20.0/28) * 100 = 140%
+			testReason:  "Non-leap year February should have 28 days",
+		},
+		{
+			name:        "January 2024 - 31 days",
+			planName:    "max",
+			planPrice:   100.0,
+			actualCost:  5.0,
+			periodYear:  2024,
+			periodMonth: time.January,
+			periodDay:   10,
+			expected:    155, // 5.0 / (100.0/31) * 100 = 155%
+			testReason:  "January should have 31 days",
+		},
+		{
+			name:        "April 2024 - 30 days",
+			planName:    "max",
+			planPrice:   100.0,
+			actualCost:  5.0,
+			periodYear:  2024,
+			periodMonth: time.April,
+			periodDay:   15,
+			expected:    150, // 5.0 / (100.0/30) * 100 = 150%
+			testReason:  "April should have 30 days",
+		},
+		{
+			name:        "zero cost",
+			planName:    "pro",
+			planPrice:   20.0,
+			actualCost:  0.0,
+			periodYear:  2024,
+			periodMonth: time.March,
+			periodDay:   15,
+			expected:    0,
+			testReason:  "Zero cost should result in 0%",
+		},
+		{
+			name:        "invalid plan returns 0",
+			planName:    "invalid",
+			planPrice:   20.0,
+			actualCost:  1.0,
+			periodYear:  2024,
+			periodMonth: time.March,
+			periodDay:   15,
+			expected:    0,
+			testReason:  "Invalid plan should return 0%",
+		},
+		{
+			name:        "unset plan returns 0",
+			planName:    "unset",
+			planPrice:   0.0,
+			actualCost:  1.0,
+			periodYear:  2024,
+			periodMonth: time.March,
+			periodDay:   15,
+			expected:    0,
+			testReason:  "Unset plan with zero price should return 0%",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			plan := NewPlan(tt.planName, NewCost(tt.planPrice))
+			cost := NewCost(tt.actualCost)
+
+			// Create period for the specific day
+			periodStart := time.Date(tt.periodYear, tt.periodMonth, tt.periodDay, 0, 0, 0, 0, time.UTC)
+			periodEnd := periodStart.Add(24 * time.Hour)
+			period := NewPeriod(periodStart, periodEnd)
+
+			result := plan.CalculateUsagePercentageInPeriod(cost, period)
+
+			if result != tt.expected {
+				// Calculate expected values for debugging
+				daysInMonth := time.Date(tt.periodYear, tt.periodMonth+1, 0, 0, 0, 0, 0, time.UTC).Day()
+				dailyBudget := tt.planPrice / float64(daysInMonth)
+				expectedFloat := (tt.actualCost / dailyBudget) * 100
+
+				t.Errorf("%s: Expected %d%%, got %d%%", tt.testReason, tt.expected, result)
+				t.Logf("Debug info:")
+				t.Logf("  Month: %s %d", tt.periodMonth, tt.periodYear)
+				t.Logf("  Days in month: %d", daysInMonth)
+				t.Logf("  Plan price: $%.1f", tt.planPrice)
+				t.Logf("  Daily budget: $%.6f", dailyBudget)
+				t.Logf("  Actual cost: $%.1f", tt.actualCost)
+				t.Logf("  Expected percentage (float): %.2f%%", expectedFloat)
 			}
 		})
 	}

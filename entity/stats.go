@@ -97,3 +97,32 @@ func NewStats(baseRequests, premiumRequests int, baseTokens, premiumTokens Token
 		period:          period,
 	}
 }
+
+// NewStatsFromRequests calculates statistics from a list of API requests
+func NewStatsFromRequests(requests []APIRequest, period Period) Stats {
+	var baseRequests, premiumRequests int
+	var baseTokens, premiumTokens Token
+	var baseCost, premiumCost Cost
+
+	for _, req := range requests {
+		if req.Model().IsBase() {
+			baseRequests++
+			baseTokens = baseTokens.Add(req.Tokens())
+			baseCost = baseCost.Add(req.Cost())
+		} else {
+			premiumRequests++
+			premiumTokens = premiumTokens.Add(req.Tokens())
+			premiumCost = premiumCost.Add(req.Cost())
+		}
+	}
+
+	return NewStats(
+		baseRequests,
+		premiumRequests,
+		baseTokens,
+		premiumTokens,
+		baseCost,
+		premiumCost,
+		period,
+	)
+}

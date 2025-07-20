@@ -29,8 +29,7 @@ func NewBoltDBAPIRequestRepository(db *bbolt.DB) *BoltDBAPIRequestRepository {
 
 // Save stores an API request entity
 func (r *BoltDBAPIRequestRepository) Save(req entity.APIRequest) error {
-	dbReq := r.convertFromEntity(req)
-	return r.saveRequest(&dbReq)
+	return r.saveRequest(req)
 }
 
 // FindByPeriodWithLimit retrieves API requests filtered by time period with limit and offset
@@ -115,16 +114,18 @@ func (r *BoltDBAPIRequestRepository) Close() error {
 }
 
 // saveRequest saves an API request to the database
-func (r *BoltDBAPIRequestRepository) saveRequest(req *schema.APIRequest) error {
+func (r *BoltDBAPIRequestRepository) saveRequest(req entity.APIRequest) error {
 	return r.db.Update(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte(requestsBucket))
 
-		// Create timestamp-based key for chronological ordering
-		// Format: RFC3339Nano ensures lexicographic ordering matches chronological ordering
-		key := fmt.Sprintf("%s_%s", req.Timestamp.Format(time.RFC3339Nano), req.SessionID)
+		// Use entity's ID method for key generation
+		key := req.ID()
+
+		// Convert entity to database schema
+		dbReq := r.convertFromEntity(req)
 
 		// Serialize request to JSON
-		data, err := json.Marshal(req)
+		data, err := json.Marshal(dbReq)
 		if err != nil {
 			return fmt.Errorf("failed to serialize request: %w", err)
 		}

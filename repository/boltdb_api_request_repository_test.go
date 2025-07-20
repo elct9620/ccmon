@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/repository/schema"
 	"go.etcd.io/bbolt"
 )
@@ -120,7 +121,8 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThan(t *testing.T) {
 
 			// Setup test records
 			for _, record := range tt.setupRecords {
-				err := repo.saveRequest(&record)
+				entity := createTestEntity(record.SessionID, record.Timestamp)
+				err := repo.Save(entity)
 				if err != nil {
 					t.Fatalf("Failed to save test record: %v", err)
 				}
@@ -215,8 +217,8 @@ func TestBoltDBAPIRequestRepository_DeleteOlderThanWithLargeDataset(t *testing.T
 
 	for i := 0; i < recordCount; i++ {
 		timestamp := baseTime.Add(time.Duration(i) * time.Hour)
-		record := createTestRecord(fmt.Sprintf("session%d", i), timestamp)
-		err := repo.saveRequest(&record)
+		entity := createTestEntity(fmt.Sprintf("session%d", i), timestamp)
+		err := repo.Save(entity)
 		if err != nil {
 			t.Fatalf("Failed to save test record %d: %v", i, err)
 		}
@@ -313,4 +315,10 @@ func createTestRecord(sessionID string, timestamp time.Time) schema.APIRequest {
 		CostUSD:             0.001,
 		DurationMS:          1000,
 	}
+}
+
+func createTestEntity(sessionID string, timestamp time.Time) entity.APIRequest {
+	tokens := entity.NewToken(100, 50, 0, 0)
+	cost := entity.NewCost(0.001)
+	return entity.NewAPIRequest(sessionID, timestamp, "claude-3-sonnet", tokens, cost, 1000)
 }
