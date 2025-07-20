@@ -39,6 +39,19 @@ address = "127.0.0.1:4317"
 #   retention = "never" # Keep all data (default)
 retention = "never"
 
+# Cache configuration for server mode
+[server.cache.stats]
+# Enable/disable stats caching
+# Default: true
+# When enabled, stats queries will use in-memory caching to improve performance
+enabled = true
+
+# Time-to-live for cached stats
+# Default: "1m"
+# Format: Go duration (e.g., "30s", "1m", "2m30s", "1h")
+# Cached results will expire after this duration and be recalculated on next query
+ttl = "1m"
+
 [monitor]
 # gRPC server address for query service
 # Default: 127.0.0.1:4317

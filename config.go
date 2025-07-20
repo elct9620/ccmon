@@ -28,8 +28,20 @@ type Database struct {
 
 // Server configuration
 type Server struct {
-	Address   string `mapstructure:"address"`
-	Retention string `mapstructure:"retention"`
+	Address   string      `mapstructure:"address"`
+	Retention string      `mapstructure:"retention"`
+	Cache     ServerCache `mapstructure:"cache"`
+}
+
+// ServerCache configuration
+type ServerCache struct {
+	Stats CacheStats `mapstructure:"stats"`
+}
+
+// CacheStats configuration
+type CacheStats struct {
+	Enabled bool   `mapstructure:"enabled"`
+	TTL     string `mapstructure:"ttl"`
 }
 
 // Monitor configuration
@@ -53,6 +65,8 @@ func LoadConfig() (*Config, error) {
 	v.SetDefault("database.path", "~/.ccmon/ccmon.db")
 	v.SetDefault("server.address", "127.0.0.1:4317")
 	v.SetDefault("server.retention", "never")
+	v.SetDefault("server.cache.stats.enabled", true)
+	v.SetDefault("server.cache.stats.ttl", "1m")
 	v.SetDefault("monitor.server", "127.0.0.1:4317")
 	v.SetDefault("monitor.timezone", "UTC")
 	v.SetDefault("monitor.refresh_interval", "5s")
@@ -81,6 +95,12 @@ func LoadConfig() (*Config, error) {
 	if pflag.Lookup("claude-max-tokens") == nil {
 		pflag.Int("claude-max-tokens", 0, "Custom token limit override (0 means use plan defaults)")
 	}
+	if pflag.Lookup("server-cache-stats-enabled") == nil {
+		pflag.Bool("server-cache-stats-enabled", true, "Enable stats cache")
+	}
+	if pflag.Lookup("server-cache-stats-ttl") == nil {
+		pflag.String("server-cache-stats-ttl", "1m", "Stats cache TTL")
+	}
 
 	// Parse flags if not already parsed
 	if !pflag.Parsed() {
@@ -108,6 +128,12 @@ func LoadConfig() (*Config, error) {
 	}
 	if err := v.BindPFlag("claude.max_tokens", pflag.Lookup("claude-max-tokens")); err != nil {
 		log.Printf("Warning: failed to bind claude-max-tokens flag: %v", err)
+	}
+	if err := v.BindPFlag("server.cache.stats.enabled", pflag.Lookup("server-cache-stats-enabled")); err != nil {
+		log.Printf("Warning: failed to bind server-cache-stats-enabled flag: %v", err)
+	}
+	if err := v.BindPFlag("server.cache.stats.ttl", pflag.Lookup("server-cache-stats-ttl")); err != nil {
+		log.Printf("Warning: failed to bind server-cache-stats-ttl flag: %v", err)
 	}
 
 	// Set config name (without extension)
@@ -185,6 +211,14 @@ func (c *Config) Validate() error {
 	// Validate retention
 	if err := c.Server.ValidateRetention(); err != nil {
 		return fmt.Errorf("invalid server.retention: %w", err)
+	}
+
+	// Validate cache TTL
+	if c.Server.Cache.Stats.TTL != "" {
+		_, err := time.ParseDuration(c.Server.Cache.Stats.TTL)
+		if err != nil {
+			return fmt.Errorf("invalid cache TTL format: %s (%w)", c.Server.Cache.Stats.TTL, err)
+		}
 	}
 
 	return nil
