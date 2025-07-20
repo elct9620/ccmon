@@ -6,7 +6,7 @@
   - Verify config loads correctly with defaults when cache settings are missing
   - _Requirements: R2
 
-- [ ] 2. Create StatsCache interface in usecase layer
+- [x] 2. Create StatsCache interface in usecase layer
   - Create usecase/stats_cache.go with Get/Set interface methods
   - Add NoOpStatsCache implementation for disabled cache scenario
   - Document interface contract with parameter types
