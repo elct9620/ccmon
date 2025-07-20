@@ -8,6 +8,7 @@ import (
 
 	"github.com/elct9620/ccmon/entity"
 	pb "github.com/elct9620/ccmon/proto"
+	"github.com/elct9620/ccmon/service"
 	"github.com/elct9620/ccmon/usecase"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -285,7 +286,7 @@ func TestQueryService_GetStats(t *testing.T) {
 			}
 
 			// Create usecases
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 
 			// Create service
 			service := NewService(nil, calculateStatsQuery) // getFilteredQuery not needed for this test

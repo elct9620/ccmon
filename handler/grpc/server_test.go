@@ -10,6 +10,7 @@ import (
 	"github.com/elct9620/ccmon/handler/grpc/query"
 	"github.com/elct9620/ccmon/handler/grpc/receiver"
 	pb "github.com/elct9620/ccmon/proto"
+	"github.com/elct9620/ccmon/service"
 	"github.com/elct9620/ccmon/usecase"
 	logsv1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	metricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
@@ -64,7 +65,7 @@ func setupTestServer(t *testing.T) (*grpc.Server, *bufconn.Listener, pb.QuerySer
 	// Create real usecases with mock repository
 	appendCommand := usecase.NewAppendApiRequestCommand(mockRepo)
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 
 	// Create gRPC server and register services (same as RunServer but without lifecycle management)
 	grpcServer := grpc.NewServer()

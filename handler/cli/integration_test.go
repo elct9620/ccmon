@@ -262,7 +262,7 @@ func TestFormatQueryEndToEnd(t *testing.T) {
 
 			// Create real services with timezone
 			periodFactory := service.NewTimePeriodFactory(timezone)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
 				mockPlanRepo,
@@ -355,7 +355,7 @@ func TestTimeZoneConsistency(t *testing.T) {
 			}
 
 			periodFactory := service.NewTimePeriodFactory(timezone)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
 				mockPlanRepo,
@@ -418,7 +418,7 @@ func TestVariableSubstitutionEdgeCases(t *testing.T) {
 	}
 
 	periodFactory := service.NewTimePeriodFactory(time.UTC)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 	usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 		calculateStatsQuery,
 		mockPlanRepo,
@@ -575,7 +575,7 @@ func TestOutputFormatSpecificationCompliance(t *testing.T) {
 			mockPlanRepo := &MockPlanRepository{plan: tt.plan}
 
 			periodFactory := service.NewTimePeriodFactory(time.UTC)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
 				mockPlanRepo,
@@ -642,7 +642,7 @@ func TestErrorHandlingAndTimeout(t *testing.T) {
 			}
 
 			periodFactory := service.NewTimePeriodFactory(time.UTC)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
 				mockPlanRepo,

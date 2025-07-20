@@ -72,7 +72,7 @@ func (c *InMemoryStatsCache) Set(period *entity.Period, stats *entity.Stats) {
 
 // generateKey creates a unique cache key from the period timestamps.
 func (c *InMemoryStatsCache) generateKey(period *entity.Period) string {
-	return fmt.Sprintf("%d_%d", period.StartAt.Unix(), period.EndAt.Unix())
+	return fmt.Sprintf("%d_%d", period.StartAt().Unix(), period.EndAt().Unix())
 }
 
 // tryCleanupExpired attempts to start a cleanup goroutine if none is running.

@@ -9,12 +9,14 @@ import (
 // CalculateStatsQuery handles the calculation of statistics for API requests
 type CalculateStatsQuery struct {
 	repository APIRequestRepository
+	cache      StatsCache
 }
 
-// NewCalculateStatsQuery creates a new CalculateStatsQuery with the given repository
-func NewCalculateStatsQuery(repository APIRequestRepository) *CalculateStatsQuery {
+// NewCalculateStatsQuery creates a new CalculateStatsQuery with the given repository and cache
+func NewCalculateStatsQuery(repository APIRequestRepository, cache StatsCache) *CalculateStatsQuery {
 	return &CalculateStatsQuery{
 		repository: repository,
+		cache:      cache,
 	}
 }
 
@@ -25,13 +27,15 @@ type CalculateStatsParams struct {
 
 // Execute executes the calculate statistics query
 func (q *CalculateStatsQuery) Execute(ctx context.Context, params CalculateStatsParams) (entity.Stats, error) {
-	// Get requests filtered by period (no limit for stats calculation)
+	if cachedStats := q.cache.Get(&params.Period); cachedStats != nil {
+		return *cachedStats, nil
+	}
+
 	requests, err := q.repository.FindByPeriodWithLimit(params.Period, 0, 0)
 	if err != nil {
 		return entity.Stats{}, err
 	}
 
-	// Calculate statistics from requests
 	var baseRequests, premiumRequests int
 	var baseTokens, premiumTokens entity.Token
 	var baseCost, premiumCost entity.Cost
@@ -48,8 +52,7 @@ func (q *CalculateStatsQuery) Execute(ctx context.Context, params CalculateStats
 		}
 	}
 
-	// Create and return stats
-	return entity.NewStats(
+	stats := entity.NewStats(
 		baseRequests,
 		premiumRequests,
 		baseTokens,
@@ -57,5 +60,9 @@ func (q *CalculateStatsQuery) Execute(ctx context.Context, params CalculateStats
 		baseCost,
 		premiumCost,
 		params.Period,
-	), nil
+	)
+
+	q.cache.Set(&params.Period, &stats)
+
+	return stats, nil
 }

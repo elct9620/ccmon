@@ -63,7 +63,7 @@ func TestOverviewTab_IntegrationWithViewModel(t *testing.T) {
 			}
 
 			getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 			periodFactory := service.NewTimePeriodFactory(time.UTC)
 			getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
 
@@ -116,7 +116,7 @@ func TestOverviewTab_TableInteractions(t *testing.T) {
 		mockRepo := NewMockAPIRequestRepository()
 		mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 		periodFactory := service.NewTimePeriodFactory(time.UTC)
 		getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
 
@@ -172,7 +172,7 @@ func TestOverviewTab_TimeFiltering(t *testing.T) {
 		mockRepo := NewMockAPIRequestRepository()
 		mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 		periodFactory := service.NewTimePeriodFactory(time.UTC)
 		getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
 

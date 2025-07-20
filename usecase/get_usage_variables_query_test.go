@@ -68,6 +68,12 @@ func (m *MockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, e
 	return 0, nil
 }
 
+// noOpStatsCache for testing
+type noOpStatsCache struct{}
+
+func (c *noOpStatsCache) Get(period *entity.Period) *entity.Stats        { return nil }
+func (c *noOpStatsCache) Set(period *entity.Period, stats *entity.Stats) {}
+
 // Helper function to calculate expected daily usage percentage based on current month
 func calculateExpectedDailyUsage(dailyCost, planPrice float64) string {
 	now := time.Now()
@@ -197,8 +203,10 @@ func TestGetUsageVariablesQuery_Execute(t *testing.T) {
 				err:             tt.statsErr,
 			}
 
+			// No-op cache for testing (caching disabled)
+			noOpCache := &noOpStatsCache{}
 			// Real CalculateStatsQuery with mock repository
-			statsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			statsQuery := usecase.NewCalculateStatsQuery(mockRepo, noOpCache)
 
 			// Create query
 			query := usecase.NewGetUsageVariablesQuery(
@@ -361,7 +369,8 @@ func TestGetUsageVariablesQuery_CurrentMonthCalculation(t *testing.T) {
 				monthlyRequests: monthlyRequests,
 			}
 
-			statsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			noOpCache := &noOpStatsCache{}
+			statsQuery := usecase.NewCalculateStatsQuery(mockRepo, noOpCache)
 
 			query := usecase.NewGetUsageVariablesQuery(
 				statsQuery,

@@ -25,6 +25,21 @@ var (
 	date    = "unknown"
 )
 
+// createStatsCache creates a stats cache implementation based on configuration
+func createStatsCache(cacheConfig CacheStats) usecase.StatsCache {
+	if !cacheConfig.Enabled {
+		return &service.NoOpStatsCache{}
+	}
+
+	ttl, err := time.ParseDuration(cacheConfig.TTL)
+	if err != nil {
+		log.Printf("Invalid cache TTL '%s', using 1 minute default: %v", cacheConfig.TTL, err)
+		ttl = time.Minute
+	}
+
+	return service.NewInMemoryStatsCache(ttl)
+}
+
 func main() {
 	// Parse command line flags using pflag
 	var serverMode bool
@@ -81,10 +96,13 @@ func main() {
 
 		repo := repository.NewBoltDBAPIRequestRepository(db)
 
+		// Create cache
+		statsCache := createStatsCache(config.Server.Cache.Stats)
+
 		// Create usecases
 		appendCommand := usecase.NewAppendApiRequestCommand(repo)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo, statsCache)
 		cleanupCommand := usecase.NewCleanupOldRecordsCommand(repo)
 		// Note: getUsageQuery would be used if we add usage endpoints to gRPC server
 		// Server mode uses UTC timezone for consistency
@@ -109,9 +127,12 @@ func main() {
 			}
 		}()
 
+		// Create cache
+		statsCache := createStatsCache(config.Server.Cache.Stats)
+
 		// Create query usecases (no append command needed for monitor)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo, statsCache)
 		timezone, err := time.LoadLocation(config.Monitor.Timezone)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Invalid timezone: %v\n", err)

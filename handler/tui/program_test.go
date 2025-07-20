@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/handler/tui"
+	"github.com/elct9620/ccmon/service"
 	"github.com/elct9620/ccmon/usecase"
 )
 
@@ -20,7 +21,7 @@ func TestProgram_BasicOutput(t *testing.T) {
 	mockRepo := NewMockAPIRequestRepository()
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 	getUsageQuery := CreateTestUsageQuery()
 
 	// Create the ViewModel
@@ -141,7 +142,7 @@ func TestViewModel_KeyboardInteractions(t *testing.T) {
 			mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 
 			getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 			getUsageQuery := CreateTestUsageQuery()
 
 			// Create ViewModel
@@ -166,7 +167,7 @@ func TestViewModel_LayoutResponsiveness(t *testing.T) {
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 	getUsageQuery := CreateTestUsageQuery()
 
 	vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 5*time.Second)
@@ -244,7 +245,7 @@ func TestViewModel_DataFlow(t *testing.T) {
 			mockRepo.SetMockData(tc.requests, tc.stats)
 
 			getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 			getUsageQuery := CreateTestUsageQuery()
 
 			vm := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 5*time.Second)
@@ -297,7 +298,7 @@ func TestViewModel_BlockTracking(t *testing.T) {
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 
 	block := CreateTestBlock()
 	getUsageQuery := CreateTestUsageQuery()
@@ -485,7 +486,7 @@ func TestViewModel_GetterMethods(t *testing.T) {
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 
 	block := CreateTestBlock()
 	getUsageQuery := CreateTestUsageQuery()
@@ -525,7 +526,7 @@ func TestViewModel_FilterStateCoverage(t *testing.T) {
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 
 	// Test with block tracking
 	block := CreateTestBlock()
@@ -599,7 +600,7 @@ func TestProgram_FullInteractiveOutput(t *testing.T) {
 	mockRepo := NewMockAPIRequestRepository()
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 	getUsageQuery := CreateTestUsageQuery()
 
 	// Create the ViewModel
@@ -687,7 +688,7 @@ func TestProgram_KeyboardInteractions(t *testing.T) {
 			mockRepo := NewMockAPIRequestRepository()
 			mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 			getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 
 			// Create the ViewModel
 			getUsageQuery := CreateTestUsageQuery()
@@ -763,7 +764,7 @@ func TestProgram_SortOrderToggle(t *testing.T) {
 	mockRepo := NewMockAPIRequestRepository()
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 	getUsageQuery := CreateTestUsageQuery()
 
 	// Create the ViewModel
@@ -833,7 +834,7 @@ func TestProgram_BlockFilterInteraction(t *testing.T) {
 	mockRepo := NewMockAPIRequestRepository()
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 
 	// Create the ViewModel with block tracking
 	block := CreateTestBlock()
@@ -889,7 +890,7 @@ func TestProgram_MultipleFiltersSequence(t *testing.T) {
 	mockRepo := NewMockAPIRequestRepository()
 	mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
 	getUsageQuery := CreateTestUsageQuery()
 
 	// Create the ViewModel
