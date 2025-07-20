@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.0](https://github.com/elct9620/ccmon/compare/v0.8.0...v0.9.0) (2025-07-20)
+
+
+### Features
+
+* add cache configuration to config system ([eea9719](https://github.com/elct9620/ccmon/commit/eea97192bb8a3725fa624f8e1056a9d90457c340))
+* add StatsCache interface and NoOpStatsCache implementation ([97beb17](https://github.com/elct9620/ccmon/commit/97beb17ef7e540939e34f3da0abc0b9396b57f32))
+* implement InMemoryStatsCache service with TTL support ([961c6b3](https://github.com/elct9620/ccmon/commit/961c6b378846434bd98ebd2dfe112d28d0bd19f2))
+* integrate StatsCache into CalculateStatsQuery with cache-first strategy ([cf48f7d](https://github.com/elct9620/ccmon/commit/cf48f7d10d250eafad1a4989333d887d3fc17468))
+
 ## [0.8.0](https://github.com/elct9620/ccmon/compare/v0.7.0...v0.8.0) (2025-07-19)
 
 
