@@ -68,15 +68,15 @@ Interface defining contract for stats caching, injected into CalculateStatsQuery
 
 ```go
 type StatsCache interface {
-    Get(period *entity.Period) *entity.Stats
-    Set(period *entity.Period, stats *entity.Stats)
+    Get(period entity.Period) *entity.Stats
+    Set(period entity.Period, stats *entity.Stats)
 }
 
 // Optional: NoOpStatsCache for when caching is disabled
 type NoOpStatsCache struct{}
 
-func (c *NoOpStatsCache) Get(period *entity.Period) *entity.Stats { return nil }
-func (c *NoOpStatsCache) Set(period *entity.Period, stats *entity.Stats) {}
+func (c *NoOpStatsCache) Get(period entity.Period) *entity.Stats { return nil }
+func (c *NoOpStatsCache) Set(period entity.Period, stats *entity.Stats) {}
 ```
 
 #### **CalculateStatsQuery Enhancement** (Modified)
@@ -95,22 +95,22 @@ func NewCalculateStatsQuery(repository APIRequestRepository, cache StatsCache) *
     }
 }
 
-func (q *CalculateStatsQuery) Execute(params *CalculateStatsQueryParams) (*entity.Stats, error) {
+func (q *CalculateStatsQuery) Execute(ctx context.Context, params CalculateStatsParams) (entity.Stats, error) {
     // 1. Check cache first
     if cachedStats := q.cache.Get(params.Period); cachedStats != nil {
-        return cachedStats, nil
+        return *cachedStats, nil
     }
     
     // 2. Cache miss, execute original calculation logic
     requests, err := q.repository.FindByPeriodWithLimit(params.Period, 0, 0)
     if err != nil {
-        return nil, err
+        return entity.Stats{}, err
     }
     
     stats := q.calculateStats(requests) // Original aggregation logic
     
     // 3. Store result in cache
-    q.cache.Set(params.Period, stats)
+    q.cache.Set(params.Period, &stats)
     
     return stats, nil
 }
@@ -135,10 +135,10 @@ type CachedStats struct {
     ExpiresAt time.Time
 }
 
-func NewInMemoryStatsCache(enabled bool, ttl time.Duration) *InMemoryStatsCache
-func (c *InMemoryStatsCache) Get(period *entity.Period) *entity.Stats
-func (c *InMemoryStatsCache) Set(period *entity.Period, stats *entity.Stats)
-func (c *InMemoryStatsCache) generateKey(period *entity.Period) string
+func NewInMemoryStatsCache(ttl time.Duration) *InMemoryStatsCache
+func (c *InMemoryStatsCache) Get(period entity.Period) *entity.Stats
+func (c *InMemoryStatsCache) Set(period entity.Period, stats *entity.Stats)
+func (c *InMemoryStatsCache) generateKey(period entity.Period) string
 func (c *InMemoryStatsCache) tryCleanupExpired()
 func (c *InMemoryStatsCache) cleanupExpired()
 ```

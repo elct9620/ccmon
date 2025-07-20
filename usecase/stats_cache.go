@@ -7,9 +7,9 @@ import "github.com/elct9620/ccmon/entity"
 type StatsCache interface {
 	// Get retrieves cached statistics for the given period.
 	// Returns nil if the cache entry doesn't exist or has expired.
-	Get(period *entity.Period) *entity.Stats
+	Get(period entity.Period) *entity.Stats
 
 	// Set stores statistics in the cache for the given period.
 	// The implementation determines the TTL for cache entries.
-	Set(period *entity.Period, stats *entity.Stats)
+	Set(period entity.Period, stats *entity.Stats)
 }

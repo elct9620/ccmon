@@ -34,7 +34,7 @@ func NewInMemoryStatsCache(ttl time.Duration) *InMemoryStatsCache {
 
 // Get retrieves cached statistics for the given period.
 // Returns nil if entry doesn't exist or has expired.
-func (c *InMemoryStatsCache) Get(period *entity.Period) *entity.Stats {
+func (c *InMemoryStatsCache) Get(period entity.Period) *entity.Stats {
 	c.tryCleanupExpired()
 
 	key := c.generateKey(period)
@@ -56,7 +56,7 @@ func (c *InMemoryStatsCache) Get(period *entity.Period) *entity.Stats {
 }
 
 // Set stores statistics in the cache for the given period.
-func (c *InMemoryStatsCache) Set(period *entity.Period, stats *entity.Stats) {
+func (c *InMemoryStatsCache) Set(period entity.Period, stats *entity.Stats) {
 	c.tryCleanupExpired()
 
 	key := c.generateKey(period)
@@ -71,7 +71,7 @@ func (c *InMemoryStatsCache) Set(period *entity.Period, stats *entity.Stats) {
 }
 
 // generateKey creates a unique cache key from the period timestamps.
-func (c *InMemoryStatsCache) generateKey(period *entity.Period) string {
+func (c *InMemoryStatsCache) generateKey(period entity.Period) string {
 	return fmt.Sprintf("%d_%d", period.StartAt().Unix(), period.EndAt().Unix())
 }
 

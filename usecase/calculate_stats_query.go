@@ -27,7 +27,7 @@ type CalculateStatsParams struct {
 
 // Execute executes the calculate statistics query
 func (q *CalculateStatsQuery) Execute(ctx context.Context, params CalculateStatsParams) (entity.Stats, error) {
-	if cachedStats := q.cache.Get(&params.Period); cachedStats != nil {
+	if cachedStats := q.cache.Get(params.Period); cachedStats != nil {
 		return *cachedStats, nil
 	}
 
@@ -62,7 +62,7 @@ func (q *CalculateStatsQuery) Execute(ctx context.Context, params CalculateStats
 		params.Period,
 	)
 
-	q.cache.Set(&params.Period, &stats)
+	q.cache.Set(params.Period, &stats)
 
 	return stats, nil
 }

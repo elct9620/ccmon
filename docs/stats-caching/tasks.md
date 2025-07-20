@@ -26,7 +26,7 @@
   - Update main.go to wire cache service based on config
   - _Requirements: R1
 
-- [ ] 5. Add lazy cleanup mechanism to prevent memory growth
+- [x] 5. Add lazy cleanup mechanism to prevent memory growth
   - Implement tryCleanupExpired with atomic flag for single goroutine
   - Add cleanupExpired method to remove expired entries
   - Trigger cleanup on Get/Set operations
