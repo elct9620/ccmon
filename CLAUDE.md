@@ -20,6 +20,20 @@ ccmon is a TUI (Terminal User Interface) application that monitors Claude Code A
 - `handler/` - External interfaces (TUI, gRPC, CLI)
 - `service/` - Infrastructure services and non-business logic implementations (e.g., time handling, external service adapters)
 
+## Development Requirements
+
+### Protocol Buffers Toolchain
+- **Required protoc version**: v30.2 or higher
+- **Required protoc-gen-go**: v1.28.1 (pinned for consistency)
+- **Required protoc-gen-go-grpc**: v1.2.0 (pinned for consistency)
+- **Installation**: 
+  - protoc: Download from [GitHub Releases](https://github.com/protocolbuffers/protobuf/releases)
+  - Go plugins: `go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1`
+  - gRPC plugin: `go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0`
+- **Version check**: Run `make check-protoc` to verify complete toolchain
+
+**Important**: Using different protoc/plugin versions between development and CI can cause inconsistent generated files that may break Homebrew formula updates.
+
 ## Operating Modes
 
 ccmon has two distinct operating modes:
@@ -44,4 +58,173 @@ ccmon has two distinct operating modes:
    ./ccmon --block 11pm # Track usage from 11pm start blocks
    ```
 
-[... rest of the file remains unchanged ...]
+## Build Commands
+
+```bash
+# Check protoc version compatibility
+make check-protoc
+
+# Build the application (includes protobuf generation)
+make build
+
+# Generate protobuf code
+make generate
+
+# Format code
+gofmt -w .
+
+# Clean build artifacts
+make clean
+```
+
+## Verification Workflow
+
+After making code changes and before committing, always run this verification workflow:
+
+```bash
+# 1. Format code
+gofmt -w .
+
+# 2. Lint code (fix all issues)
+golangci-lint run
+
+# 3. Test code with coverage
+go test -cover ./...
+```
+
+### Coverage Guidelines
+- Aim for **>80% test coverage** for new code
+- Focus on testing business logic in `usecase/` and `entity/` packages
+- Repository and handler layers should have integration tests
+
+## Configuration
+
+ccmon supports configuration files in TOML, YAML, or JSON format in these locations (first found wins):
+
+1. Current directory: `./config.{toml,yaml,json}` (highest priority)
+2. User config directory: `~/.ccmon/config.{toml,yaml,json}`
+
+### Key Configuration Options
+
+```toml
+[database]
+path = "~/.ccmon/ccmon.db"  # Database file path
+
+[server]
+address = "127.0.0.1:4317"  # gRPC server address
+
+[monitor]
+server = "127.0.0.1:4317"   # Query service address
+timezone = "UTC"            # Timezone for display
+refresh_interval = "5s"     # TUI refresh rate
+
+[claude]
+plan = "unset"              # Subscription plan: unset/pro/max/max20
+max_tokens = 0              # Custom token limit override
+```
+
+### Environment Variables for Claude Code Telemetry
+
+```bash
+export CLAUDE_CODE_ENABLE_TELEMETRY=1
+export OTEL_METRICS_EXPORTER=otlp
+export OTEL_LOGS_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+```
+
+## Architecture Overview
+
+The application follows Clean Architecture with clear separation of concerns:
+
+### Core Components
+- **entity/** - Domain entities and business rules (DDD principles)
+- **usecase/** - Business logic layer implementing CQRS commands and queries
+- **repository/** - Data access layer with entity conversion
+- **handler/** - External interfaces (TUI, gRPC, CLI)
+- **service/** - Infrastructure services (time handling, external adapters)
+
+### Key Design Patterns
+- **Handler Separation**: TUI and gRPC handlers with distinct responsibilities
+- **gRPC Communication**: Monitor communicates with server via gRPC (no direct DB access)
+- **Dual Statistics System**: Separate `stats` (display) and `blockStats` (progress tracking)
+- **Entity-Based Architecture**: Handlers depend only on domain entities
+- **Domain-Driven Design**: Entities with private fields and encapsulated business logic
+
+### Data Flow
+**Server Mode**: Claude Code → OTLP (port 4317) → gRPC receiver → usecase → repository → BoltDB
+
+**Monitor Mode**: TUI → gRPC queries → server → statistics display (refreshes every 5s)
+
+## Entity Design Patterns
+
+All entities in `entity/` package follow Domain-Driven Design (DDD) principles:
+
+### Core Principles
+1. **Private Fields**: All struct fields must be private (lowercase) for encapsulation
+2. **Getter Methods**: Provide public getter methods for accessing field values
+3. **Immutability**: Entities are immutable after creation - no setter methods
+4. **Factory Functions**: Use `NewXxx()` functions for entity creation
+5. **Business Logic**: Encapsulate domain behavior within entities
+
+### Implementation Example
+```go
+// Entity with private fields
+type APIRequest struct {
+    sessionID string
+    timestamp time.Time
+    model     Model
+    tokens    Token
+    cost      Cost
+}
+
+// Factory function for creation
+func NewAPIRequest(sessionID string, timestamp time.Time, ...) APIRequest {
+    return APIRequest{
+        sessionID: sessionID,
+        timestamp: timestamp,
+        // ... initialize fields
+    }
+}
+
+// Getter methods for field access
+func (a APIRequest) SessionID() string { return a.sessionID }
+func (a APIRequest) Timestamp() time.Time { return a.timestamp }
+
+// Business logic methods
+func (a APIRequest) ID() string {
+    return fmt.Sprintf("%s_%s", a.timestamp.Format(time.RFC3339Nano), a.sessionID)
+}
+```
+
+## Testing Conventions
+
+### TUI Testing with teatest
+- **ALWAYS use `teatest` for TUI integration tests** instead of unit testing individual methods
+- **Focus on real user interactions**: Test keyboard navigation, rendering, and workflows
+- **Use consistent patterns**: All TUI tests follow `teatest.NewTestModel()` approach
+- **Parallel execution**: Use `t.Parallel()` in all table-driven tests for performance
+- **Optimized timeouts**: Keep `WaitFor` timeouts ≤500ms for responsive testing
+
+### General Testing
+- **ALWAYS use table-driven tests** for comprehensive test coverage
+- **Test files naming**: Use `*_test.go` for unit tests, separate files per component
+
+## Important Implementation Details
+
+### Model Classification
+- **Base models** (free, not counted): Contains "haiku" (case-insensitive)
+- **Premium models** (counted against limits): All other models (Sonnet, Opus, etc.)
+
+### Key Technical Notes
+- All numeric values from Claude Code telemetry are sent as strings - parse using `fmt.Sscanf()`
+- Monitor mode refreshes via gRPC queries every 5 seconds
+- gRPC server runs on port 4317 (standard OTLP port)
+- Database limits stored requests to last 10,000 entries
+- Network traffic optimized: TUI requests 100 records for display, unlimited for statistics
+- Multiple monitors can connect to same server via gRPC (no database conflicts)
+
+### Development Conventions
+- Write devlog in `docs/devlog/` using Markdown format, grouped by day (e.g., `20250628.md`)
+- Apply YAGNI principle: Only implement immediately necessary features
+- Avoid premature optimization and unnecessary abstractions
