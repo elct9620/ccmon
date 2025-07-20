@@ -10,15 +10,16 @@ ccmon is a TUI (Terminal User Interface) application that monitors Claude Code A
 
 - The `docs/glossary.md` is defined our domain concepts
 
-## Architecture Conventions
+## Architecture
+
+ccmon follows Clean Architecture and Domain-Driven Design (DDD) principles with clear separation of concerns:
 
 ### Directory Structure
-
-- `entity/` - Domain entities and business rules
-- `usecase/` - Business logic and application services with interface definitions
-- `repository/` - Data access implementations  
+- `entity/` - Domain entities and business rules (DDD principles)
+- `usecase/` - Business logic layer implementing CQRS commands and queries
+- `repository/` - Data access implementations with entity conversion
 - `handler/` - External interfaces (TUI, gRPC, CLI)
-- `service/` - Infrastructure services and non-business logic implementations (e.g., time handling, external service adapters)
+- `service/` - Infrastructure services (time handling, external adapters)
 
 ## Development Requirements
 
@@ -36,7 +37,7 @@ ccmon is a TUI (Terminal User Interface) application that monitors Claude Code A
 
 ## Operating Modes
 
-ccmon has two distinct operating modes:
+ccmon has four distinct operating modes:
 
 1. **Monitor Mode** (default): TUI dashboard that displays usage statistics via gRPC queries
    ```bash
@@ -58,8 +59,16 @@ ccmon has two distinct operating modes:
    ./ccmon --block 11pm # Track usage from 11pm start blocks
    ```
 
-## Build Commands
+4. **Format Query Mode**: Non-interactive command-line output for scripting
+   ```bash
+   ./ccmon --format "@daily_cost"              # Today's cost
+   ./ccmon --format "Today: @daily_cost"       # Custom format
+   ./ccmon --format "@daily_plan_usage"        # Plan usage percentage
+   ```
 
+## Development Commands
+
+### Build Commands
 ```bash
 # Check protoc version compatibility
 make check-protoc
@@ -70,26 +79,46 @@ make build
 # Generate protobuf code
 make generate
 
-# Format code
-gofmt -w .
+# Install/update dependencies
+make deps
 
 # Clean build artifacts
 make clean
+
+# Development shortcuts
+make dev-server    # Clean, build, and run server mode
+make dev-monitor   # Clean, build, and run monitor mode
 ```
 
-## Verification Workflow
-
-After making code changes and before committing, always run this verification workflow:
-
+### Testing and Verification
 ```bash
-# 1. Format code
-gofmt -w .
+# Quick verification workflow (before committing)
+make fmt && make vet && make test
 
-# 2. Lint code (fix all issues)
-golangci-lint run
+# Format code
+make fmt
 
-# 3. Test code with coverage
+# Vet code
+make vet
+
+# Run all tests
+make test
+
+# Run tests with coverage
 go test -cover ./...
+
+# Detailed coverage report
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+
+# Run specific tests
+go test ./entity/api_request_test.go -v
+go test -run TestAPIRequest_ID ./entity/ -v
+go test -run Integration ./...
+go test ./handler/tui/ -v  # TUI tests with teatest
+
+# Lint code (if available)
+golangci-lint run
 ```
 
 ### Coverage Guidelines
@@ -132,17 +161,6 @@ export OTEL_LOGS_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 ```
-
-## Architecture Overview
-
-The application follows Clean Architecture with clear separation of concerns:
-
-### Core Components
-- **entity/** - Domain entities and business rules (DDD principles)
-- **usecase/** - Business logic layer implementing CQRS commands and queries
-- **repository/** - Data access layer with entity conversion
-- **handler/** - External interfaces (TUI, gRPC, CLI)
-- **service/** - Infrastructure services (time handling, external adapters)
 
 ### Key Design Patterns
 - **Handler Separation**: TUI and gRPC handlers with distinct responsibilities
@@ -228,3 +246,4 @@ func (a APIRequest) ID() string {
 - Write devlog in `docs/devlog/` using Markdown format, grouped by day (e.g., `20250628.md`)
 - Apply YAGNI principle: Only implement immediately necessary features
 - Avoid premature optimization and unnecessary abstractions
+
