@@ -68,6 +68,15 @@ func (m *MockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, e
 	return 0, nil
 }
 
+// GetStatsByPeriod implements StatsRepository interface by calculating stats from requests
+func (m *MockAPIRequestRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
+	requests, err := m.FindByPeriodWithLimit(period, 0, 0)
+	if err != nil {
+		return entity.Stats{}, err
+	}
+	return entity.NewStatsFromRequests(requests, period), nil
+}
+
 // noOpStatsCache for testing
 type noOpStatsCache struct{}
 

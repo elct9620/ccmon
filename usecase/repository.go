@@ -29,3 +29,9 @@ type PlanRepository interface {
 	// GetConfiguredPlan retrieves the configured plan from the repository
 	GetConfiguredPlan() (entity.Plan, error)
 }
+
+// StatsRepository defines the repository interface for statistics access
+type StatsRepository interface {
+	// GetStatsByPeriod retrieves aggregated statistics for a given period
+	GetStatsByPeriod(period entity.Period) (entity.Stats, error)
+}

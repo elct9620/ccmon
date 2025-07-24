@@ -35,6 +35,40 @@ func (r *instrumentedRepository) DeleteOlderThan(cutoffTime time.Time) (int, err
 	return r.repo.DeleteOlderThan(cutoffTime)
 }
 
+// mockStatsRepository wraps mockAPIRequestRepository to implement StatsRepository
+type mockStatsRepository struct {
+	apiRepo *mockAPIRequestRepository
+}
+
+func newMockStatsRepository(apiRepo *mockAPIRequestRepository) *mockStatsRepository {
+	return &mockStatsRepository{apiRepo: apiRepo}
+}
+
+func (m *mockStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
+	requests, err := m.apiRepo.FindByPeriodWithLimit(period, 0, 0)
+	if err != nil {
+		return entity.Stats{}, err
+	}
+	return entity.NewStatsFromRequests(requests, period), nil
+}
+
+// instrumentedStatsRepository wraps instrumentedRepository to implement StatsRepository
+type instrumentedStatsRepository struct {
+	apiRepo *instrumentedRepository
+}
+
+func newInstrumentedStatsRepository(apiRepo *instrumentedRepository) *instrumentedStatsRepository {
+	return &instrumentedStatsRepository{apiRepo: apiRepo}
+}
+
+func (m *instrumentedStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
+	requests, err := m.apiRepo.FindByPeriodWithLimit(period, 0, 0)
+	if err != nil {
+		return entity.Stats{}, err
+	}
+	return entity.NewStatsFromRequests(requests, period), nil
+}
+
 // TestQueryService_GetStats_CacheIntegration tests end-to-end cache behavior through gRPC service
 func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 	baseTime := time.Date(2024, 6, 29, 12, 0, 0, 0, time.UTC)
@@ -54,7 +88,8 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 
 		// Create cache with 1-minute TTL
 		cache := service.NewInMemoryStatsCache(1 * time.Minute)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, cache)
+		mockStatsRepo := newMockStatsRepository(mockRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, cache)
 		queryService := NewService(nil, calculateStatsQuery)
 
 		// Create request for specific time period
@@ -120,7 +155,8 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 		}
 
 		cache := service.NewInMemoryStatsCache(1 * time.Minute)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(instrumentedRepo, cache)
+		instrumentedStatsRepo := newInstrumentedStatsRepository(instrumentedRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(instrumentedStatsRepo, cache)
 		queryService := NewService(nil, calculateStatsQuery)
 
 		req := &pb.GetStatsRequest{
@@ -176,7 +212,8 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 
 		// Use very short TTL for testing
 		cache := service.NewInMemoryStatsCache(50 * time.Millisecond)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, cache)
+		mockStatsRepo := newMockStatsRepository(mockRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, cache)
 		queryService := NewService(nil, calculateStatsQuery)
 
 		req := &pb.GetStatsRequest{
@@ -244,7 +281,8 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 
 		// Use NoOpStatsCache to simulate disabled cache
 		noOpCache := &service.NoOpStatsCache{}
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(instrumentedRepo, noOpCache)
+		instrumentedStatsRepo := newInstrumentedStatsRepository(instrumentedRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(instrumentedStatsRepo, noOpCache)
 		queryService := NewService(nil, calculateStatsQuery)
 
 		req := &pb.GetStatsRequest{
@@ -299,7 +337,8 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 		}
 
 		cache := service.NewInMemoryStatsCache(1 * time.Minute)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, cache)
+		mockStatsRepo := newMockStatsRepository(mockRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, cache)
 		queryService := NewService(nil, calculateStatsQuery)
 
 		ctx := context.Background()

@@ -58,6 +58,23 @@ func (m *MockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, e
 	return 0, nil
 }
 
+// mockStatsRepository for testing - wraps MockAPIRequestRepository
+type mockStatsRepository struct {
+	apiRepo *MockAPIRequestRepository
+}
+
+func newMockStatsRepository(apiRepo *MockAPIRequestRepository) *mockStatsRepository {
+	return &mockStatsRepository{apiRepo: apiRepo}
+}
+
+func (m *mockStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
+	requests, err := m.apiRepo.FindByPeriodWithLimit(period, 0, 0)
+	if err != nil {
+		return entity.Stats{}, err
+	}
+	return entity.NewStatsFromRequests(requests, period), nil
+}
+
 // Helper function to calculate expected daily usage percentage based on current month
 func calculateExpectedDailyUsage(dailyCost, planPrice float64) string {
 	now := time.Now()
@@ -262,7 +279,8 @@ func TestFormatQueryEndToEnd(t *testing.T) {
 
 			// Create real services with timezone
 			periodFactory := service.NewTimePeriodFactory(timezone)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
+			mockStatsRepo := newMockStatsRepository(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
 				mockPlanRepo,
@@ -355,7 +373,8 @@ func TestTimeZoneConsistency(t *testing.T) {
 			}
 
 			periodFactory := service.NewTimePeriodFactory(timezone)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
+			mockStatsRepo := newMockStatsRepository(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
 				mockPlanRepo,
@@ -418,7 +437,8 @@ func TestVariableSubstitutionEdgeCases(t *testing.T) {
 	}
 
 	periodFactory := service.NewTimePeriodFactory(time.UTC)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
+	mockStatsRepo := newMockStatsRepository(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 	usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 		calculateStatsQuery,
 		mockPlanRepo,
@@ -575,7 +595,8 @@ func TestOutputFormatSpecificationCompliance(t *testing.T) {
 			mockPlanRepo := &MockPlanRepository{plan: tt.plan}
 
 			periodFactory := service.NewTimePeriodFactory(time.UTC)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
+			mockStatsRepo := newMockStatsRepository(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
 				mockPlanRepo,
@@ -642,7 +663,8 @@ func TestErrorHandlingAndTimeout(t *testing.T) {
 			}
 
 			periodFactory := service.NewTimePeriodFactory(time.UTC)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
+			mockStatsRepo := newMockStatsRepository(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
 				mockPlanRepo,

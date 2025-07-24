@@ -6,17 +6,17 @@ import (
 	"github.com/elct9620/ccmon/entity"
 )
 
-// CalculateStatsQuery handles the calculation of statistics for API requests
+// CalculateStatsQuery handles the calculation of statistics using StatsRepository
 type CalculateStatsQuery struct {
-	repository APIRequestRepository
-	cache      StatsCache
+	statsRepository StatsRepository
+	cache           StatsCache
 }
 
-// NewCalculateStatsQuery creates a new CalculateStatsQuery with the given repository and cache
-func NewCalculateStatsQuery(repository APIRequestRepository, cache StatsCache) *CalculateStatsQuery {
+// NewCalculateStatsQuery creates a new CalculateStatsQuery with the given stats repository and cache
+func NewCalculateStatsQuery(statsRepository StatsRepository, cache StatsCache) *CalculateStatsQuery {
 	return &CalculateStatsQuery{
-		repository: repository,
-		cache:      cache,
+		statsRepository: statsRepository,
+		cache:           cache,
 	}
 }
 
@@ -31,12 +31,10 @@ func (q *CalculateStatsQuery) Execute(ctx context.Context, params CalculateStats
 		return *cachedStats, nil
 	}
 
-	requests, err := q.repository.FindByPeriodWithLimit(params.Period, 0, 0)
+	stats, err := q.statsRepository.GetStatsByPeriod(params.Period)
 	if err != nil {
 		return entity.Stats{}, err
 	}
-
-	stats := entity.NewStatsFromRequests(requests, params.Period)
 
 	q.cache.Set(params.Period, &stats)
 

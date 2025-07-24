@@ -54,6 +54,23 @@ func (m *mockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, e
 	return 0, nil
 }
 
+// mockStatsRepository for testing - wraps mockAPIRequestRepository
+type mockStatsRepository struct {
+	apiRepo *mockAPIRequestRepository
+}
+
+func newMockStatsRepository(apiRepo *mockAPIRequestRepository) *mockStatsRepository {
+	return &mockStatsRepository{apiRepo: apiRepo}
+}
+
+func (m *mockStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
+	requests, err := m.apiRepo.FindByPeriodWithLimit(period, 0, 0)
+	if err != nil {
+		return entity.Stats{}, err
+	}
+	return entity.NewStatsFromRequests(requests, period), nil
+}
+
 // Test helper to create an in-memory gRPC server
 func setupTestServer(t *testing.T) (*grpc.Server, *bufconn.Listener, pb.QueryServiceClient, *mockAPIRequestRepository) {
 	// Create bufconn listener
@@ -65,7 +82,8 @@ func setupTestServer(t *testing.T) (*grpc.Server, *bufconn.Listener, pb.QuerySer
 	// Create real usecases with mock repository
 	appendCommand := usecase.NewAppendApiRequestCommand(mockRepo)
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
+	mockStatsRepo := newMockStatsRepository(mockRepo)
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 
 	// Create gRPC server and register services (same as RunServer but without lifecycle management)
 	grpcServer := grpc.NewServer()

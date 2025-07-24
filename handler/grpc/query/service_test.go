@@ -286,7 +286,8 @@ func TestQueryService_GetStats(t *testing.T) {
 			}
 
 			// Create usecases
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
+			mockStatsRepo := newMockStatsRepository(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 
 			// Create service
 			service := NewService(nil, calculateStatsQuery) // getFilteredQuery not needed for this test

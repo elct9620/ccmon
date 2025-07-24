@@ -64,7 +64,8 @@ func TestDailyUsageTab_IntegrationWithViewModel(t *testing.T) {
 			}
 
 			getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
+			mockStatsRepo := NewMockStatsRepository(mockRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 			periodFactory := service.NewTimePeriodFactory(time.UTC)
 			getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory) // Use same repo for consistency
 
@@ -131,7 +132,8 @@ func TestDailyUsageTab_NavigationFlow(t *testing.T) {
 		mockRepo := NewMockAPIRequestRepository()
 		mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
+		mockStatsRepo := NewMockStatsRepository(mockRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 		periodFactory := service.NewTimePeriodFactory(time.UTC)
 		getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
 
@@ -202,7 +204,8 @@ func TestDailyUsageTab_FocusManagement(t *testing.T) {
 		mockRepo := NewMockAPIRequestRepository()
 		mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
+		mockStatsRepo := NewMockStatsRepository(mockRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 		periodFactory := service.NewTimePeriodFactory(time.UTC)
 		getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
 
@@ -280,7 +283,8 @@ func TestDailyUsageTab_KeyboardNavigation(t *testing.T) {
 		mockRepo := NewMockAPIRequestRepository()
 		mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo, &service.NoOpStatsCache{})
+		mockStatsRepo := NewMockStatsRepository(mockRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 		periodFactory := service.NewTimePeriodFactory(time.UTC)
 		getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
 

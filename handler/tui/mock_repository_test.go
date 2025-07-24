@@ -72,6 +72,25 @@ func (m *MockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, e
 	return 0, nil
 }
 
+// MockStatsRepository wraps MockAPIRequestRepository to implement StatsRepository
+type MockStatsRepository struct {
+	apiRepo *MockAPIRequestRepository
+}
+
+// NewMockStatsRepository creates a new mock stats repository
+func NewMockStatsRepository(apiRepo *MockAPIRequestRepository) *MockStatsRepository {
+	return &MockStatsRepository{apiRepo: apiRepo}
+}
+
+// GetStatsByPeriod implements StatsRepository interface
+func (m *MockStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
+	requests, err := m.apiRepo.FindByPeriodWithLimit(period, 0, 0)
+	if err != nil {
+		return entity.Stats{}, err
+	}
+	return entity.NewStatsFromRequests(requests, period), nil
+}
+
 // Mock query interfaces to avoid direct dependency on usecase types
 
 // GetFilteredQueryInterface represents the interface for getting filtered API requests

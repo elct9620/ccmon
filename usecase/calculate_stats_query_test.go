@@ -9,7 +9,7 @@ import (
 	"github.com/elct9620/ccmon/entity"
 )
 
-// mockAPIRequestRepository for testing
+// mockAPIRequestRepository for testing - implements both APIRequestRepository and StatsRepository
 type mockAPIRequestRepository struct {
 	findByPeriodWithLimitFunc func(period entity.Period, limit int, offset int) ([]entity.APIRequest, error)
 }
@@ -31,6 +31,23 @@ func (m *mockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
 
 func (m *mockAPIRequestRepository) DeleteOlderThan(timestamp time.Time) (int, error) {
 	return 0, nil
+}
+
+// mockStatsRepository for testing - wraps mockAPIRequestRepository
+type mockStatsRepository struct {
+	apiRepo *mockAPIRequestRepository
+}
+
+func newMockStatsRepository(apiRepo *mockAPIRequestRepository) *mockStatsRepository {
+	return &mockStatsRepository{apiRepo: apiRepo}
+}
+
+func (m *mockStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
+	requests, err := m.apiRepo.FindByPeriodWithLimit(period, 0, 0)
+	if err != nil {
+		return entity.Stats{}, err
+	}
+	return entity.NewStatsFromRequests(requests, period), nil
 }
 
 // mockStatsCache for testing
@@ -192,7 +209,8 @@ func TestCalculateStatsQuery_Execute(t *testing.T) {
 			}
 
 			// Execute
-			query := NewCalculateStatsQuery(mockRepo, mockCache)
+			mockStatsRepo := newMockStatsRepository(mockRepo)
+			query := NewCalculateStatsQuery(mockStatsRepo, mockCache)
 			ctx := context.Background()
 			params := CalculateStatsParams{Period: period}
 			result, err := query.Execute(ctx, params)

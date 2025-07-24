@@ -99,10 +99,13 @@ func main() {
 		// Create cache
 		statsCache := createStatsCache(config.Server.Cache.Stats)
 
+		// Create stats repository for server side
+		statsRepo := repository.NewBoltDBStatsRepository(repo)
+
 		// Create usecases
 		appendCommand := usecase.NewAppendApiRequestCommand(repo)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo, statsCache)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(statsRepo, statsCache)
 		cleanupCommand := usecase.NewCleanupOldRecordsCommand(repo)
 		// Note: getUsageQuery would be used if we add usage endpoints to gRPC server
 		// Server mode uses UTC timezone for consistency
@@ -130,9 +133,21 @@ func main() {
 		// Create cache
 		statsCache := createStatsCache(config.Server.Cache.Stats)
 
+		// Create gRPC stats repository for TUI mode
+		tuiStatsRepo, err := repository.NewGRPCStatsRepository(config.Monitor.Server)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to initialize gRPC stats repository: %v\n", err)
+			os.Exit(1)
+		}
+		defer func() {
+			if err := tuiStatsRepo.Close(); err != nil {
+				log.Printf("Error closing TUI stats repository: %v", err)
+			}
+		}()
+
 		// Create query usecases (no append command needed for monitor)
 		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(repo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(repo, statsCache)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(tuiStatsRepo, statsCache)
 		timezone, err := time.LoadLocation(config.Monitor.Timezone)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Invalid timezone: %v\n", err)
@@ -151,9 +166,24 @@ func main() {
 				os.Exit(1)
 			}
 
-			// Create GetUsageVariablesQuery with all dependencies
+			// Create gRPC stats repository for efficient stats retrieval
+			statsRepo, err := repository.NewGRPCStatsRepository(config.Monitor.Server)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to initialize stats repository: %v\n", err)
+				os.Exit(1)
+			}
+			defer func() {
+				if err := statsRepo.Close(); err != nil {
+					log.Printf("Error closing stats repository: %v", err)
+				}
+			}()
+
+			// Create CalculateStatsQuery that uses gRPC StatsRepository
+			formatCalculateStatsQuery := usecase.NewCalculateStatsQuery(statsRepo, statsCache)
+
+			// Create GetUsageVariablesQuery with format-optimized dependencies
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
-				calculateStatsQuery,
+				formatCalculateStatsQuery,
 				planRepository,
 				periodFactory,
 			)
