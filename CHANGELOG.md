@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.2](https://github.com/elct9620/ccmon/compare/v0.9.1...v0.9.2) (2025-07-24)
+
+
+### Bug Fixes
+
+* resolve lint errors in test files ([f8e26d3](https://github.com/elct9620/ccmon/commit/f8e26d3b43ec7a86b6df9e7d7d901b225d894299))
+
 ## [0.9.1](https://github.com/elct9620/ccmon/compare/v0.9.0...v0.9.1) (2025-07-24)
 
 
