@@ -7,71 +7,8 @@ import (
 	"time"
 
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/testutil"
 )
-
-// mockAPIRequestRepository for testing - implements both APIRequestRepository and StatsRepository
-type mockAPIRequestRepository struct {
-	findByPeriodWithLimitFunc func(period entity.Period, limit int, offset int) ([]entity.APIRequest, error)
-}
-
-func (m *mockAPIRequestRepository) Save(request entity.APIRequest) error {
-	return nil
-}
-
-func (m *mockAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-	if m.findByPeriodWithLimitFunc != nil {
-		return m.findByPeriodWithLimitFunc(period, limit, offset)
-	}
-	return []entity.APIRequest{}, nil
-}
-
-func (m *mockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
-	return []entity.APIRequest{}, nil
-}
-
-func (m *mockAPIRequestRepository) DeleteOlderThan(timestamp time.Time) (int, error) {
-	return 0, nil
-}
-
-// mockStatsRepository for testing - wraps mockAPIRequestRepository
-type mockStatsRepository struct {
-	apiRepo *mockAPIRequestRepository
-}
-
-func newMockStatsRepository(apiRepo *mockAPIRequestRepository) *mockStatsRepository {
-	return &mockStatsRepository{apiRepo: apiRepo}
-}
-
-func (m *mockStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
-	requests, err := m.apiRepo.FindByPeriodWithLimit(period, 0, 0)
-	if err != nil {
-		return entity.Stats{}, err
-	}
-	return entity.NewStatsFromRequests(requests, period), nil
-}
-
-// mockStatsCache for testing
-type mockStatsCache struct {
-	getFunc   func(period entity.Period) *entity.Stats
-	setFunc   func(period entity.Period, stats *entity.Stats)
-	getCalled int
-	setCalled int
-}
-
-func (m *mockStatsCache) Get(period entity.Period) *entity.Stats {
-	m.getCalled++
-	if m.getFunc != nil {
-		return m.getFunc(period)
-	}
-	return nil
-}
-
-func (m *mockStatsCache) Set(period entity.Period, stats *entity.Stats) {
-	m.setCalled++
-	if m.setFunc != nil {
-		m.setFunc(period, stats)
-	}
-}
 
 func TestCalculateStatsQuery_Execute(t *testing.T) {
 	now := time.Now()
@@ -192,25 +129,20 @@ func TestCalculateStatsQuery_Execute(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mocks
 			repoCalled := false
-			mockRepo := &mockAPIRequestRepository{
-				findByPeriodWithLimitFunc: func(p entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-					repoCalled = true
-					if tt.repositoryError != nil {
-						return nil, tt.repositoryError
-					}
-					return tt.repositoryData, nil
-				},
-			}
+			mockRepo := testutil.NewMockRepositoryWithCustomFunc(func(p entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
+				repoCalled = true
+				if tt.repositoryError != nil {
+					return nil, tt.repositoryError
+				}
+				return tt.repositoryData, nil
+			})
 
-			mockCache := &mockStatsCache{
-				getFunc: func(p entity.Period) *entity.Stats {
-					return tt.cacheGet
-				},
-			}
+			mockCache := testutil.NewMockStatsCacheWithData(func(p entity.Period) *entity.Stats {
+				return tt.cacheGet
+			})
 
 			// Execute
-			mockStatsRepo := newMockStatsRepository(mockRepo)
-			query := NewCalculateStatsQuery(mockStatsRepo, mockCache)
+			query := NewCalculateStatsQuery(mockRepo, mockCache)
 			ctx := context.Background()
 			params := CalculateStatsParams{Period: period}
 			result, err := query.Execute(ctx, params)
@@ -229,14 +161,14 @@ func TestCalculateStatsQuery_Execute(t *testing.T) {
 			}
 
 			// Verify cache interactions
-			if mockCache.getCalled != 1 {
-				t.Errorf("Cache.Get called %d times, want 1", mockCache.getCalled)
+			if mockCache.GetCallCount() != 1 {
+				t.Errorf("Cache.Get called %d times, want 1", mockCache.GetCallCount())
 			}
-			if tt.expectCacheSet && mockCache.setCalled != 1 {
-				t.Errorf("Cache.Set called %d times, want 1", mockCache.setCalled)
+			if tt.expectCacheSet && mockCache.SetCallCount() != 1 {
+				t.Errorf("Cache.Set called %d times, want 1", mockCache.SetCallCount())
 			}
-			if !tt.expectCacheSet && mockCache.setCalled != 0 {
-				t.Errorf("Cache.Set called %d times, want 0", mockCache.setCalled)
+			if !tt.expectCacheSet && mockCache.SetCallCount() != 0 {
+				t.Errorf("Cache.Set called %d times, want 0", mockCache.SetCallCount())
 			}
 
 			// Validate result

@@ -11,6 +11,7 @@ import (
 	"github.com/elct9620/ccmon/handler/grpc/receiver"
 	pb "github.com/elct9620/ccmon/proto"
 	"github.com/elct9620/ccmon/service"
+	"github.com/elct9620/ccmon/testutil"
 	"github.com/elct9620/ccmon/usecase"
 	logsv1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	metricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
@@ -27,62 +28,18 @@ func mustCreateAPIRequest(sessionID string, timestamp time.Time, model string, t
 	return entity.NewAPIRequest(sessionID, timestamp, model, tokens, cost, durationMS)
 }
 
-// Mock implementations for testing
-type mockAPIRequestRepository struct {
-	requests []entity.APIRequest
-	saveErr  error
-	findErr  error
-}
-
-func (m *mockAPIRequestRepository) Save(req entity.APIRequest) error {
-	if m.saveErr != nil {
-		return m.saveErr
-	}
-	m.requests = append(m.requests, req)
-	return nil
-}
-
-func (m *mockAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-	return m.requests, m.findErr
-}
-
-func (m *mockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
-	return m.requests, m.findErr
-}
-
-func (m *mockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
-	return 0, nil
-}
-
-// mockStatsRepository for testing - wraps mockAPIRequestRepository
-type mockStatsRepository struct {
-	apiRepo *mockAPIRequestRepository
-}
-
-func newMockStatsRepository(apiRepo *mockAPIRequestRepository) *mockStatsRepository {
-	return &mockStatsRepository{apiRepo: apiRepo}
-}
-
-func (m *mockStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
-	requests, err := m.apiRepo.FindByPeriodWithLimit(period, 0, 0)
-	if err != nil {
-		return entity.Stats{}, err
-	}
-	return entity.NewStatsFromRequests(requests, period), nil
-}
-
 // Test helper to create an in-memory gRPC server
-func setupTestServer(t *testing.T) (*grpc.Server, *bufconn.Listener, pb.QueryServiceClient, *mockAPIRequestRepository) {
+func setupTestServer(t *testing.T) (*grpc.Server, *bufconn.Listener, pb.QueryServiceClient, *testutil.MockAPIRequestRepository) {
 	// Create bufconn listener
 	lis := bufconn.Listen(1024 * 1024)
 
 	// Create mock repository
-	mockRepo := &mockAPIRequestRepository{}
+	mockRepo := testutil.NewMockAPIRequestRepository()
 
 	// Create real usecases with mock repository
 	appendCommand := usecase.NewAppendApiRequestCommand(mockRepo)
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	mockStatsRepo := newMockStatsRepository(mockRepo)
+	mockStatsRepo := testutil.NewMockStatsRepository(mockRepo)
 	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 
 	// Create gRPC server and register services (same as RunServer but without lifecycle management)
@@ -153,7 +110,7 @@ func TestGRPCServer_QueryService_GetStats(t *testing.T) {
 			entity.NewCost(0.15),
 			1000,
 		)
-		mockRepo.requests = append(mockRepo.requests, req)
+		mockRepo.Save(req)
 	}
 
 	// Add some premium model requests
@@ -165,7 +122,7 @@ func TestGRPCServer_QueryService_GetStats(t *testing.T) {
 			entity.NewCost(0.70),
 			1500,
 		)
-		mockRepo.requests = append(mockRepo.requests, req)
+		mockRepo.Save(req)
 	}
 
 	// Make gRPC call
@@ -233,7 +190,7 @@ func TestGRPCServer_QueryService_GetAPIRequests(t *testing.T) {
 			800,
 		),
 	}
-	mockRepo.requests = expectedRequests
+	mockRepo.SetMockData(expectedRequests)
 
 	// Make gRPC call
 	ctx := context.Background()
@@ -283,7 +240,7 @@ func TestGRPCServer_QueryService_AllTimeRequests(t *testing.T) {
 	_, _, client, mockRepo := setupTestServer(t)
 
 	// Set up mock data with empty requests
-	mockRepo.requests = []entity.APIRequest{}
+	mockRepo.SetMockData([]entity.APIRequest{})
 
 	// Make gRPC call with nil timestamps (all time)
 	ctx := context.Background()

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/testutil"
 	"github.com/elct9620/ccmon/usecase"
 	logsv1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	metricsv1 "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
@@ -20,32 +21,6 @@ import (
 	resourcev1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	tracesdata "go.opentelemetry.io/proto/otlp/trace/v1"
 )
-
-// Mock repository for testing
-type mockAPIRequestRepository struct {
-	requests []entity.APIRequest
-	saveErr  error
-}
-
-func (m *mockAPIRequestRepository) Save(req entity.APIRequest) error {
-	if m.saveErr != nil {
-		return m.saveErr
-	}
-	m.requests = append(m.requests, req)
-	return nil
-}
-
-func (m *mockAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-	return m.requests, nil
-}
-
-func (m *mockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
-	return m.requests, nil
-}
-
-func (m *mockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
-	return 0, nil
-}
 
 // Helper function to create OTLP log request with Claude Code API request data
 func createClaudeCodeLogRequest(sessionID, timestamp, model string, inputTokens, outputTokens, cacheRead, cacheCreation int64, costUSD float64, durationMS int64) *logsv1.ExportLogsServiceRequest {
@@ -346,7 +321,7 @@ func TestOTLPReceiver_LogsServiceExport(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mock repository and usecase for each test
-			mockRepo := &mockAPIRequestRepository{}
+			mockRepo := testutil.NewMockAPIRequestRepository()
 			appendCommand := usecase.NewAppendApiRequestCommand(mockRepo)
 
 			// Create receiver
@@ -366,13 +341,14 @@ func TestOTLPReceiver_LogsServiceExport(t *testing.T) {
 			}
 
 			// Verify expected number of saved requests
-			if len(mockRepo.requests) != tt.expectedSavedCount {
-				t.Errorf("Expected %d requests in repository, got %d", tt.expectedSavedCount, len(mockRepo.requests))
+			requests, _ := mockRepo.FindAll()
+			if len(requests) != tt.expectedSavedCount {
+				t.Errorf("Expected %d requests in repository, got %d", tt.expectedSavedCount, len(requests))
 			}
 
 			// Validate saved request if validation function is provided
-			if tt.validateSaved != nil && len(mockRepo.requests) > 0 {
-				tt.validateSaved(t, mockRepo.requests[0])
+			if tt.validateSaved != nil && len(requests) > 0 {
+				tt.validateSaved(t, requests[0])
 			}
 		})
 	}
@@ -627,7 +603,7 @@ func TestOTLPReceiver_UnsupportedEventLogging(t *testing.T) {
 			defer log.SetOutput(originalOutput)
 
 			// Setup mock repository and usecase
-			mockRepo := &mockAPIRequestRepository{}
+			mockRepo := testutil.NewMockAPIRequestRepository()
 			appendCommand := usecase.NewAppendApiRequestCommand(mockRepo)
 
 			// Create receiver

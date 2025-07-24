@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/elct9620/ccmon/handler/tui"
 	"github.com/elct9620/ccmon/service"
+	"github.com/elct9620/ccmon/testutil"
 	"github.com/elct9620/ccmon/usecase"
 )
 
@@ -58,16 +59,18 @@ func TestDailyUsageTab_IntegrationWithViewModel(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			// Setup test data
-			mockRepo := NewMockAPIRequestRepository()
+			var apiRepo *testutil.MockAPIRequestRepository
+			var statsRepo *testutil.MockStatsRepository
 			if tt.hasData {
-				mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
+				apiRepo, statsRepo = testutil.NewMockRepositoryWithTestData()
+			} else {
+				apiRepo, statsRepo = testutil.NewMockRepositoryPair()
 			}
 
-			getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-			mockStatsRepo := NewMockStatsRepository(mockRepo)
-			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
+			getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(apiRepo)
+			calculateStatsQuery := usecase.NewCalculateStatsQuery(statsRepo, &service.NoOpStatsCache{})
 			periodFactory := service.NewTimePeriodFactory(time.UTC)
-			getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory) // Use same repo for consistency
+			getUsageQuery := usecase.NewGetUsageQuery(apiRepo, periodFactory) // Use same repo for consistency
 
 			// Create the ViewModel
 			model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 10*time.Millisecond)
@@ -129,13 +132,11 @@ func TestDailyUsageTab_NavigationFlow(t *testing.T) {
 	t.Run("Simple tab switch", func(t *testing.T) {
 		t.Parallel()
 		// Setup test data
-		mockRepo := NewMockAPIRequestRepository()
-		mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
-		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-		mockStatsRepo := NewMockStatsRepository(mockRepo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
+		apiRepo, statsRepo := testutil.NewMockRepositoryWithTestData()
+		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(apiRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(statsRepo, &service.NoOpStatsCache{})
 		periodFactory := service.NewTimePeriodFactory(time.UTC)
-		getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
+		getUsageQuery := usecase.NewGetUsageQuery(apiRepo, periodFactory)
 
 		model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 10*time.Millisecond)
 
@@ -201,13 +202,11 @@ func TestDailyUsageTab_FocusManagement(t *testing.T) {
 	t.Run("Focus management during tab switches", func(t *testing.T) {
 		t.Parallel()
 		// Setup test data
-		mockRepo := NewMockAPIRequestRepository()
-		mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
-		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-		mockStatsRepo := NewMockStatsRepository(mockRepo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
+		apiRepo, statsRepo := testutil.NewMockRepositoryWithTestData()
+		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(apiRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(statsRepo, &service.NoOpStatsCache{})
 		periodFactory := service.NewTimePeriodFactory(time.UTC)
-		getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
+		getUsageQuery := usecase.NewGetUsageQuery(apiRepo, periodFactory)
 
 		model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 10*time.Millisecond)
 
@@ -280,13 +279,11 @@ func TestDailyUsageTab_KeyboardNavigation(t *testing.T) {
 	t.Run("Arrow key navigation", func(t *testing.T) {
 		t.Parallel()
 		// Setup test data
-		mockRepo := NewMockAPIRequestRepository()
-		mockRepo.SetMockData(CreateTestRequestsSet(), CreateTestStats())
-		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-		mockStatsRepo := NewMockStatsRepository(mockRepo)
-		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
+		apiRepo, statsRepo := testutil.NewMockRepositoryWithTestData()
+		getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(apiRepo)
+		calculateStatsQuery := usecase.NewCalculateStatsQuery(statsRepo, &service.NoOpStatsCache{})
 		periodFactory := service.NewTimePeriodFactory(time.UTC)
-		getUsageQuery := usecase.NewGetUsageQuery(mockRepo, periodFactory)
+		getUsageQuery := usecase.NewGetUsageQuery(apiRepo, periodFactory)
 
 		model := tui.NewViewModel(getFilteredQuery, calculateStatsQuery, getUsageQuery, time.UTC, nil, 10*time.Millisecond)
 

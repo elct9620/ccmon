@@ -8,18 +8,9 @@ import (
 	"time"
 
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/testutil"
 	"github.com/elct9620/ccmon/usecase"
 )
-
-// MockPlanRepository implements usecase.PlanRepository for testing
-type MockPlanRepository struct {
-	plan entity.Plan
-	err  error
-}
-
-func (m *MockPlanRepository) GetConfiguredPlan() (entity.Plan, error) {
-	return m.plan, m.err
-}
 
 // MockPeriodFactory implements usecase.PeriodFactory for testing
 type MockPeriodFactory struct {
@@ -34,54 +25,6 @@ func (m *MockPeriodFactory) CreateDaily() entity.Period {
 func (m *MockPeriodFactory) CreateMonthly() entity.Period {
 	return m.monthlyPeriod
 }
-
-// MockAPIRequestRepository implements usecase.APIRequestRepository for testing stats query
-type MockAPIRequestRepository struct {
-	dailyRequests   []entity.APIRequest
-	monthlyRequests []entity.APIRequest
-	err             error
-}
-
-func (m *MockAPIRequestRepository) Save(req entity.APIRequest) error {
-	return nil
-}
-
-func (m *MockAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-
-	// Return different requests based on period
-	if period.StartAt().Day() == 1 {
-		// Monthly period (starts on day 1)
-		return m.monthlyRequests, nil
-	}
-	// Daily period
-	return m.dailyRequests, nil
-}
-
-func (m *MockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
-	return nil, nil
-}
-
-func (m *MockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
-	return 0, nil
-}
-
-// GetStatsByPeriod implements StatsRepository interface by calculating stats from requests
-func (m *MockAPIRequestRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
-	requests, err := m.FindByPeriodWithLimit(period, 0, 0)
-	if err != nil {
-		return entity.Stats{}, err
-	}
-	return entity.NewStatsFromRequests(requests, period), nil
-}
-
-// noOpStatsCache for testing
-type noOpStatsCache struct{}
-
-func (c *noOpStatsCache) Get(period entity.Period) *entity.Stats        { return nil }
-func (c *noOpStatsCache) Set(period entity.Period, stats *entity.Stats) {}
 
 // Helper function to calculate expected daily usage percentage based on current month
 func calculateExpectedDailyUsage(dailyCost, planPrice float64) string {
@@ -195,9 +138,9 @@ func TestGetUsageVariablesQuery_Execute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mocks
-			mockPlanRepo := &MockPlanRepository{
-				plan: tt.plan,
-				err:  tt.planErr,
+			mockPlanRepo := testutil.NewMockPlanRepository(tt.plan)
+			if tt.planErr != nil {
+				mockPlanRepo.SetError(tt.planErr)
 			}
 
 			mockPeriodFactory := &MockPeriodFactory{
@@ -206,14 +149,13 @@ func TestGetUsageVariablesQuery_Execute(t *testing.T) {
 			}
 
 			// Create mock repository with appropriate requests
-			mockRepo := &MockAPIRequestRepository{
-				dailyRequests:   tt.dailyRequests,
-				monthlyRequests: tt.monthlyRequests,
-				err:             tt.statsErr,
+			mockRepo := testutil.NewMockPeriodBasedRepository(tt.dailyRequests, tt.monthlyRequests)
+			if tt.statsErr != nil {
+				mockRepo.SetError(tt.statsErr)
 			}
 
 			// No-op cache for testing (caching disabled)
-			noOpCache := &noOpStatsCache{}
+			noOpCache := testutil.NewNoOpStatsCache()
 			// Real CalculateStatsQuery with mock repository
 			statsQuery := usecase.NewCalculateStatsQuery(mockRepo, noOpCache)
 
@@ -364,21 +306,16 @@ func TestGetUsageVariablesQuery_CurrentMonthCalculation(t *testing.T) {
 			monthlyRequests := createAPIRequests(50, 30, 50.0, 90.0)                 // Monthly cost for other tests
 
 			// Setup mocks
-			mockPlanRepo := &MockPlanRepository{
-				plan: tt.plan,
-			}
+			mockPlanRepo := testutil.NewMockPlanRepository(tt.plan)
 
 			mockPeriodFactory := &MockPeriodFactory{
 				dailyPeriod:   dailyPeriod,
 				monthlyPeriod: monthlyPeriod,
 			}
 
-			mockRepo := &MockAPIRequestRepository{
-				dailyRequests:   dailyRequests,
-				monthlyRequests: monthlyRequests,
-			}
+			mockRepo := testutil.NewMockPeriodBasedRepository(dailyRequests, monthlyRequests)
 
-			noOpCache := &noOpStatsCache{}
+			noOpCache := testutil.NewNoOpStatsCache()
 			statsQuery := usecase.NewCalculateStatsQuery(mockRepo, noOpCache)
 
 			query := usecase.NewGetUsageVariablesQuery(

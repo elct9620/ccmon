@@ -9,71 +9,9 @@ import (
 	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/handler/cli"
 	"github.com/elct9620/ccmon/service"
+	"github.com/elct9620/ccmon/testutil"
 	"github.com/elct9620/ccmon/usecase"
 )
-
-// MockAPIRequestRepository implements usecase.APIRequestRepository for integration testing
-type MockAPIRequestRepository struct {
-	requests []entity.APIRequest
-	err      error
-}
-
-func (m *MockAPIRequestRepository) Save(req entity.APIRequest) error {
-	m.requests = append(m.requests, req)
-	return nil
-}
-
-func (m *MockAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-
-	var filtered []entity.APIRequest
-	for _, req := range m.requests {
-		if !period.IsAllTime() {
-			if req.Timestamp().Before(period.StartAt()) || req.Timestamp().After(period.EndAt()) {
-				continue
-			}
-		}
-		filtered = append(filtered, req)
-	}
-
-	if offset > len(filtered) {
-		return []entity.APIRequest{}, nil
-	}
-	filtered = filtered[offset:]
-
-	if limit > 0 && limit < len(filtered) {
-		filtered = filtered[:limit]
-	}
-
-	return filtered, nil
-}
-
-func (m *MockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
-	return m.requests, m.err
-}
-
-func (m *MockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
-	return 0, nil
-}
-
-// mockStatsRepository for testing - wraps MockAPIRequestRepository
-type mockStatsRepository struct {
-	apiRepo *MockAPIRequestRepository
-}
-
-func newMockStatsRepository(apiRepo *MockAPIRequestRepository) *mockStatsRepository {
-	return &mockStatsRepository{apiRepo: apiRepo}
-}
-
-func (m *mockStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
-	requests, err := m.apiRepo.FindByPeriodWithLimit(period, 0, 0)
-	if err != nil {
-		return entity.Stats{}, err
-	}
-	return entity.NewStatsFromRequests(requests, period), nil
-}
 
 // Helper function to calculate expected daily usage percentage based on current month
 func calculateExpectedDailyUsage(dailyCost, planPrice float64) string {
@@ -84,78 +22,11 @@ func calculateExpectedDailyUsage(dailyCost, planPrice float64) string {
 	return fmt.Sprintf("%d%%", percentage)
 }
 
-// MockPlanRepository implements usecase.PlanRepository for integration testing
-type MockPlanRepository struct {
-	plan entity.Plan
-	err  error
-}
-
-func (m *MockPlanRepository) GetConfiguredPlan() (entity.Plan, error) {
-	return m.plan, m.err
-}
-
-// Helper function to create API requests for testing
+// Helper function for creating API requests - now uses factory
 func createTestAPIRequests(dailyBaseRequests, dailyPremiumRequests, monthlyBaseRequests, monthlyPremiumRequests int,
 	dailyBaseCost, dailyPremiumCost, monthlyBaseCost, monthlyPremiumCost float64) []entity.APIRequest {
-	var requests []entity.APIRequest
-
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.UTC)
-	monthStart := time.Date(now.Year(), now.Month(), 1, 12, 0, 0, 0, time.UTC)
-
-	// Create daily base requests
-	for i := 0; i < dailyBaseRequests; i++ {
-		req := entity.NewAPIRequest(
-			fmt.Sprintf("daily-base-%d", i),
-			today,
-			"claude-3-haiku-20240307",
-			entity.NewToken(200, 160, 0, 0),
-			entity.NewCost(dailyBaseCost/float64(dailyBaseRequests)),
-			1000,
-		)
-		requests = append(requests, req)
-	}
-
-	// Create daily premium requests
-	for i := 0; i < dailyPremiumRequests; i++ {
-		req := entity.NewAPIRequest(
-			fmt.Sprintf("daily-premium-%d", i),
-			today,
-			"claude-3-5-sonnet-20241022",
-			entity.NewToken(666, 500, 0, 0),
-			entity.NewCost(dailyPremiumCost/float64(dailyPremiumRequests)),
-			1000,
-		)
-		requests = append(requests, req)
-	}
-
-	// Create monthly base requests (excluding daily ones)
-	for i := 0; i < monthlyBaseRequests; i++ {
-		req := entity.NewAPIRequest(
-			fmt.Sprintf("monthly-base-%d", i),
-			monthStart.Add(time.Duration(i)*time.Hour),
-			"claude-3-haiku-20240307",
-			entity.NewToken(200, 160, 0, 0),
-			entity.NewCost(monthlyBaseCost/float64(monthlyBaseRequests)),
-			1000,
-		)
-		requests = append(requests, req)
-	}
-
-	// Create monthly premium requests (excluding daily ones)
-	for i := 0; i < monthlyPremiumRequests; i++ {
-		req := entity.NewAPIRequest(
-			fmt.Sprintf("monthly-premium-%d", i),
-			monthStart.Add(time.Duration(i)*time.Hour),
-			"claude-3-5-sonnet-20241022",
-			entity.NewToken(666, 500, 0, 0),
-			entity.NewCost(monthlyPremiumCost/float64(monthlyPremiumRequests)),
-			1000,
-		)
-		requests = append(requests, req)
-	}
-
-	return requests
+	return testutil.CreateTestAPIRequestsSet(dailyBaseRequests, dailyPremiumRequests, monthlyBaseRequests, monthlyPremiumRequests,
+		dailyBaseCost, dailyPremiumCost, monthlyBaseCost, monthlyPremiumCost)
 }
 
 func TestFormatQueryEndToEnd(t *testing.T) {
@@ -265,21 +136,19 @@ func TestFormatQueryEndToEnd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock repository
-			mockRepo := &MockAPIRequestRepository{
-				requests: tt.requests,
-				err:      tt.repositoryErr,
+			// Setup mock repositories using factory
+			mockRepo, mockStatsRepo := testutil.NewMockRepositoryWithData(tt.requests)
+			if tt.repositoryErr != nil {
+				mockRepo.SetError(tt.repositoryErr)
 			}
 
-			// Setup mock plan repository
-			mockPlanRepo := &MockPlanRepository{
-				plan: tt.plan,
-				err:  tt.planErr,
+			mockPlanRepo := testutil.NewMockPlanRepository(tt.plan)
+			if tt.planErr != nil {
+				mockPlanRepo.SetError(tt.planErr)
 			}
 
 			// Create real services with timezone
 			periodFactory := service.NewTimePeriodFactory(timezone)
-			mockStatsRepo := newMockStatsRepository(mockRepo)
 			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
@@ -366,14 +235,11 @@ func TestTimeZoneConsistency(t *testing.T) {
 				),
 			}
 
-			// Setup
-			mockRepo := &MockAPIRequestRepository{requests: requests}
-			mockPlanRepo := &MockPlanRepository{
-				plan: entity.NewPlan("pro", entity.NewCost(20.0)),
-			}
+			// Setup using factory
+			_, mockStatsRepo := testutil.NewMockRepositoryWithData(requests)
+			mockPlanRepo := testutil.NewMockPlanRepository(entity.NewPlan("pro", entity.NewCost(20.0)))
 
 			periodFactory := service.NewTimePeriodFactory(timezone)
-			mockStatsRepo := newMockStatsRepository(mockRepo)
 			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
@@ -428,16 +294,11 @@ func TestTimeZoneConsistency(t *testing.T) {
 }
 
 func TestVariableSubstitutionEdgeCases(t *testing.T) {
-	// Setup basic test environment
-	mockRepo := &MockAPIRequestRepository{
-		requests: createTestAPIRequests(1, 1, 5, 5, 10.0, 20.0, 50.0, 100.0),
-	}
-	mockPlanRepo := &MockPlanRepository{
-		plan: entity.NewPlan("pro", entity.NewCost(20.0)),
-	}
+	// Setup basic test environment using factory
+	_, mockStatsRepo := testutil.NewMockRepositoryWithData(createTestAPIRequests(1, 1, 5, 5, 10.0, 20.0, 50.0, 100.0))
+	mockPlanRepo := testutil.NewMockPlanRepository(entity.NewPlan("pro", entity.NewCost(20.0)))
 
 	periodFactory := service.NewTimePeriodFactory(time.UTC)
-	mockStatsRepo := newMockStatsRepository(mockRepo)
 	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 	usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 		calculateStatsQuery,
@@ -591,11 +452,10 @@ func TestOutputFormatSpecificationCompliance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := &MockAPIRequestRepository{requests: tt.requests}
-			mockPlanRepo := &MockPlanRepository{plan: tt.plan}
+			_, mockStatsRepo := testutil.NewMockRepositoryWithData(tt.requests)
+			mockPlanRepo := testutil.NewMockPlanRepository(tt.plan)
 
 			periodFactory := service.NewTimePeriodFactory(time.UTC)
-			mockStatsRepo := newMockStatsRepository(mockRepo)
 			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
@@ -653,17 +513,17 @@ func TestErrorHandlingAndTimeout(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := &MockAPIRequestRepository{
-				requests: createTestAPIRequests(1, 1, 5, 5, 10.0, 20.0, 50.0, 100.0),
-				err:      tt.repositoryErr,
+			mockRepo, mockStatsRepo := testutil.NewMockRepositoryWithData(createTestAPIRequests(1, 1, 5, 5, 10.0, 20.0, 50.0, 100.0))
+			if tt.repositoryErr != nil {
+				mockRepo.SetError(tt.repositoryErr)
 			}
-			mockPlanRepo := &MockPlanRepository{
-				plan: entity.NewPlan("pro", entity.NewCost(20.0)),
-				err:  tt.planErr,
+
+			mockPlanRepo := testutil.NewMockPlanRepository(entity.NewPlan("pro", entity.NewCost(20.0)))
+			if tt.planErr != nil {
+				mockPlanRepo.SetError(tt.planErr)
 			}
 
 			periodFactory := service.NewTimePeriodFactory(time.UTC)
-			mockStatsRepo := newMockStatsRepository(mockRepo)
 			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,

@@ -9,6 +9,7 @@ import (
 	"github.com/elct9620/ccmon/entity"
 	pb "github.com/elct9620/ccmon/proto"
 	"github.com/elct9620/ccmon/service"
+	"github.com/elct9620/ccmon/testutil"
 	"github.com/elct9620/ccmon/usecase"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -16,55 +17,6 @@ import (
 // Helper function for creating API requests in tests
 func mustCreateAPIRequest(sessionID string, timestamp time.Time, model string, tokens entity.Token, cost entity.Cost, durationMS int64) entity.APIRequest {
 	return entity.NewAPIRequest(sessionID, timestamp, model, tokens, cost, durationMS)
-}
-
-// Mock repository for testing
-type mockAPIRequestRepository struct {
-	requests []entity.APIRequest
-	findErr  error
-}
-
-func (m *mockAPIRequestRepository) Save(req entity.APIRequest) error {
-	m.requests = append(m.requests, req)
-	return nil
-}
-
-func (m *mockAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-	if m.findErr != nil {
-		return nil, m.findErr
-	}
-
-	// Filter requests by period
-	var filtered []entity.APIRequest
-	for _, req := range m.requests {
-		if !period.IsAllTime() {
-			if req.Timestamp().Before(period.StartAt()) || req.Timestamp().After(period.EndAt()) {
-				continue
-			}
-		}
-		filtered = append(filtered, req)
-	}
-
-	// Apply offset
-	if offset > len(filtered) {
-		return []entity.APIRequest{}, nil
-	}
-	filtered = filtered[offset:]
-
-	// Apply limit
-	if limit > 0 && limit < len(filtered) {
-		filtered = filtered[:limit]
-	}
-
-	return filtered, nil
-}
-
-func (m *mockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
-	return m.requests, m.findErr
-}
-
-func (m *mockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
-	return 0, nil
 }
 
 func TestQueryService_GetStats(t *testing.T) {
@@ -281,12 +233,11 @@ func TestQueryService_GetStats(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mock repository
-			mockRepo := &mockAPIRequestRepository{
-				requests: tt.requests,
-			}
+			mockRepo := testutil.NewMockAPIRequestRepository()
+			mockRepo.SetMockData(tt.requests)
 
 			// Create usecases
-			mockStatsRepo := newMockStatsRepository(mockRepo)
+			mockStatsRepo := testutil.NewMockStatsRepository(mockRepo)
 			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 
 			// Create service
@@ -514,9 +465,8 @@ func TestQueryService_GetAPIRequests(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup mock repository
-			mockRepo := &mockAPIRequestRepository{
-				requests: tt.requests,
-			}
+			mockRepo := testutil.NewMockAPIRequestRepository()
+			mockRepo.SetMockData(tt.requests)
 
 			// Create usecases
 			getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)

@@ -5,36 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/testutil"
 )
-
-// MockRepositoryForCleanup implements APIRequestRepository for cleanup testing
-type MockRepositoryForCleanup struct {
-	deleteOlderThanFunc func(cutoffTime time.Time) (int, error)
-	deleteCallCount     int
-	lastCutoffTime      time.Time
-}
-
-func (m *MockRepositoryForCleanup) Save(req entity.APIRequest) error {
-	return nil // Not used in cleanup tests
-}
-
-func (m *MockRepositoryForCleanup) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-	return nil, nil // Not used in cleanup tests
-}
-
-func (m *MockRepositoryForCleanup) FindAll() ([]entity.APIRequest, error) {
-	return nil, nil // Not used in cleanup tests
-}
-
-func (m *MockRepositoryForCleanup) DeleteOlderThan(cutoffTime time.Time) (int, error) {
-	m.deleteCallCount++
-	m.lastCutoffTime = cutoffTime
-	if m.deleteOlderThanFunc != nil {
-		return m.deleteOlderThanFunc(cutoffTime)
-	}
-	return 0, nil
-}
 
 func TestCleanupOldRecordsCommand_Execute(t *testing.T) {
 	t.Parallel()
@@ -71,7 +43,7 @@ func TestCleanupOldRecordsCommand_Execute(t *testing.T) {
 			name:       "cleanup with repository error",
 			cutoffTime: time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
 			mockDeleteFunc: func(cutoffTime time.Time) (int, error) {
-				return 0, &mockError{msg: "database connection failed"}
+				return 0, &testutil.MockError{Message: "database connection failed"}
 			},
 			expectedDeleted:   0,
 			expectError:       true,
@@ -94,9 +66,7 @@ func TestCleanupOldRecordsCommand_Execute(t *testing.T) {
 			t.Parallel()
 
 			// Create mock repository
-			mockRepo := &MockRepositoryForCleanup{
-				deleteOlderThanFunc: tt.mockDeleteFunc,
-			}
+			mockRepo := testutil.NewMockRepositoryWithDeleteFunc(tt.mockDeleteFunc)
 
 			// Create command
 			command := NewCleanupOldRecordsCommand(mockRepo)
@@ -131,12 +101,12 @@ func TestCleanupOldRecordsCommand_Execute(t *testing.T) {
 			}
 
 			// Verify repository interaction
-			if mockRepo.deleteCallCount != tt.expectedCallCount {
-				t.Errorf("DeleteOlderThan() call count = %d, want %d", mockRepo.deleteCallCount, tt.expectedCallCount)
+			if mockRepo.GetDeleteCallCount() != tt.expectedCallCount {
+				t.Errorf("DeleteOlderThan() call count = %d, want %d", mockRepo.GetDeleteCallCount(), tt.expectedCallCount)
 			}
 
-			if !tt.expectError && !mockRepo.lastCutoffTime.Equal(tt.cutoffTime) {
-				t.Errorf("DeleteOlderThan() cutoffTime = %v, want %v", mockRepo.lastCutoffTime, tt.cutoffTime)
+			if !tt.expectError && !mockRepo.GetLastCutoffTime().Equal(tt.cutoffTime) {
+				t.Errorf("DeleteOlderThan() cutoffTime = %v, want %v", mockRepo.GetLastCutoffTime(), tt.cutoffTime)
 			}
 		})
 	}
@@ -144,13 +114,11 @@ func TestCleanupOldRecordsCommand_Execute(t *testing.T) {
 
 func TestCleanupOldRecordsCommand_ExecuteContextCancellation(t *testing.T) {
 	// Create mock repository that simulates a slow operation
-	mockRepo := &MockRepositoryForCleanup{
-		deleteOlderThanFunc: func(cutoffTime time.Time) (int, error) {
-			// Simulate slow operation
-			time.Sleep(100 * time.Millisecond)
-			return 5, nil
-		},
-	}
+	mockRepo := testutil.NewMockRepositoryWithDeleteFunc(func(cutoffTime time.Time) (int, error) {
+		// Simulate slow operation
+		time.Sleep(100 * time.Millisecond)
+		return 5, nil
+	})
 
 	command := NewCleanupOldRecordsCommand(mockRepo)
 
@@ -178,7 +146,7 @@ func TestCleanupOldRecordsCommand_ExecuteContextCancellation(t *testing.T) {
 }
 
 func TestNewCleanupOldRecordsCommand(t *testing.T) {
-	mockRepo := &MockRepositoryForCleanup{}
+	mockRepo := testutil.NewMockRepositoryWithDeleteFunc(nil)
 	command := NewCleanupOldRecordsCommand(mockRepo)
 
 	if command == nil {
@@ -189,13 +157,4 @@ func TestNewCleanupOldRecordsCommand(t *testing.T) {
 	if command.repository != mockRepo {
 		t.Errorf("NewCleanupOldRecordsCommand() repository not set correctly")
 	}
-}
-
-// mockError implements error interface for testing
-type mockError struct {
-	msg string
-}
-
-func (e *mockError) Error() string {
-	return e.msg
 }

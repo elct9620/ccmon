@@ -7,45 +7,8 @@ import (
 
 	"github.com/elct9620/ccmon/entity"
 	"github.com/elct9620/ccmon/service"
+	"github.com/elct9620/ccmon/testutil"
 )
-
-// MockAPIRequestRepositoryForUsage implements APIRequestRepository for usage testing
-type MockAPIRequestRepositoryForUsage struct {
-	requests []entity.APIRequest
-	err      error
-}
-
-func (m *MockAPIRequestRepositoryForUsage) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-
-	// Filter requests by period
-	var filtered []entity.APIRequest
-	for _, req := range m.requests {
-		if period.IsAllTime() {
-			filtered = append(filtered, req)
-		} else if !req.Timestamp().Before(period.StartAt()) && !req.Timestamp().After(period.EndAt()) {
-			// Request timestamp is within the period (inclusive of start, inclusive of end)
-			filtered = append(filtered, req)
-		}
-	}
-
-	return filtered, nil
-}
-
-func (m *MockAPIRequestRepositoryForUsage) FindAll() ([]entity.APIRequest, error) {
-	return m.requests, nil
-}
-
-func (m *MockAPIRequestRepositoryForUsage) Save(req entity.APIRequest) error {
-	m.requests = append(m.requests, req)
-	return nil
-}
-
-func (m *MockAPIRequestRepositoryForUsage) DeleteOlderThan(cutoffTime time.Time) (int, error) {
-	return 0, nil
-}
 
 func TestGetUsageQuery_ListByDay(t *testing.T) {
 	// Create test API requests for a specific day
@@ -56,9 +19,8 @@ func TestGetUsageQuery_ListByDay(t *testing.T) {
 	req1 := entity.NewAPIRequest("session1", yesterday.Add(2*time.Hour), "claude-3-5-haiku-20241022", entity.NewToken(100, 50, 0, 0), entity.NewCost(0.001), 1500)
 	req2 := entity.NewAPIRequest("session2", yesterday.Add(4*time.Hour), "claude-3-5-sonnet-20241022", entity.NewToken(200, 100, 0, 0), entity.NewCost(0.002), 2000)
 
-	repo := &MockAPIRequestRepositoryForUsage{
-		requests: []entity.APIRequest{req1, req2},
-	}
+	repo := testutil.NewMockAPIRequestRepository()
+	repo.SetMockData([]entity.APIRequest{req1, req2})
 	periodFactory := service.NewTimePeriodFactory(time.UTC)
 	query := NewGetUsageQuery(repo, periodFactory)
 
@@ -85,7 +47,7 @@ func TestGetUsageQuery_ListByDay(t *testing.T) {
 }
 
 func TestGetUsageQuery_ListByDay_Error(t *testing.T) {
-	repo := &MockAPIRequestRepositoryForUsage{err: &MockError{message: "database error"}}
+	repo := testutil.NewMockAPIRequestRepositoryWithError(&testutil.MockError{Message: "database error"})
 	periodFactory := service.NewTimePeriodFactory(time.UTC)
 	query := NewGetUsageQuery(repo, periodFactory)
 
@@ -97,15 +59,6 @@ func TestGetUsageQuery_ListByDay_Error(t *testing.T) {
 	if err.Error() != "database error" {
 		t.Errorf("Expected 'database error', got '%s'", err.Error())
 	}
-}
-
-// MockError implements error interface for testing
-type MockError struct {
-	message string
-}
-
-func (e *MockError) Error() string {
-	return e.message
 }
 
 func TestGetUsageQuery_ListByDay_Timezone(t *testing.T) {
@@ -133,9 +86,8 @@ func TestGetUsageQuery_ListByDay_Timezone(t *testing.T) {
 	// In New York (UTC-5), this is 6:30 PM yesterday
 	req := entity.NewAPIRequest("session1", utcTime, "claude-3-5-sonnet-20241022", entity.NewToken(100, 50, 0, 0), entity.NewCost(0.001), 1500)
 
-	repo := &MockAPIRequestRepositoryForUsage{
-		requests: []entity.APIRequest{req},
-	}
+	repo := testutil.NewMockAPIRequestRepository()
+	repo.SetMockData([]entity.APIRequest{req})
 
 	tests := []struct {
 		name             string
@@ -198,9 +150,8 @@ func TestGetUsageQuery_ListByDay_NilTimezone(t *testing.T) {
 	// Test that nil timezone defaults to UTC
 	req := entity.NewAPIRequest("session1", time.Now(), "claude-3-5-haiku-20241022", entity.NewToken(100, 50, 0, 0), entity.NewCost(0.001), 1500)
 
-	repo := &MockAPIRequestRepositoryForUsage{
-		requests: []entity.APIRequest{req},
-	}
+	repo := testutil.NewMockAPIRequestRepository()
+	repo.SetMockData([]entity.APIRequest{req})
 	periodFactory := service.NewTimePeriodFactory(time.UTC)
 	query := NewGetUsageQuery(repo, periodFactory)
 

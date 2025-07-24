@@ -8,66 +8,10 @@ import (
 	"github.com/elct9620/ccmon/entity"
 	pb "github.com/elct9620/ccmon/proto"
 	"github.com/elct9620/ccmon/service"
+	"github.com/elct9620/ccmon/testutil"
 	"github.com/elct9620/ccmon/usecase"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-// instrumentedRepository wraps a repository to count method calls
-type instrumentedRepository struct {
-	repo      usecase.APIRequestRepository
-	callCount *int
-}
-
-func (r *instrumentedRepository) Save(req entity.APIRequest) error {
-	return r.repo.Save(req)
-}
-
-func (r *instrumentedRepository) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-	*r.callCount++
-	return r.repo.FindByPeriodWithLimit(period, limit, offset)
-}
-
-func (r *instrumentedRepository) FindAll() ([]entity.APIRequest, error) {
-	return r.repo.FindAll()
-}
-
-func (r *instrumentedRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
-	return r.repo.DeleteOlderThan(cutoffTime)
-}
-
-// mockStatsRepository wraps mockAPIRequestRepository to implement StatsRepository
-type mockStatsRepository struct {
-	apiRepo *mockAPIRequestRepository
-}
-
-func newMockStatsRepository(apiRepo *mockAPIRequestRepository) *mockStatsRepository {
-	return &mockStatsRepository{apiRepo: apiRepo}
-}
-
-func (m *mockStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
-	requests, err := m.apiRepo.FindByPeriodWithLimit(period, 0, 0)
-	if err != nil {
-		return entity.Stats{}, err
-	}
-	return entity.NewStatsFromRequests(requests, period), nil
-}
-
-// instrumentedStatsRepository wraps instrumentedRepository to implement StatsRepository
-type instrumentedStatsRepository struct {
-	apiRepo *instrumentedRepository
-}
-
-func newInstrumentedStatsRepository(apiRepo *instrumentedRepository) *instrumentedStatsRepository {
-	return &instrumentedStatsRepository{apiRepo: apiRepo}
-}
-
-func (m *instrumentedStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
-	requests, err := m.apiRepo.FindByPeriodWithLimit(period, 0, 0)
-	if err != nil {
-		return entity.Stats{}, err
-	}
-	return entity.NewStatsFromRequests(requests, period), nil
-}
 
 // TestQueryService_GetStats_CacheIntegration tests end-to-end cache behavior through gRPC service
 func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
@@ -82,13 +26,12 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 			entity.NewCost(0.50),
 			1000,
 		)
-		mockRepo := &mockAPIRequestRepository{
-			requests: []entity.APIRequest{testRequest},
-		}
+		mockRepo := testutil.NewMockAPIRequestRepository()
+		mockRepo.SetMockData([]entity.APIRequest{testRequest})
 
 		// Create cache with 1-minute TTL
 		cache := service.NewInMemoryStatsCache(1 * time.Minute)
-		mockStatsRepo := newMockStatsRepository(mockRepo)
+		mockStatsRepo := testutil.NewMockStatsRepository(mockRepo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, cache)
 		queryService := NewService(nil, calculateStatsQuery)
 
@@ -135,27 +78,18 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 
 	t.Run("subsequent_identical_queries_return_cached_data", func(t *testing.T) {
 		// Create instrumented repository to count calls
-		callCount := 0
-		mockRepo := &mockAPIRequestRepository{
-			requests: []entity.APIRequest{
-				mustCreateAPIRequest(
-					"cached", baseTime,
-					"claude-3-haiku-20240307",
-					entity.NewToken(200, 100, 20, 10),
-					entity.NewCost(0.25),
-					800,
-				),
-			},
-		}
-
-		// Create instrumented repository wrapper
-		instrumentedRepo := &instrumentedRepository{
-			repo:      mockRepo,
-			callCount: &callCount,
-		}
+		mockRepo, instrumentedStatsRepo, callCount := testutil.NewInstrumentedRepositoryPair()
+		mockRepo.SetMockData([]entity.APIRequest{
+			mustCreateAPIRequest(
+				"cached", baseTime,
+				"claude-3-haiku-20240307",
+				entity.NewToken(200, 100, 20, 10),
+				entity.NewCost(0.25),
+				800,
+			),
+		})
 
 		cache := service.NewInMemoryStatsCache(1 * time.Minute)
-		instrumentedStatsRepo := newInstrumentedStatsRepository(instrumentedRepo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(instrumentedStatsRepo, cache)
 		queryService := NewService(nil, calculateStatsQuery)
 
@@ -183,8 +117,8 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 		}
 
 		// Repository should only be called once (first query)
-		if callCount != 1 {
-			t.Errorf("Expected repository to be called once, but was called %d times", callCount)
+		if *callCount != 1 {
+			t.Errorf("Expected repository to be called once, but was called %d times", *callCount)
 		}
 	})
 
@@ -206,13 +140,12 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 			2000,
 		)
 
-		mockRepo := &mockAPIRequestRepository{
-			requests: []entity.APIRequest{initialRequest},
-		}
+		mockRepo := testutil.NewMockAPIRequestRepository()
+		mockRepo.SetMockData([]entity.APIRequest{initialRequest})
 
 		// Use very short TTL for testing
 		cache := service.NewInMemoryStatsCache(50 * time.Millisecond)
-		mockStatsRepo := newMockStatsRepository(mockRepo)
+		mockStatsRepo := testutil.NewMockStatsRepository(mockRepo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, cache)
 		queryService := NewService(nil, calculateStatsQuery)
 
@@ -239,7 +172,7 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 		time.Sleep(60 * time.Millisecond)
 
 		// Update repository data
-		mockRepo.requests = []entity.APIRequest{initialRequest, updatedRequest}
+		mockRepo.SetMockData([]entity.APIRequest{initialRequest, updatedRequest})
 
 		// Query after expiration should return fresh data
 		resp2, err := queryService.GetStats(ctx, req)
@@ -260,28 +193,19 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 	})
 
 	t.Run("cache_can_be_disabled_via_configuration", func(t *testing.T) {
-		callCount := 0
-		mockRepo := &mockAPIRequestRepository{
-			requests: []entity.APIRequest{
-				mustCreateAPIRequest(
-					"nocache", baseTime,
-					"claude-3-haiku-20240307",
-					entity.NewToken(150, 75, 15, 8),
-					entity.NewCost(0.15),
-					900,
-				),
-			},
-		}
-
-		// Create instrumented repository wrapper
-		instrumentedRepo := &instrumentedRepository{
-			repo:      mockRepo,
-			callCount: &callCount,
-		}
+		mockRepo, instrumentedStatsRepo, callCount := testutil.NewInstrumentedRepositoryPair()
+		mockRepo.SetMockData([]entity.APIRequest{
+			mustCreateAPIRequest(
+				"nocache", baseTime,
+				"claude-3-haiku-20240307",
+				entity.NewToken(150, 75, 15, 8),
+				entity.NewCost(0.15),
+				900,
+			),
+		})
 
 		// Use NoOpStatsCache to simulate disabled cache
 		noOpCache := &service.NoOpStatsCache{}
-		instrumentedStatsRepo := newInstrumentedStatsRepository(instrumentedRepo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(instrumentedStatsRepo, noOpCache)
 		queryService := NewService(nil, calculateStatsQuery)
 
@@ -309,8 +233,8 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 		}
 
 		// Repository should be called for every query (no caching)
-		if callCount != 3 {
-			t.Errorf("Expected repository to be called 3 times, but was called %d times", callCount)
+		if *callCount != 3 {
+			t.Errorf("Expected repository to be called 3 times, but was called %d times", *callCount)
 		}
 	})
 
@@ -332,12 +256,11 @@ func TestQueryService_GetStats_CacheIntegration(t *testing.T) {
 			2000,
 		)
 
-		mockRepo := &mockAPIRequestRepository{
-			requests: []entity.APIRequest{period1Request, period2Request},
-		}
+		mockRepo := testutil.NewMockAPIRequestRepository()
+		mockRepo.SetMockData([]entity.APIRequest{period1Request, period2Request})
 
 		cache := service.NewInMemoryStatsCache(1 * time.Minute)
-		mockStatsRepo := newMockStatsRepository(mockRepo)
+		mockStatsRepo := testutil.NewMockStatsRepository(mockRepo)
 		calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, cache)
 		queryService := NewService(nil, calculateStatsQuery)
 

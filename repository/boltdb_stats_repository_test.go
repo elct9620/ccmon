@@ -6,53 +6,8 @@ import (
 	"time"
 
 	"github.com/elct9620/ccmon/entity"
+	"github.com/elct9620/ccmon/testutil"
 )
-
-// MockAPIRequestRepository for testing BoltDBStatsRepository
-type MockAPIRequestRepository struct {
-	requests []entity.APIRequest
-	err      error
-}
-
-func (m *MockAPIRequestRepository) Save(req entity.APIRequest) error {
-	m.requests = append(m.requests, req)
-	return m.err
-}
-
-func (m *MockAPIRequestRepository) FindByPeriodWithLimit(period entity.Period, limit int, offset int) ([]entity.APIRequest, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-
-	var filtered []entity.APIRequest
-	for _, req := range m.requests {
-		if !period.IsAllTime() {
-			if req.Timestamp().Before(period.StartAt()) || req.Timestamp().After(period.EndAt()) {
-				continue
-			}
-		}
-		filtered = append(filtered, req)
-	}
-
-	if offset > len(filtered) {
-		return []entity.APIRequest{}, nil
-	}
-	filtered = filtered[offset:]
-
-	if limit > 0 && limit < len(filtered) {
-		filtered = filtered[:limit]
-	}
-
-	return filtered, nil
-}
-
-func (m *MockAPIRequestRepository) FindAll() ([]entity.APIRequest, error) {
-	return m.requests, m.err
-}
-
-func (m *MockAPIRequestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
-	return 0, m.err
-}
 
 func TestBoltDBStatsRepository_GetStatsByPeriod(t *testing.T) {
 	t.Parallel()
@@ -143,10 +98,11 @@ func TestBoltDBStatsRepository_GetStatsByPeriod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Setup mock repository
-			mockRepo := &MockAPIRequestRepository{
-				requests: tt.requests,
-				err:      tt.repositoryErr,
+			// Setup mock repository using testutil factory
+			mockRepo := testutil.NewMockAPIRequestRepository()
+			mockRepo.SetMockData(tt.requests)
+			if tt.repositoryErr != nil {
+				mockRepo.SetError(tt.repositoryErr)
 			}
 
 			// Create BoltDBStatsRepository
