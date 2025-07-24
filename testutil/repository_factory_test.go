@@ -64,9 +64,15 @@ func TestMockAPIRequestRepository_FindByPeriodWithLimit(t *testing.T) {
 	req2 := CreateTestAPIRequest("session2", now.Add(-1*time.Hour), "claude-3-sonnet-20240229", 200, 100, 0.02)
 	req3 := CreateTestAPIRequest("session3", now.Add(-30*time.Minute), "claude-3-haiku-20240307", 150, 75, 0.015)
 
-	repo.Save(req1)
-	repo.Save(req2)
-	repo.Save(req3)
+	if err := repo.Save(req1); err != nil {
+		t.Fatalf("Failed to save req1: %v", err)
+	}
+	if err := repo.Save(req2); err != nil {
+		t.Fatalf("Failed to save req2: %v", err)
+	}
+	if err := repo.Save(req3); err != nil {
+		t.Fatalf("Failed to save req3: %v", err)
+	}
 
 	t.Run("all time period", func(t *testing.T) {
 		period := entity.NewAllTimePeriod(now)
@@ -130,8 +136,12 @@ func TestMockAPIRequestRepository_DeleteOlderThan(t *testing.T) {
 	oldReq := CreateTestAPIRequest("old", now.Add(-2*time.Hour), "claude-3-haiku-20240307", 100, 50, 0.01)
 	newReq := CreateTestAPIRequest("new", now.Add(-30*time.Minute), "claude-3-sonnet-20240229", 200, 100, 0.02)
 
-	repo.Save(oldReq)
-	repo.Save(newReq)
+	if err := repo.Save(oldReq); err != nil {
+		t.Fatalf("Failed to save oldReq: %v", err)
+	}
+	if err := repo.Save(newReq); err != nil {
+		t.Fatalf("Failed to save newReq: %v", err)
+	}
 
 	deletedCount, err := repo.DeleteOlderThan(cutoff)
 	if err != nil {
@@ -172,8 +182,12 @@ func TestMockStatsRepository_GetStatsByPeriod(t *testing.T) {
 	req1 := CreateTestAPIRequest("session1", now, "claude-3-haiku-20240307", 100, 50, 0.01)
 	req2 := CreateTestAPIRequest("session2", now, "claude-3-sonnet-20240229", 200, 100, 0.02)
 
-	apiRepo.Save(req1)
-	apiRepo.Save(req2)
+	if err := apiRepo.Save(req1); err != nil {
+		t.Fatalf("Failed to save req1: %v", err)
+	}
+	if err := apiRepo.Save(req2); err != nil {
+		t.Fatalf("Failed to save req2: %v", err)
+	}
 
 	period := entity.NewAllTimePeriod(now)
 	stats, err := statsRepo.GetStatsByPeriod(period)
@@ -233,7 +247,9 @@ func TestNewInstrumentedRepositoryPair(t *testing.T) {
 	// Test call counting
 	now := time.Now()
 	req := CreateTestAPIRequest("test", now, "claude-3-haiku-20240307", 100, 50, 0.01)
-	apiRepo.Save(req)
+	if err := apiRepo.Save(req); err != nil {
+		t.Fatalf("Failed to save req: %v", err)
+	}
 
 	period := entity.NewAllTimePeriod(now)
 	_, err := statsRepo.GetStatsByPeriod(period)

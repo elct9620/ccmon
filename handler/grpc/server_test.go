@@ -110,7 +110,9 @@ func TestGRPCServer_QueryService_GetStats(t *testing.T) {
 			entity.NewCost(0.15),
 			1000,
 		)
-		mockRepo.Save(req)
+		if err := mockRepo.Save(req); err != nil {
+			t.Fatalf("Failed to save base model request: %v", err)
+		}
 	}
 
 	// Add some premium model requests
@@ -122,7 +124,9 @@ func TestGRPCServer_QueryService_GetStats(t *testing.T) {
 			entity.NewCost(0.70),
 			1500,
 		)
-		mockRepo.Save(req)
+		if err := mockRepo.Save(req); err != nil {
+			t.Fatalf("Failed to save premium model request: %v", err)
+		}
 	}
 
 	// Make gRPC call

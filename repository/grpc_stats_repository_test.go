@@ -47,9 +47,7 @@ func setupMockGRPCServer(mockStats *pb.Stats, mockErr error) (*grpc.Server, *buf
 	pb.RegisterQueryServiceServer(server, mockService)
 
 	go func() {
-		if err := server.Serve(listener); err != nil {
-			// Server stopped
-		}
+		_ = server.Serve(listener) // Expected to fail when test completes
 	}()
 
 	return server, listener
@@ -208,7 +206,11 @@ func TestGRPCStatsRepository_GetStatsByPeriod(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to create GRPCStatsRepository: %v", err)
 			}
-			defer statsRepo.Close()
+			defer func() {
+				if err := statsRepo.Close(); err != nil {
+					t.Logf("Failed to close statsRepo: %v", err)
+				}
+			}()
 
 			// Execute
 			result, err := statsRepo.GetStatsByPeriod(tt.period)
