@@ -146,9 +146,13 @@ func setupAuthTestServer(t *testing.T, authToken string) (*grpc.Server, *bufconn
 	client := pb.NewQueryServiceClient(conn)
 
 	t.Cleanup(func() {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
 		grpcServer.Stop()
-		lis.Close()
+		if err := lis.Close(); err != nil {
+			t.Logf("Error closing listener: %v", err)
+		}
 	})
 
 	return grpcServer, lis, client, mockRepo
@@ -277,9 +281,17 @@ func TestAuth_InvalidAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create client connection: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer grpcServer.Stop()
-	defer lis.Close()
+	defer func() {
+		if err := lis.Close(); err != nil {
+			t.Logf("Error closing listener: %v", err)
+		}
+	}()
 
 	client := pb.NewQueryServiceClient(conn)
 
@@ -357,9 +369,17 @@ func TestAuth_MissingAuthenticationHeader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create client connection: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Logf("Error closing connection: %v", err)
+		}
+	}()
 	defer grpcServer.Stop()
-	defer lis.Close()
+	defer func() {
+		if err := lis.Close(); err != nil {
+			t.Logf("Error closing listener: %v", err)
+		}
+	}()
 
 	client := pb.NewQueryServiceClient(conn)
 
