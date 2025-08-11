@@ -31,6 +31,7 @@ type Server struct {
 	Address   string      `mapstructure:"address"`
 	Retention string      `mapstructure:"retention"`
 	Cache     ServerCache `mapstructure:"cache"`
+	Auth      Auth        `mapstructure:"auth"`
 }
 
 // ServerCache configuration
@@ -49,6 +50,12 @@ type Monitor struct {
 	Server          string `mapstructure:"server"`
 	Timezone        string `mapstructure:"timezone"`
 	RefreshInterval string `mapstructure:"refresh_interval"`
+	Auth            Auth   `mapstructure:"auth"`
+}
+
+// Auth configuration
+type Auth struct {
+	Token string `mapstructure:"token"` // Authorization header value (raw format)
 }
 
 // Claude configuration
@@ -261,6 +268,11 @@ func (s *Server) GetRetentionDuration() time.Duration {
 	}
 
 	return duration
+}
+
+// GetAuthToken returns the authentication token for the server
+func (s *Server) GetAuthToken() string {
+	return s.Auth.Token
 }
 
 // parseRetentionDuration parses duration strings with support for days (e.g., "7d", "30d")

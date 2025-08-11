@@ -169,10 +169,88 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 - **Entity-Based Architecture**: Handlers depend only on domain entities
 - **Domain-Driven Design**: Entities with private fields and encapsulated business logic
 
+## Authentication
+
+ccmon supports optional authentication using Authorization headers, ideal for securing servers behind Cloudflare Zero Trust or other proxy services.
+
+### Usage Scenarios
+
+1. **Local Development**: No authentication required (default)
+2. **Public Deployment**: Use Bearer tokens or service tokens for security 
+3. **Proxy Services**: Use service tokens or custom authentication formats
+4. **Custom Authentication**: Use any Authorization header format
+
+### Bearer Token Example
+
+For standard Bearer authentication:
+
+```toml
+[server.auth]
+token = "Bearer your-secret-api-key"
+
+[monitor.auth]
+token = "Bearer your-secret-api-key"
+```
+
+The token value is sent as-is in the `Authorization` header via gRPC metadata (equivalent to HTTP headers).
+
 ### Data Flow
 **Server Mode**: Claude Code → OTLP (port 4317) → gRPC receiver → usecase → repository → BoltDB
 
 **Monitor Mode**: TUI → gRPC queries → server → statistics display (refreshes every 5s)
+
+## Block Tracking Feature
+
+ccmon supports Claude's 5-hour token limit blocks for monitoring API usage against subscription plan limits.
+
+### Usage
+```bash
+./ccmon -b 5am      # Track from 5am blocks (5am-10am, 10am-3pm, etc.)
+./ccmon --block 11pm # Track from 11pm blocks (11pm-4am, 4am-9am, etc.)
+```
+
+### Features
+- **Visual Progress Bar**: Color-coded bars (green → orange → red) showing usage percentage
+- **Token Counting**: Only premium tokens (Sonnet/Opus) count toward limits; Haiku tokens are free
+- **Time Remaining**: Shows countdown until next 5-hour block starts
+- **Automatic Block Advancement**: Blocks automatically advance every 5 hours without requiring restart
+- **Plan Integration**: Auto-detects limits based on `claude.plan` config (pro=7K, max=35K, max20=140K)
+- **Custom Limits**: Override with `claude.max_tokens` config for custom token limits
+- **Timezone Support**: Uses `monitor.timezone` config for accurate block calculations
+- **Keyboard Filter**: Press 'b' key to filter requests by current block timeframe
+- **Always Valid Blocks**: Shows current or upcoming block - no "too early" errors
+
+### Display Format
+```
+Block Progress (5am - 10am):
+[████████░░] 80% (5,600/7,000 tokens)
+Time remaining: 2h 15m
+```
+
+## Model Identification Logic
+
+- Base models (not counted against limits): Identified by checking if model name contains "haiku" (case-insensitive)
+- Premium models (counted against limits): All other models (Sonnet, Opus, etc.)
+
+## Important Implementation Details
+
+- All numeric values from Claude Code telemetry are sent as strings and must be parsed using `fmt.Sscanf()`
+- Monitor mode refreshes via gRPC queries every 5 seconds
+- Statistics are tracked separately for base/premium tiers and combined totals
+- The gRPC server runs on port 4317 (standard OTLP port) providing both OTLP and Query services
+- Table height and column widths are dynamically adjusted based on terminal size in monitor mode
+- TUI supports tab navigation with Tab key to switch between "Current" and "Daily Usage" views
+- TUI supports sortable request list with 'o' key to toggle between latest-first and oldest-first
+- Daily usage tab shows last 30 days with detailed premium token breakdown (Input/Output/Cache)
+- Block tracking mode shows progress bars for 5-hour token limit periods with 'b' key filtering and automatic advancement
+- Multiple monitors can connect to the same server via gRPC (no database conflicts)
+- Database limits stored requests to last 10,000 entries with efficient limiting support
+- Monitor and server can run on different machines by configuring monitor.server address
+- Network traffic optimized: TUI requests only 100 records for display, separate unlimited query for statistics
+
+## Development Conventions
+
+- Always write devlog in `docs/devlog/` use Markdown format, group by day. e.g. 20250628.md
 
 ## Entity Design Patterns
 

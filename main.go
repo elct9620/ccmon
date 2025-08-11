@@ -112,14 +112,14 @@ func main() {
 		periodFactory := service.NewTimePeriodFactory(time.UTC)
 		_ = usecase.NewGetUsageQuery(repo, periodFactory) // Avoid unused variable
 
-		// Run server with usecases
-		if err := grpcserver.RunServer(config.Server.Address, appendCommand, getFilteredQuery, calculateStatsQuery, cleanupCommand, &config.Server); err != nil {
+		// Run server with usecases, cleanup command, and auth config
+		if err := grpcserver.RunServer(config.Server.Address, appendCommand, getFilteredQuery, calculateStatsQuery, cleanupCommand, &config.Server, &config.Server); err != nil {
 			fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 			os.Exit(1)
 		}
 	} else {
-		// Monitor mode: Use gRPC repository
-		repo, err := repository.NewGRPCAPIRequestRepository(config.Monitor.Server)
+		// Monitor mode: Use gRPC repository with auth token
+		repo, err := repository.NewGRPCAPIRequestRepository(config.Monitor.Server, config.Monitor.Auth.Token)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to initialize gRPC repository: %v\n", err)
 			os.Exit(1)
@@ -134,7 +134,7 @@ func main() {
 		statsCache := createStatsCache(config.Server.Cache.Stats)
 
 		// Create gRPC stats repository for TUI mode
-		tuiStatsRepo, err := repository.NewGRPCStatsRepository(config.Monitor.Server)
+		tuiStatsRepo, err := repository.NewGRPCStatsRepository(config.Monitor.Server, config.Monitor.Auth.Token)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to initialize gRPC stats repository: %v\n", err)
 			os.Exit(1)
@@ -167,7 +167,7 @@ func main() {
 			}
 
 			// Create gRPC stats repository for efficient stats retrieval
-			statsRepo, err := repository.NewGRPCStatsRepository(config.Monitor.Server)
+			statsRepo, err := repository.NewGRPCStatsRepository(config.Monitor.Server, config.Monitor.Auth.Token)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to initialize stats repository: %v\n", err)
 				os.Exit(1)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/elct9620/ccmon/auth"
 	"github.com/elct9620/ccmon/entity"
 	pb "github.com/elct9620/ccmon/proto"
 	"google.golang.org/grpc"
@@ -20,11 +21,19 @@ type GRPCAPIRequestRepository struct {
 }
 
 // NewGRPCAPIRequestRepository creates a new gRPC repository instance
-func NewGRPCAPIRequestRepository(serverAddress string) (*GRPCAPIRequestRepository, error) {
-	// Create connection with timeout
-	conn, err := grpc.NewClient(serverAddress,
+func NewGRPCAPIRequestRepository(serverAddress, authToken string) (*GRPCAPIRequestRepository, error) {
+	// Configure gRPC client options
+	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	}
+
+	// Add auth interceptor if token is provided
+	if authToken != "" {
+		opts = append(opts, grpc.WithUnaryInterceptor(auth.ClientInterceptor(authToken)))
+	}
+
+	// Create connection with timeout
+	conn, err := grpc.NewClient(serverAddress, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to gRPC server at %s: %w", serverAddress, err)
 	}

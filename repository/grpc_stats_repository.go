@@ -20,11 +20,19 @@ type GRPCStatsRepository struct {
 }
 
 // NewGRPCStatsRepository creates a new gRPC stats repository instance
-func NewGRPCStatsRepository(serverAddress string) (*GRPCStatsRepository, error) {
-	// Create connection
-	conn, err := grpc.NewClient(serverAddress,
+func NewGRPCStatsRepository(serverAddress, authToken string) (*GRPCStatsRepository, error) {
+	// Configure gRPC client options
+	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	}
+
+	// Add auth interceptor if token is provided (will need to import auth package)
+	// if authToken != "" {
+	// 	opts = append(opts, grpc.WithUnaryInterceptor(auth.ClientInterceptor(authToken)))
+	// }
+
+	// Create connection
+	conn, err := grpc.NewClient(serverAddress, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to gRPC server at %s: %w", serverAddress, err)
 	}

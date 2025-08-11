@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/elct9620/ccmon/auth"
 	"github.com/elct9620/ccmon/handler/grpc/query"
 	"github.com/elct9620/ccmon/handler/grpc/receiver"
 	pb "github.com/elct9620/ccmon/proto"
@@ -26,8 +27,13 @@ type ServerConfig interface {
 	GetRetentionDuration() time.Duration
 }
 
+// AuthConfig interface for accessing authentication config
+type AuthConfig interface {
+	GetAuthToken() string
+}
+
 // RunServer runs the headless OTLP server mode
-func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, cleanupCommand *usecase.CleanupOldRecordsCommand, serverConfig ServerConfig) error {
+func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, getFilteredQuery *usecase.GetFilteredApiRequestsQuery, calculateStatsQuery *usecase.CalculateStatsQuery, cleanupCommand *usecase.CleanupOldRecordsCommand, serverConfig ServerConfig, authConfig AuthConfig) error {
 	log.Println("Starting ccmon in server mode...")
 
 	// Create the OTLP receiver
@@ -42,7 +48,18 @@ func RunServer(address string, appendCommand *usecase.AppendApiRequestCommand, g
 		return fmt.Errorf("failed to listen: %w", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	// Configure gRPC server with auth interceptors
+	opts := []grpc.ServerOption{}
+	authToken := authConfig.GetAuthToken()
+	if authToken != "" {
+		log.Printf("Authentication enabled for gRPC server")
+		opts = append(opts,
+			grpc.UnaryInterceptor(auth.UnaryServerInterceptor(authToken)),
+			grpc.StreamInterceptor(auth.StreamServerInterceptor(authToken)),
+		)
+	}
+
+	grpcServer := grpc.NewServer(opts...)
 
 	// Register the OTLP services
 	tracesv1.RegisterTraceServiceServer(grpcServer, otlpReceiver.GetTraceServiceServer())
