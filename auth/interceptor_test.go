@@ -41,6 +41,49 @@ func (m *mockAuthTestRepository) FindAll() ([]entity.APIRequest, error) {
 	return m.requests, nil
 }
 
+func (m *mockAuthTestRepository) DeleteOlderThan(cutoffTime time.Time) (int, error) {
+	return 0, nil
+}
+
+// Mock stats repository for testing
+type mockAuthStatsRepository struct {
+	repo *mockAuthTestRepository
+}
+
+func (m *mockAuthStatsRepository) GetStatsByPeriod(period entity.Period) (entity.Stats, error) {
+	// Calculate stats from the requests in the repository
+	requests := m.repo.requests
+	baseTokens := entity.NewToken(0, 0, 0, 0)
+	premiumTokens := entity.NewToken(0, 0, 0, 0)
+	baseCost := entity.NewCost(0)
+	premiumCost := entity.NewCost(0)
+	baseRequests := 0
+	premiumRequests := 0
+
+	for _, req := range requests {
+		if req.Model().IsBase() {
+			baseRequests++
+			baseTokens = baseTokens.Add(req.Tokens())
+			baseCost = baseCost.Add(req.Cost())
+		} else {
+			premiumRequests++
+			premiumTokens = premiumTokens.Add(req.Tokens())
+			premiumCost = premiumCost.Add(req.Cost())
+		}
+	}
+
+	return entity.NewStats(baseRequests, premiumRequests, baseTokens, premiumTokens, baseCost, premiumCost, period), nil
+}
+
+// Mock stats cache for testing
+type mockStatsCache struct{}
+
+func (m *mockStatsCache) Get(period entity.Period) *entity.Stats {
+	return nil
+}
+
+func (m *mockStatsCache) Set(period entity.Period, stats *entity.Stats) {}
+
 // Test helper to create gRPC server with auth
 func setupAuthTestServer(t *testing.T, authToken string) (*grpc.Server, *bufconn.Listener, pb.QueryServiceClient, *mockAuthTestRepository) {
 	lis := bufconn.Listen(1024 * 1024)
@@ -49,7 +92,9 @@ func setupAuthTestServer(t *testing.T, authToken string) (*grpc.Server, *bufconn
 	// Create usecases
 	appendCommand := usecase.NewAppendApiRequestCommand(mockRepo)
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	mockStatsRepo := &mockAuthStatsRepository{repo: mockRepo}
+	mockCache := &mockStatsCache{}
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, mockCache)
 
 	// Configure server with auth interceptors
 	opts := []grpc.ServerOption{}
@@ -191,7 +236,9 @@ func TestAuth_InvalidAuthentication(t *testing.T) {
 
 	appendCommand := usecase.NewAppendApiRequestCommand(mockRepo)
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	mockStatsRepo := &mockAuthStatsRepository{repo: mockRepo}
+	mockCache := &mockStatsCache{}
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, mockCache)
 
 	opts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(UnaryServerInterceptor(serverToken)),
@@ -268,7 +315,9 @@ func TestAuth_MissingAuthenticationHeader(t *testing.T) {
 
 	appendCommand := usecase.NewAppendApiRequestCommand(mockRepo)
 	getFilteredQuery := usecase.NewGetFilteredApiRequestsQuery(mockRepo)
-	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockRepo)
+	mockStatsRepo := &mockAuthStatsRepository{repo: mockRepo}
+	mockCache := &mockStatsCache{}
+	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, mockCache)
 
 	opts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(UnaryServerInterceptor(authToken)),

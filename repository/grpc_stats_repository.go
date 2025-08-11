@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/elct9620/ccmon/auth"
 	"github.com/elct9620/ccmon/entity"
 	pb "github.com/elct9620/ccmon/proto"
 	"google.golang.org/grpc"
@@ -26,10 +27,10 @@ func NewGRPCStatsRepository(serverAddress, authToken string) (*GRPCStatsReposito
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 
-	// Add auth interceptor if token is provided (will need to import auth package)
-	// if authToken != "" {
-	// 	opts = append(opts, grpc.WithUnaryInterceptor(auth.ClientInterceptor(authToken)))
-	// }
+	// Add auth interceptor if token is provided
+	if authToken != "" {
+		opts = append(opts, grpc.WithUnaryInterceptor(auth.ClientInterceptor(authToken)))
+	}
 
 	// Create connection
 	conn, err := grpc.NewClient(serverAddress, opts...)
