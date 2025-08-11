@@ -256,7 +256,9 @@ func TestAuth_InvalidAuthentication(t *testing.T) {
 	pb.RegisterQueryServiceServer(grpcServer, queryService)
 
 	go func() {
-		grpcServer.Serve(lis)
+		if err := grpcServer.Serve(lis); err != nil {
+			t.Logf("Server stopped: %v", err)
+		}
 	}()
 
 	// Set resolver to passthrough for bufconn
@@ -335,7 +337,9 @@ func TestAuth_MissingAuthenticationHeader(t *testing.T) {
 	pb.RegisterQueryServiceServer(grpcServer, queryService)
 
 	go func() {
-		grpcServer.Serve(lis)
+		if err := grpcServer.Serve(lis); err != nil {
+			t.Logf("Server stopped: %v", err)
+		}
 	}()
 
 	// Set resolver to passthrough for bufconn
