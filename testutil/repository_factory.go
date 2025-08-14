@@ -451,11 +451,21 @@ func (m *MockPeriodBasedRepository) GetStatsByPeriod(period entity.Period) (enti
 // Helper function to create API requests for testing - matches the pattern from CLI tests
 func CreateTestAPIRequestsSet(dailyBaseRequests, dailyPremiumRequests, monthlyBaseRequests, monthlyPremiumRequests int,
 	dailyBaseCost, dailyPremiumCost, monthlyBaseCost, monthlyPremiumCost float64) []entity.APIRequest {
+	// Use UTC timezone for backward compatibility - tests should specify timezone if needed
+	return CreateTestAPIRequestsSetInTimezone(dailyBaseRequests, dailyPremiumRequests, monthlyBaseRequests, monthlyPremiumRequests,
+		dailyBaseCost, dailyPremiumCost, monthlyBaseCost, monthlyPremiumCost, time.UTC)
+}
+
+// CreateTestAPIRequestsSetInTimezone creates test API requests in a specific timezone with fixed dates
+func CreateTestAPIRequestsSetInTimezone(dailyBaseRequests, dailyPremiumRequests, monthlyBaseRequests, monthlyPremiumRequests int,
+	dailyBaseCost, dailyPremiumCost, monthlyBaseCost, monthlyPremiumCost float64, timezone *time.Location) []entity.APIRequest {
 	var requests []entity.APIRequest
 
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.UTC)
-	monthStart := time.Date(now.Year(), now.Month(), 1, 12, 0, 0, 0, time.UTC)
+	// Use fixed dates for consistent test results across environments and time
+	// August 15, 2024 is a good test date that avoids edge cases
+	// August has 31 days, which is useful for percentage calculations
+	today := time.Date(2024, 8, 15, 12, 0, 0, 0, timezone)
+	monthStart := time.Date(2024, 8, 1, 12, 0, 0, 0, timezone)
 
 	// Create daily base requests
 	for i := 0; i < dailyBaseRequests; i++ {

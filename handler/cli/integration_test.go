@@ -15,18 +15,90 @@ import (
 
 // Helper function to calculate expected daily usage percentage based on current month
 func calculateExpectedDailyUsage(dailyCost, planPrice float64) string {
+	// Use current month days to match TimePeriodFactory behavior
 	now := time.Now()
-	daysInMonth := now.AddDate(0, 1, -now.Day()).Day()
+	// Get the number of days in the current month
+	nextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+	thisMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	daysInMonth := int(nextMonth.Sub(thisMonth).Hours() / 24)
+
 	dailyBudget := planPrice / float64(daysInMonth)
 	percentage := int((dailyCost / dailyBudget) * 100)
 	return fmt.Sprintf("%d%%", percentage)
 }
 
-// Helper function for creating API requests - now uses factory
+// Helper function for creating API requests - uses current date to match period factory
 func createTestAPIRequests(dailyBaseRequests, dailyPremiumRequests, monthlyBaseRequests, monthlyPremiumRequests int,
 	dailyBaseCost, dailyPremiumCost, monthlyBaseCost, monthlyPremiumCost float64) []entity.APIRequest {
-	return testutil.CreateTestAPIRequestsSet(dailyBaseRequests, dailyPremiumRequests, monthlyBaseRequests, monthlyPremiumRequests,
-		dailyBaseCost, dailyPremiumCost, monthlyBaseCost, monthlyPremiumCost)
+	// Use America/New_York timezone to match the test's period factory
+	timezone, _ := time.LoadLocation("America/New_York")
+	return createTestAPIRequestsForCurrentDate(dailyBaseRequests, dailyPremiumRequests, monthlyBaseRequests, monthlyPremiumRequests,
+		dailyBaseCost, dailyPremiumCost, monthlyBaseCost, monthlyPremiumCost, timezone)
+}
+
+// Helper function to create API requests for current date (matches TimePeriodFactory behavior)
+func createTestAPIRequestsForCurrentDate(dailyBaseRequests, dailyPremiumRequests, monthlyBaseRequests, monthlyPremiumRequests int,
+	dailyBaseCost, dailyPremiumCost, monthlyBaseCost, monthlyPremiumCost float64, timezone *time.Location) []entity.APIRequest {
+	var requests []entity.APIRequest
+
+	// Use current date to match TimePeriodFactory's time.Now() calls
+	now := time.Now().In(timezone)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, timezone)
+	monthStart := time.Date(now.Year(), now.Month(), 1, 12, 0, 0, 0, timezone)
+
+	// Create daily base requests
+	for i := 0; i < dailyBaseRequests; i++ {
+		req := entity.NewAPIRequest(
+			fmt.Sprintf("daily-base-%d", i),
+			today,
+			"claude-3-haiku-20240307",
+			entity.NewToken(200, 160, 0, 0),
+			entity.NewCost(dailyBaseCost/float64(dailyBaseRequests)),
+			1000,
+		)
+		requests = append(requests, req)
+	}
+
+	// Create daily premium requests
+	for i := 0; i < dailyPremiumRequests; i++ {
+		req := entity.NewAPIRequest(
+			fmt.Sprintf("daily-premium-%d", i),
+			today,
+			"claude-3-5-sonnet-20241022",
+			entity.NewToken(666, 500, 0, 0),
+			entity.NewCost(dailyPremiumCost/float64(dailyPremiumRequests)),
+			1000,
+		)
+		requests = append(requests, req)
+	}
+
+	// Create monthly base requests (excluding daily ones)
+	for i := 0; i < monthlyBaseRequests; i++ {
+		req := entity.NewAPIRequest(
+			fmt.Sprintf("monthly-base-%d", i),
+			monthStart.Add(time.Duration(i)*time.Hour),
+			"claude-3-haiku-20240307",
+			entity.NewToken(200, 160, 0, 0),
+			entity.NewCost(monthlyBaseCost/float64(monthlyBaseRequests)),
+			1000,
+		)
+		requests = append(requests, req)
+	}
+
+	// Create monthly premium requests (excluding daily ones)
+	for i := 0; i < monthlyPremiumRequests; i++ {
+		req := entity.NewAPIRequest(
+			fmt.Sprintf("monthly-premium-%d", i),
+			monthStart.Add(time.Duration(i)*time.Hour),
+			"claude-3-5-sonnet-20241022",
+			entity.NewToken(666, 500, 0, 0),
+			entity.NewCost(monthlyPremiumCost/float64(monthlyPremiumRequests)),
+			1000,
+		)
+		requests = append(requests, req)
+	}
+
+	return requests
 }
 
 func TestFormatQueryEndToEnd(t *testing.T) {
@@ -295,10 +367,11 @@ func TestTimeZoneConsistency(t *testing.T) {
 
 func TestVariableSubstitutionEdgeCases(t *testing.T) {
 	// Setup basic test environment using factory
+	timezone, _ := time.LoadLocation("America/New_York")
 	_, mockStatsRepo := testutil.NewMockRepositoryWithData(createTestAPIRequests(1, 1, 5, 5, 10.0, 20.0, 50.0, 100.0))
 	mockPlanRepo := testutil.NewMockPlanRepository(entity.NewPlan("pro", entity.NewCost(20.0)))
 
-	periodFactory := service.NewTimePeriodFactory(time.UTC)
+	periodFactory := service.NewTimePeriodFactory(timezone)
 	calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 	usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 		calculateStatsQuery,
@@ -455,7 +528,8 @@ func TestOutputFormatSpecificationCompliance(t *testing.T) {
 			_, mockStatsRepo := testutil.NewMockRepositoryWithData(tt.requests)
 			mockPlanRepo := testutil.NewMockPlanRepository(tt.plan)
 
-			periodFactory := service.NewTimePeriodFactory(time.UTC)
+			timezone, _ := time.LoadLocation("America/New_York")
+			periodFactory := service.NewTimePeriodFactory(timezone)
 			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
@@ -523,7 +597,8 @@ func TestErrorHandlingAndTimeout(t *testing.T) {
 				mockPlanRepo.SetError(tt.planErr)
 			}
 
-			periodFactory := service.NewTimePeriodFactory(time.UTC)
+			timezone, _ := time.LoadLocation("America/New_York")
+			periodFactory := service.NewTimePeriodFactory(timezone)
 			calculateStatsQuery := usecase.NewCalculateStatsQuery(mockStatsRepo, &service.NoOpStatsCache{})
 			usageVariablesQuery := usecase.NewGetUsageVariablesQuery(
 				calculateStatsQuery,
