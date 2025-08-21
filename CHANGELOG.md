@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.3](https://github.com/elct9620/ccmon/compare/v0.9.2...v0.9.3) (2025-08-21)
+
+
+### Bug Fixes
+
+* resolve CLI test timezone dependencies for environment consistency ([#35](https://github.com/elct9620/ccmon/issues/35)) ([4cfe2a5](https://github.com/elct9620/ccmon/commit/4cfe2a5e50049c2266e3ee6adf3da04baf5c8f72))
+
 ## [0.9.2](https://github.com/elct9620/ccmon/compare/v0.9.1...v0.9.2) (2025-07-24)
 
 
