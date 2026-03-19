@@ -189,26 +189,26 @@ func (m *StatsModel) renderCompact() string {
 
 	// Compact format for narrow terminals
 	b.WriteString(StatStyle.Render("Total Requests: "))
-	b.WriteString(fmt.Sprintf("%d\n", m.stats.TotalRequests()))
+	fmt.Fprintf(&b, "%d\n", m.stats.TotalRequests())
 
 	b.WriteString(StatStyle.Render("Total Tokens: "))
-	b.WriteString(fmt.Sprintf("%s\n", FormatTokenCount(m.stats.TotalTokens().Total())))
+	fmt.Fprintf(&b, "%s\n", FormatTokenCount(m.stats.TotalTokens().Total()))
 
 	b.WriteString(StatStyle.Render("Total Cost: "))
-	b.WriteString(fmt.Sprintf("$%.6f\n", m.stats.TotalCost().Amount()))
+	fmt.Fprintf(&b, "$%.6f\n", m.stats.TotalCost().Amount())
 
 	b.WriteString("\n")
 	b.WriteString(BaseStyle.Render("Base: "))
-	b.WriteString(fmt.Sprintf("%d reqs, %s tokens, $%.6f\n",
+	fmt.Fprintf(&b, "%d reqs, %s tokens, $%.6f\n",
 		m.stats.BaseRequests(),
 		FormatTokenCount(m.stats.BaseTokens().Total()),
-		m.stats.BaseCost().Amount()))
+		m.stats.BaseCost().Amount())
 
 	b.WriteString(PremiumStyle.Render("Premium: "))
-	b.WriteString(fmt.Sprintf("%d reqs, %s tokens, $%.6f",
+	fmt.Fprintf(&b, "%d reqs, %s tokens, $%.6f",
 		m.stats.PremiumRequests(),
 		FormatTokenCount(m.stats.PremiumTokens().Total()),
-		m.stats.PremiumCost().Amount()))
+		m.stats.PremiumCost().Amount())
 
 	// Add burn rate for compact view if not all-time period
 	burnRate := m.stats.PremiumTokenBurnRate()
