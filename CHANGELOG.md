@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.4](https://github.com/elct9620/ccmon/compare/v0.9.3...v0.9.4) (2026-03-19)
+
+
+### Bug Fixes
+
+* **tui:** use fmt.Fprintf instead of WriteString+Sprintf to satisfy staticcheck QF1012 ([622865b](https://github.com/elct9620/ccmon/commit/622865b62faac8a36fa91eb2e033cacd98399802))
+
 ## [0.9.3](https://github.com/elct9620/ccmon/compare/v0.9.2...v0.9.3) (2025-08-21)
 
 
